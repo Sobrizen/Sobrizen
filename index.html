@@ -151,7 +151,7 @@ $('#authBtn').onclick=async()=>{
   if(!email||password.length<8)return toast('Email valide et mot de passe de 8 caractères minimum.');
   try{
     if(st.mode==='signup'){
-      const {data,error}=await supabase.auth.signUp({email,password,options:{data:{display_name:$('#displayName').value.trim()||'Nouveau membre'}}});
+      const {data,error}=await supabase.auth.signUp({email,password,options:{data:{display_name:$('#displayName').value.trim()||'Nouveau membre'},emailRedirectTo:window.location.origin}});
       if(error)throw error;
       if(data.session)await enter(data.user);else toast('Compte créé. Confirme ton email puis reviens te connecter.');
     }else{
