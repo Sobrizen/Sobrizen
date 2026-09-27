@@ -15,3 +15,7 @@
 
 /* A visible, editable date without changing recorded progress. */
 .journey-date{margin-top:16px;padding-top:14px;border-top:1px solid var(--line);gap:12px}.journey-date>div{min-width:0}.journey-date .small{font-size:14px}.journey-date p{margin:4px 0 0;font-size:16px;overflow-wrap:anywhere}.journey-date button{min-height:44px;flex-shrink:0}.pg-cap>div:first-child{flex:1;min-width:0}#journeyDateForm input{min-height:48px}#journeyDateForm .row{justify-content:flex-end;gap:10px}#journeyDateForm .row button{min-height:44px}#journeyDateError{color:var(--warn);font-size:14px;line-height:1.5}
+
+.tr-reference-savings{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;align-items:baseline;padding:10px 0;border-top:1px solid var(--line)}.tr-reference-savings>b{font-size:24px;color:var(--green);font-variant-numeric:tabular-nums}.tr-reference-savings>span{font-size:14px}.tr-reference-savings>small{grid-column:1/-1;font-size:13px;color:var(--muted)}.tr-reference-before{margin:8px 0 12px}.tr-reference-change{color:var(--green);font-weight:650}.tr-reference-overview>.small{margin-top:4px}#journeyDateForm h3{margin-top:20px;margin-bottom:4px}#journeyDateForm h3+.small{margin-top:0}#journeyDateForm .two-fields label{font-size:14px}@media(max-width:500px){#journeyDateForm .two-fields{grid-template-columns:1fr;gap:0}.tr-reference-savings{grid-template-columns:1fr}.tr-reference-savings>small{grid-column:1}}
+
+.tr-reference-savings.is-warning>b,.tr-reference-change.is-warning{color:var(--warn)}

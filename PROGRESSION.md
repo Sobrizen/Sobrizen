@@ -49,10 +49,14 @@ Vérifications séparées réalisées lors de la mise en œuvre : isolation en b
 
 Validation : `node --test tests/*.test.mjs` (26 cas). Une simulation DOM avec les vrais modules vérifie navigation, saisie, modification, préservation des notes et confirmation du changement de cap d’arrêt. Elle ne remplace pas le test de connexion et sauvegarde avec un compte réel.
 
-## Date personnelle de début
+## Date personnelle et habitudes de départ
 
 - La date est visible et modifiable depuis le cap de l’accueil, le cap des Progrès et la rubrique Moi. Libellé « Date de début d’arrêt » en cap d’arrêt, « Date de début de parcours » en réduction ou observation.
-- Un formulaire dédié accepte aujourd’hui ou une date passée, y compris avant la création du compte. Les dates invalides ou futures sont refusées.
-- Seul `sobriety_journeys.started_at` est mis à jour, avec filtre propriétaire, relecture obligatoire et vérification de session avant d’appliquer le résultat. Les raisons sont enregistrées séparément. Un échec conserve la date précédente.
-- Aucun bilan, chapitre, cap, budget ou repère d’abonnement n’est modifié. Les cumuls et séries restent calculés à partir des journées renseignées ; la date déclarée ne crée aucun jour supposé sans alcool.
-- Le format historique (timestamp à midi local) est conservé, sans migration de données.
+- Le même formulaire redemande la consommation en verres standard et les dépenses en euros, estimées par semaine avant le début déclaré. Les champs sont préremplis et obligatoires ; zéro est accepté, une case vide ne vaut pas zéro. Le bouton « Enregistrer et recalculer » confirme les trois repères ensemble.
+- La date peut être aujourd’hui ou une date passée depuis 1900, y compris avant la création du compte. Les dates invalides ou futures, les montants négatifs ou non finis sont refusés.
+- La migration `20260927235056_save_journey_reference_atomically.sql` ajoute le RPC `save_journey_reference`, exécuté avec les droits du compte connecté et les règles RLS existantes. Il met à jour ensemble `sobriety_journeys.started_at`, l’ancienne estimation de budget et les deux références de `progress_settings`. Les versions des deux lignes sont vérifiées ; un échec annule l’ensemble. Le client applique les deux lignes retournées ensemble, après vérification de session.
+- Le bilan d’accueil couvre la date choisie jusqu’à aujourd’hui : consommation notée, dépenses connues, couverture et économies estimées. Une nouvelle estimation recalcule les économies et les références des vues semaine, mois et année. Les économies portent uniquement sur les jours de dépenses renseignés. La comparaison de consommation avec les anciennes habitudes exige une couverture complète des jours écoulés, hors aujourd’hui, et une référence positive.
+- La date et sa durée civile sont actualisées dans le cap. Les journées, chapitres, objectifs, raisons, réussites et repères d’abonnement restent conservés. Les cumuls de jours sans alcool décrivent toujours les journées renseignées ; la date déclarée ne crée aucun jour supposé sans alcool. Les périodes du suivi restent ancrées sur l’abonnement ou le compte.
+- Le format historique (timestamp à midi local) est conservé. Le serveur valide le fuseau et la date civile ; aucune donnée historique n’est réécrite par la migration.
+
+Validation : les 34 tests de calcul passent, dont 8 consacrés aux nouveaux repères (recalcul, valeurs inconnues, vrais zéros, limites et changements d’heure). Les scénarios DOM vérifient le formulaire et les montants après modification. Des fixtures distantes jetables, intégralement annulées par `ROLLBACK`, ont validé la transaction, les conflits, les droits du propriétaire, l’insertion de repères absents et 17 entrées invalides. Aucun compte existant n’a été utilisé pour ces tests.
