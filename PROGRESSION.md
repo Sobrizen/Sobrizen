@@ -48,3 +48,11 @@ Vérifications séparées réalisées lors de la mise en œuvre : isolation en b
 - Aucun changement de schéma, de connexion ou de stockage personnel. Aucun nouveau service ni dépendance applicative.
 
 Validation : `node --test tests/*.test.mjs` (26 cas). Une simulation DOM avec les vrais modules vérifie navigation, saisie, modification, préservation des notes et confirmation du changement de cap d’arrêt. Elle ne remplace pas le test de connexion et sauvegarde avec un compte réel.
+
+## Date personnelle de début
+
+- La date est visible et modifiable depuis le cap de l’accueil, le cap des Progrès et la rubrique Moi. Libellé « Date de début d’arrêt » en cap d’arrêt, « Date de début de parcours » en réduction ou observation.
+- Un formulaire dédié accepte aujourd’hui ou une date passée, y compris avant la création du compte. Les dates invalides ou futures sont refusées.
+- Seul `sobriety_journeys.started_at` est mis à jour, avec filtre propriétaire, relecture obligatoire et vérification de session avant d’appliquer le résultat. Les raisons sont enregistrées séparément. Un échec conserve la date précédente.
+- Aucun bilan, chapitre, cap, budget ou repère d’abonnement n’est modifié. Les cumuls et séries restent calculés à partir des journées renseignées ; la date déclarée ne crée aucun jour supposé sans alcool.
+- Le format historique (timestamp à midi local) est conservé, sans migration de données.
