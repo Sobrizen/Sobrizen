@@ -1,6 +1,6 @@
 /* Cache only public, same-origin application assets. Never cache API/auth/user responses. */
-const CACHE='sobrizen-v2-20260927-movement1';
-const ASSETS=['/','/index.html','/app.mjs','/games.mjs','/movement.mjs','/movement.css','/core.mjs','/program.mjs','/v2.css','/manifest.webmanifest','/icon.svg','/icon-192.png','/icon-512.png'];
+const CACHE='sobrizen-v3-20260927-progress1';
+const ASSETS=['/','/index.html','/app.mjs','/progress.mjs','/progress-core.mjs','/progress.css','/games.mjs','/movement.mjs','/movement.css','/core.mjs','/program.mjs','/v2.css','/manifest.webmanifest','/icon.svg','/icon-192.png','/icon-512.png'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key.startsWith('sobrizen-')&&key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim())));
 self.addEventListener('fetch',event=>{
