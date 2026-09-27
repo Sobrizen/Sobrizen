@@ -1,6 +1,6 @@
 /* Cache only public, same-origin application assets. Never cache API/auth/user responses. */
-const CACHE='sobrizen-v3-20260928-start-date';
-const ASSETS=['/','/index.html','/app.mjs','/progress.mjs','/progress-core.mjs','/tracking-core.mjs','/tracking-ui.mjs','/progress.css','/games.mjs','/movement.mjs','/movement.css','/core.mjs','/program.mjs','/v2.css','/manifest.webmanifest','/icon.svg','/icon-192.png','/icon-512.png'];
+const CACHE='sobrizen-v3-20260928-start-date-souffle1';
+const ASSETS=['/','/index.html','/app.mjs','/progress.mjs','/progress-core.mjs','/tracking-core.mjs','/tracking-ui.mjs','/progress.css','/games.mjs','/movement.mjs','/movement.css','/core.mjs','/program.mjs','/v2.css','/manifest.webmanifest','/icon.svg','/icon-192.png','/icon-512.png','/brand.css','/brand/symbol.png','/brand/wordmark.png','/apple-touch-icon.png','/icon-maskable-512.png','/favicon-32.png','/icon.svg?v=souffle1','/icon-192.png?v=souffle1','/icon-512.png?v=souffle1'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key.startsWith('sobrizen-')&&key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim())));
 self.addEventListener('fetch',event=>{
@@ -10,6 +10,6 @@ self.addEventListener('fetch',event=>{
   event.respondWith(fetch(req).catch(async()=>await caches.match('/')||new Response('Hors connexion. Recharge Sobrizen avec Internet.',{status:503,headers:{'Content-Type':'text/plain; charset=utf-8'}})));
   return;
  }
- if(url.search||!ASSETS.includes(url.pathname))return;
+ if(!ASSETS.includes(url.pathname+url.search))return;
  event.respondWith(fetch(req).then(response=>{if(response.ok){const copy=response.clone();event.waitUntil(caches.open(CACHE).then(cache=>cache.put(req,copy)))}return response}).catch(async()=>await caches.match(req)||new Response('',{status:503})));
 });

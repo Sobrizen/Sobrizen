@@ -1,0 +1,27 @@
+/* Approved Sobrizen artwork: the same symbol and wordmark at every size. */
+.brand{gap:10px;width:max-content;max-width:100%;flex-shrink:0;line-height:1}
+.brand-symbol{display:block;width:30px;height:42px;object-fit:contain;flex-shrink:0}
+.brand-wordmark{display:block;width:144px;height:auto;object-fit:contain}
+.welcome-hero .brand{gap:14px}
+.welcome-hero .brand-symbol{width:42px;height:58px}
+.welcome-hero .brand-wordmark{width:180px}
+.welcome-hero .brand img,body.dark #workspace .brand img{filter:brightness(0) invert(1)}
+.header-identity{display:flex;align-items:center;min-width:0}
+.brand--mobile{display:none}
+@media(max-width:1050px){
+  aside .brand{gap:8px}
+  aside .brand-symbol{width:26px;height:36px}
+  aside .brand-wordmark{width:115px}
+}
+@media(max-width:700px){
+  .brand--mobile{display:flex;gap:8px}
+  .brand--mobile .brand-symbol{width:24px;height:34px}
+  .brand--mobile .brand-wordmark{width:112px}
+  #headerDate{display:none}
+}
+@media(max-width:380px){
+  .brand--mobile .brand-symbol{width:22px;height:31px}
+  .brand--mobile .brand-wordmark{width:80px}
+  header>.row{gap:6px}
+  header>.row .secondary{padding:9px 10px}
+}
