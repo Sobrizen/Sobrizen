@@ -37,3 +37,14 @@ Vérifications séparées réalisées lors de la mise en œuvre : isolation en b
 - https://www.alcool-info-service.fr/sinformer-et-evaluer-sa-consommation/alcool-et-sante/les-reperes-de-consommation-quest-ce-que-cest
 - https://www.alcool-info-service.fr/agir-sur-sa-consommation/comment-arreter-de-boire/sevrage-ce-quil-faut-savoir-pour-mieux-vous
 - https://www.inrs.fr/publications/bdd/solvants/SolvantAG.html?refINRS=SOLVANTS_SOLVANT_64-17-5
+
+## Suivi simple — septembre 2026
+
+- Écran Progrès : semaine civile lundi–dimanche, mois civil, année anniversaire ; navigation bornée au début du suivi et à la période actuelle.
+- Deux cartes sélectionnent la courbe (verres standard ou dépenses), avec détail tactile, tableau repliable et export de la période. Les deux totaux restent visibles.
+- Comparaisons sur le même nombre de premiers jours clos des périodes, hors aujourd’hui, avec couverture complète par métrique. Pas de pourcentage si la référence vaut zéro ; l’écart absolu reste disponible. Pas de comparaison inégale 31 jours/28 jours.
+- Sur l’année, 12 totaux mensuels du suivi. Les points partiels sont creux et séparés des segments entre mois complets. Les courbes annuelles quotidiennes et leur tendance sur sept jours restent accessibles dans les détails.
+- Accueil allégé, accès direct aux trois périodes, bilan centré sur consommation et achats ; champs de ressenti regroupés sans effacer les anciennes valeurs.
+- Aucun changement de schéma, de connexion ou de stockage personnel. Aucun nouveau service ni dépendance applicative.
+
+Validation : `node --test tests/*.test.mjs` (26 cas). Une simulation DOM avec les vrais modules vérifie navigation, saisie, modification, préservation des notes et confirmation du changement de cap d’arrêt. Elle ne remplace pas le test de connexion et sauvegarde avec un compte réel.
