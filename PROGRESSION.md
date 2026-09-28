@@ -1,62 +1,52 @@
-# Sobrizen V3 — progression personnelle
+# Sobrizen V4 — un parcours par périodes
 
-## Parcours
-- Deux caps distincts : réduire, ou arrêter et maintenir l’arrêt. Une phase d’observation est disponible pour les personnes qui n’ont pas encore choisi.
-- Les comptes présents avant la migration gardent leur cap d’arrêt. Une consommation ne change jamais le cap. Sortir du cap d’arrêt exige une confirmation personnelle.
-- Chaque choix crée un chapitre privé, sans modifier les objectifs passés. Bilans, jours sans alcool cumulés, meilleure série, réflexions et étapes restent accessibles. Les corrections de données recalculent honnêtement les chiffres.
-- Aucune prescription de sevrage ou réduction automatique en pourcentage. Les limites chiffrées facultatives sont masquées lorsque la personne déclare une situation nécessitant un accompagnement. Cette déclaration ne remplace pas un avis médical.
+## Comportement actuel
 
-## Mesures et finances
-Le bilan journalier accepte une quantité inconnue, un nombre de verres standard ou un calcul volume/degré/portions. Un verre standard français correspond à 10 g d’alcool pur. Les dépenses sont déclarées indépendamment : montant inconnu, aucune dépense, ou montant en euros. Ne pas boire n’implique pas automatiquement une dépense nulle.
+Le suivi repose sur des périodes déclarées, à partir du questionnaire initial. L’utilisateur confirme sa situation (arrêt ou consommation), sa date de début, ses anciennes habitudes hebdomadaires et la date depuis laquelle cette estimation est valable. Les périodes peuvent commencer avant l’inscription. Le cap personnel est un choix séparé : une reprise ou une consommation ponctuelle ne modifie jamais automatiquement un objectif d’arrêt.
 
-Les périodes comparées sont des journées écoulées et entièrement renseignées. Les jours manquants, quantités inconnues, coûts inconnus et dates futures ne sont jamais assimilés à zéro. Un pourcentage avec référence nulle n’est pas calculé.
+Une période d’arrêt déclarée continue jusqu’à un changement de rythme renseigné. Il n’y a plus de calendrier quotidien à compléter. Deux actions suffisent pour actualiser le parcours : noter une consommation ponctuelle, ou déclarer un changement de rythme avec sa date et ses estimations hebdomadaires. Les périodes et les occasions passées sont modifiables dans l’historique. Une occasion enregistrée par erreur peut être annulée après confirmation, sans toucher aux périodes.
 
-Les deux courbes montrent une année anniversaire complète, avec vue quotidienne ou moyenne quotidienne sur sept journées complètes. Les douze mois sont visibles sur téléphone. Le tableau mensuel et le CSV contiennent les dates et la couverture. La moyenne hebdomadaire n’est pas une projection.
+## Règles de calcul
 
-L’écart financier estimé correspond au budget hebdomadaire de référence / 7 multiplié par le nombre de jours dont la dépense est connue, moins les dépenses sur ces mêmes jours. Un écart négatif reste négatif. Les achats peuvent être consommés un autre jour. Ce calcul n’est ni un solde bancaire ni une économie certaine.
+- Les jours sans alcool et les séries comptent les journées civiles écoulées, sans ajouter une journée inachevée. Un arrêt commencé il y a 14 jours donne 14 jours, même si le compte vient d’être créé.
+- Corriger cette date à 30 jours puis à 7 jours recalcule les cumuls, la série, les records, la période du bilan, les économies et les courbes. Une correction remplace la déclaration concernée ; elle ne crée pas un deuxième arrêt.
+- Une reprise termine la période précédente. Un nouvel arrêt conserve les jours et les records des arrêts antérieurs. Les plus longues périodes affichent leurs dates et leur durée.
+- Une consommation ponctuelle remplace les valeurs de cette journée et interrompt la série sans effacer les jours antérieurs. Les totaux explicitement notés aujourd’hui sont visibles immédiatement ; aucun budget journalier estimé supplémentaire n’est crédité pour aujourd’hui.
+- Les anciennes journées réellement renseignées restent conservées. Leurs valeurs connues remplacent les estimations de la période pour les mêmes jours. Les occasions corrigées dans le nouveau suivi sont prioritaires pour leur journée, sans double comptage.
+- Une estimation hebdomadaire est répartie sur les jours de la période. Ces valeurs sont étiquetées comme estimations, jamais présentées comme des mesures quotidiennes. Une quantité ancienne explicitement inconnue reste inconnue.
+- Les économies estimées correspondent à la dépense de référence proratisée sur les jours écoulés dont le coût est connu, moins les dépenses de la période et les dépenses connues d’aujourd’hui. Les valeurs négatives sont conservées. Le pourcentage d’évolution compare uniquement les journées closes ; aucune division par zéro.
 
-## Début d’abonnement
-Aucun fournisseur de facturation n’était connecté à cette version. Ne pas inventer une date d’abonnement :
-1. `subscription_anchors.started_on` : date vérifiée écrite uniquement côté serveur ; prioritaire, lecture limitée au propriétaire.
-2. `progress_settings.subscription_started_on` : date déclarée par la personne, étiquetée comme non vérifiée.
-3. À défaut, date de création du compte, explicitement appelée début du suivi, jamais abonnement.
+Les cumuls de longue durée sont calculés par intervalles et exceptions. Le moteur ne génère ni n’enregistre des milliers de faux bilans journaliers.
 
-Une intégration de paiement future doit fournir la date initiale vérifiée via un traitement serveur authentifié et idempotent. Aucune clé privilégiée ne doit être exposée au navigateur. Ces champs ne confèrent aucun droit d’accès payant.
+## Courbes et paramètres
 
-## Base de données
-Migration additive : `schema/progression.sql`. Ne pas réexécuter à l’aveugle sur une base déjà migrée. Les nouvelles tables privées ont RLS et des politiques propriétaire explicites. Les chapitres sont append-only côté client. Le déclencheur de compatibilité maintient une quantité inconnue lorsque l’ancien client transforme une journée sans alcool en journée avec consommation.
+Les vues Semaine, Mois et Année couvrent 7 jours, 30 jours et 12 mois glissants, avec navigation dans l’historique. L’année passée est accessible avant l’inscription si elle fait partie de l’estimation confirmée par l’utilisateur. Les repères d’abonnement existants sont conservés en base, mais ne bloquent plus l’accès au passé déclaré.
 
-Aucune donnée privée n’est ajoutée au cache du service worker. Aucun service payant ou traqueur supplémentaire.
+Les courbes distinguent les estimations et les valeurs notées. Les périodes d’arrêt restent visibles ; l’intensité du vert s’éclaircit lorsque la consommation ou les dépenses baissent. Les moyennes annuelles évitent de confondre un mois plus long avec une hausse du rythme quotidien. Le point d’aujourd’hui reste distinct des moyennes closes. Les dates inconnues n’ont pas de fausse valeur zéro.
+
+Les paramètres réunissent anciennes habitudes, dates de référence, objectif (arrêt, réduction ou observation), limites personnelles facultatives en réduction, échéance facultative, motivation, prochaine action et situations à préparer. Une priorité d’accompagnement masque les limites autonomes. Il n’existe ni prescription de sevrage ni suggestion automatique de recommencer à boire. Quitter un objectif d’arrêt exige une confirmation explicite.
+
+Le programme de 30 étapes, le journal, le plan de soutien, les jeux, le mouvement, la communauté et les données antérieures sont conservés.
+
+## Persistance et compatibilité
+
+La migration additive `schema/20260928002847_create_journey_timelines.sql` crée `journey_timelines`. Son document privé constitue la source du nouveau suivi. Il contient les périodes, occasions, références et objectifs, avec une révision entière pour détecter les formulaires périmés.
+
+`save_journey_timeline` valide le document et sauvegarde la timeline, la date et les références dans une seule transaction. Il vérifie les versions de la timeline, du parcours, des références et du cap courant. Un nouveau chapitre d’objectif est ajouté uniquement lorsqu’un choix de cap change réellement, à la date du jour. L’historique des chapitres n’est jamais réécrit.
+
+Les tables restent protégées par RLS propriétaire ; la fonction est `SECURITY INVOKER`, sans clé privilégiée dans le navigateur. La migration ne crée aucune période pour un compte existant et ne réécrit aucun bilan. Le premier questionnaire permet à son propriétaire de confirmer ses propres déclarations.
+
+Les anciens modules de calcul et leurs tests restent disponibles pour la compatibilité et la vérification des données historiques. Les anciens écrans de calendrier et de bilan quotidien ne sont plus les points d’entrée du suivi actuel. Les exports JSON incluent la timeline et les données historiques ; le CSV d’une courbe conserve la provenance des valeurs.
+
+Le service worker ne stocke que des ressources publiques de l’application. Aucune donnée de parcours n’est ajoutée au cache public. Aucun service payant ou nouvelle dépendance applicative n’est nécessaire.
 
 ## Vérifications
-`node --test tests/progress.test.mjs` vérifie les valeurs inconnues, les unités, la cohérence du bilan, les années bissextiles, les anniversaires, les périodes comparables, les coûts et l’historique des objectifs.
 
-Vérifications séparées réalisées lors de la mise en œuvre : isolation en base et écritures en transaction annulée ; conservation des anciennes colonnes vérifiée par empreintes ; rendu et interactions des nouveaux écrans dans Chromium en mémoire (les modules inchangés de jeux, mouvement, programme et l’authentification réseau étaient remplacés par des fixtures locales pour ces essais). Ce dernier contrôle ne constitue pas un test de connexion réelle en production.
+`node --test tests/*.test.mjs` couvre les calculs historiques et le moteur par périodes. Les cas du nouveau moteur vérifient notamment les 14 et 30 jours à l’inscription, les corrections dans les deux sens, les reprises, les occasions d’aujourd’hui, les données anciennes contradictoires, les zéros, les dates bissextiles et les changements d’heure.
 
-## Sources des repères
-- https://www.alcool-info-service.fr/sinformer-et-evaluer-sa-consommation/alcool-et-sante/les-reperes-de-consommation-quest-ce-que-cest
-- https://www.alcool-info-service.fr/agir-sur-sa-consommation/comment-arreter-de-boire/sevrage-ce-quil-faut-savoir-pour-mieux-vous
-- https://www.inrs.fr/publications/bdd/solvants/SolvantAG.html?refINRS=SOLVANTS_SOLVANT_64-17-5
+Les scénarios d’interface utilisent les vrais modules avec des données fictives. La persistance et l’isolation en base sont vérifiées avec des fixtures jetables entièrement annulées par `ROLLBACK`. Le contrôle visuel publié utilise la démo ; aucun compte personnel existant n’est utilisé pour les essais.
 
-## Suivi simple — septembre 2026
+## Repères de soutien existants
 
-- Écran Progrès : semaine civile lundi–dimanche, mois civil, année anniversaire ; navigation bornée au début du suivi et à la période actuelle.
-- Deux cartes sélectionnent la courbe (verres standard ou dépenses), avec détail tactile, tableau repliable et export de la période. Les deux totaux restent visibles.
-- Comparaisons sur le même nombre de premiers jours clos des périodes, hors aujourd’hui, avec couverture complète par métrique. Pas de pourcentage si la référence vaut zéro ; l’écart absolu reste disponible. Pas de comparaison inégale 31 jours/28 jours.
-- Sur l’année, 12 totaux mensuels du suivi. Les points partiels sont creux et séparés des segments entre mois complets. Les courbes annuelles quotidiennes et leur tendance sur sept jours restent accessibles dans les détails.
-- Accueil allégé, accès direct aux trois périodes, bilan centré sur consommation et achats ; champs de ressenti regroupés sans effacer les anciennes valeurs.
-- Aucun changement de schéma, de connexion ou de stockage personnel. Aucun nouveau service ni dépendance applicative.
-
-Validation : `node --test tests/*.test.mjs` (26 cas). Une simulation DOM avec les vrais modules vérifie navigation, saisie, modification, préservation des notes et confirmation du changement de cap d’arrêt. Elle ne remplace pas le test de connexion et sauvegarde avec un compte réel.
-
-## Date personnelle et habitudes de départ
-
-- La date est visible et modifiable depuis le cap de l’accueil, le cap des Progrès et la rubrique Moi. Libellé « Date de début d’arrêt » en cap d’arrêt, « Date de début de parcours » en réduction ou observation.
-- Le même formulaire redemande la consommation en verres standard et les dépenses en euros, estimées par semaine avant le début déclaré. Les champs sont préremplis et obligatoires ; zéro est accepté, une case vide ne vaut pas zéro. Le bouton « Enregistrer et recalculer » confirme les trois repères ensemble.
-- La date peut être aujourd’hui ou une date passée depuis 1900, y compris avant la création du compte. Les dates invalides ou futures, les montants négatifs ou non finis sont refusés.
-- La migration `20260927235056_save_journey_reference_atomically.sql` ajoute le RPC `save_journey_reference`, exécuté avec les droits du compte connecté et les règles RLS existantes. Il met à jour ensemble `sobriety_journeys.started_at`, l’ancienne estimation de budget et les deux références de `progress_settings`. Les versions des deux lignes sont vérifiées ; un échec annule l’ensemble. Le client applique les deux lignes retournées ensemble, après vérification de session.
-- Le bilan d’accueil couvre la date choisie jusqu’à aujourd’hui : consommation notée, dépenses connues, couverture et économies estimées. Une nouvelle estimation recalcule les économies et les références des vues semaine, mois et année. Les économies portent uniquement sur les jours de dépenses renseignés. La comparaison de consommation avec les anciennes habitudes exige une couverture complète des jours écoulés, hors aujourd’hui, et une référence positive.
-- La date et sa durée civile sont actualisées dans le cap. Les journées, chapitres, objectifs, raisons, réussites et repères d’abonnement restent conservés. Les cumuls de jours sans alcool décrivent toujours les journées renseignées ; la date déclarée ne crée aucun jour supposé sans alcool. Les périodes du suivi restent ancrées sur l’abonnement ou le compte.
-- Le format historique (timestamp à midi local) est conservé. Le serveur valide le fuseau et la date civile ; aucune donnée historique n’est réécrite par la migration.
-
-Validation : les 34 tests de calcul passent, dont 8 consacrés aux nouveaux repères (recalcul, valeurs inconnues, vrais zéros, limites et changements d’heure). Les scénarios DOM vérifient le formulaire et les montants après modification. Des fixtures distantes jetables, intégralement annulées par `ROLLBACK`, ont validé la transaction, les conflits, les droits du propriétaire, l’insertion de repères absents et 17 entrées invalides. Aucun compte existant n’a été utilisé pour ces tests.
+- [Comprendre le sevrage — Alcool Info Service](https://www.alcool-info-service.fr/agir-sur-sa-consommation/comment-arreter-de-boire/sevrage-ce-quil-faut-savoir-pour-mieux-vous)
+- [Repères de consommation — Alcool Info Service](https://www.alcool-info-service.fr/sinformer-et-evaluer-sa-consommation/alcool-et-sante/les-reperes-de-consommation-quest-ce-que-cest)
