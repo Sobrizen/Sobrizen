@@ -36,7 +36,8 @@ Les réponses des RPC de sauvegarde et de libération de verrou ont été rendue
 
 ## Vérifications réellement exécutées
 
-- 12 tests unitaires locaux du module de validation réussis : prix annuel exact, fermeture par défaut, paiement validé, conservation jusqu'à l'échéance lors de la résiliation, expiration, paiement échoué, facture remboursée ou contestée, quantités erronées, signature valide, falsifiée, expirée ou de test.
+- 12 tests unitaires du module de validation de facturation avaient été réussis lors de la préparation initiale : prix annuel exact, fermeture par défaut, paiement validé, conservation jusqu'à l'échéance lors de la résiliation, expiration, paiement échoué, facture remboursée ou contestée, quantités erronées, signature valide, falsifiée, expirée ou de test.
+- Après ajout de la séparation Gratuit/Premium, les quatre modules JavaScript modifiés (`app.mjs`, `progress.mjs`, `games.mjs`, `movement.mjs`) ont été recompilés syntaxiquement sans erreur. Le clonage local du dépôt n'était pas possible dans l'environnement réseau courant, donc la suite complète `node --test` n'a pas été relancée ici.
 - Tests de protocole en production : `/health` répond 200 ; `/status` et `/checkout` sans connexion répondent 401 ; `/webhook` sans signature répond 400.
 - Privileges SQL vérifiés : aucun droit INSERT/UPDATE des abonnements pour les membres, aucun accès utilisateur à la lecture du secret de webhook.
 - Les tables de suivi existantes n'ont pas été modifiées pour simuler un paiement.
@@ -55,7 +56,7 @@ L'installation des clés ne vaut pas validation des autres prérequis et n'ouvre
 
 ### Application et vérification du cycle
 
-La séparation des fonctionnalités gratuites et Premium dans les écrans de suivi et d'exercices reste à terminer. Le statut de facturation ne constitue pas à lui seul ce contrôle d'accès. La version bêta existante n'a pas été amputée de ses fonctions. Les ressources d'aide, l'export personnel et les droits sur les données ne doivent pas devenir payants.
+La séparation Gratuit/Premium est maintenant raccordée à l'état de facturation vérifié en base : le gratuit conserve un rapport synthétique exact, les 4 exercices Doux, Snake Zen, Blocs Zen et l'exercice d'ancrage ; Premium débloque les courbes détaillées, les niveaux Moyen/Intense et trois mini-jeux supplémentaires. Les données, l'historique, le journal, la communauté, les outils d'aide, l'export et les droits relatifs aux données restent disponibles indépendamment de Premium. L'interface échoue en mode fermé si le statut d'abonnement n'est pas lisible.
 
 Le parcours doit ensuite être testé dans un environnement de test distinct, avec une configuration adaptée : paiement accepté/refusé, authentification supplémentaire, mauvais compte, double clic, événement dupliqué, renouvellement, résiliation, expiration, remboursement, reconnexion et conservation de l'historique. Ne pas utiliser de cartes de test dans la production.
 
@@ -71,7 +72,7 @@ Les paramètres publics de Checkout devront pointer vers les conditions définit
 
 ### Verrouillage de lancement
 
-`billing_config` contient cinq indicateurs, tous laissés à false : `sales_enabled`, `legal_ready`, `tax_ready`, `hosting_ready`, `premium_features_ready`. Le module refuse l'ouverture si ces validations ne sont pas toutes satisfaites. Ne pas les changer uniquement pour faire disparaître le message d'attente : ils représentent des contrôles effectifs à terminer.
+`billing_config` contient cinq indicateurs de lancement. `premium_features_ready` est maintenant à **true** après raccordement et contrôle de syntaxe des écrans Gratuit/Premium. `sales_enabled`, `legal_ready`, `tax_ready` et `hosting_ready` restent à **false**. Le module refuse toujours l'ouverture tant que tous les prérequis ne sont pas satisfaits.
 
 ## Avis de sécurité supplémentaires
 
