@@ -79,3 +79,8 @@ Les paramètres publics de Checkout devront pointer vers les conditions définit
 L'audit Supabase signale que la protection contre les mots de passe compromis est désactivée. Vérifier sa disponibilité et son coût avant activation : https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection.
 
 Les avis informatifs « RLS enabled, no policy » des tables réservées au serveur correspondent ici au refus d'accès utilisateur intentionnel, contrôlé par révocation des privilèges. Ne pas créer une politique publique permissive pour supprimer cet avis.
+
+
+## Fiscalité
+
+- `tax_ready = true` : SobriZen est configuré pour la franchise en base de TVA, sans Stripe Tax automatique. Les nouveaux clients Stripe reçoivent sur leurs factures la mention « TVA non applicable, article 293 B du Code général des impôts (CGI) ».
