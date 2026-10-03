@@ -250,3 +250,17 @@ header:after{
 @media(prefers-reduced-motion:reduce){
   #appNav,.nav-scrim,#nav button{transition:none!important}
 }
+
+
+/* Extra narrow-content fixes */
+@media(max-width:700px){
+  .mv-level-head{gap:9px;flex-wrap:wrap}
+  .mv-level-head .tag{white-space:normal;text-align:center}
+  .pg-year-label{min-width:0;max-width:100%}
+  .pg-table th[scope=row]{white-space:normal}
+}
+@media(max-width:420px){
+  .pg-table{min-width:480px}
+  .tl-heading{flex-wrap:wrap}
+  .tl-heading>.tag{max-width:100%}
+}
