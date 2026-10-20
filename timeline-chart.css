@@ -47,6 +47,7 @@
 .tl-chart-legend>span{display:inline-flex;align-items:center;gap:6px}
 .tl-chart-sample{display:inline-block;width:23px;height:0;border-top:2px solid var(--green)}
 .tl-chart-sample.is-estimate{border-top-style:dashed}
+.tl-chart-recorded-sample{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 1px var(--card),0 0 0 2px var(--green);margin-inline:5px}
 .tl-chart-band-sample{display:inline-block;width:18px;height:12px;background:#55b99026;border:1px solid #55b99070;border-radius:2px}
 .tl-chart-readout{display:flex;justify-content:space-between;align-items:center;gap:12px;min-height:85px;border-radius:14px;background:var(--bg);padding:13px 16px}
 .tl-chart-readout>div:first-child{min-width:0}
@@ -54,6 +55,7 @@
 .tl-chart-readout strong{font-size:13px;margin-bottom:3px}
 .tl-chart-readout span{font-size:16px;font-weight:650;font-variant-numeric:tabular-nums}
 .tl-chart-readout small{font-size:12px;line-height:1.4;margin-top:3px}
+.tl-chart-edit-point{font-size:12px;min-height:44px;padding:8px 0;margin-top:2px;text-align:left}
 .tl-chart-point-nav{display:flex;gap:5px;flex-shrink:0}
 .tl-chart-point-nav button{height:40px;width:40px;padding:0;border:1px solid var(--line);font-size:24px;font-weight:400;background:var(--card)}
 .tl-chart-colour-key{display:flex;align-items:center;justify-content:center;gap:8px;font-size:11px;color:var(--muted);margin:12px 0 18px}
@@ -72,8 +74,8 @@
 .tl-chart-events li.is-stop:before{background:var(--tl-low);outline:1px solid var(--green)}
 .tl-chart-events li:last-child{border-left-color:transparent}
 .tl-chart-events li button{display:flex;width:100%;align-items:baseline;gap:17px;padding:11px 0;border-radius:5px;min-height:44px;text-align:left}
-.tl-chart-events time{font-size:12px;color:var(--muted);font-weight:400;min-width:120px}
-.tl-chart-events li span{font-size:13px;font-weight:600}
+.tl-chart-events time{font-size:12px;color:var(--muted);font-weight:400;min-width:120px;overflow-wrap:anywhere}
+.tl-chart-events li span{font-size:13px;font-weight:600;min-width:0;overflow-wrap:anywhere}
 .tl-chart-help{margin-top:17px;border-top:1px solid var(--line)}
 .tl-chart-help summary{min-height:46px;padding:13px 0;font-size:13px;font-weight:600;cursor:pointer}
 .tl-chart-help p{font-size:13px;color:var(--muted);line-height:1.6;margin:8px 0 12px}

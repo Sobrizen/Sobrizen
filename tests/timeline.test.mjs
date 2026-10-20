@@ -1,15 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {execFileSync} from 'node:child_process';
 import {dayDiff, moveDay} from '../core.mjs';
 import {round2} from '../progress-core.mjs';
-import {validateTimelineDocument, timelineRows, timelineSummary, timelineSnapshot} from '../timeline-core.mjs';
+import {validateTimelineDocument, upgradeTimelineDocument, upsertTimelineRange, timelineRows, timelineSummary, timelineSnapshot} from '../timeline-core.mjs';
 
 const today = '2026-09-28';
 const ago = days => moveDay(today, -days);
 const id = n => `00000000-0000-4000-8000-${n.toString(16).padStart(12, '0')}`;
 const event = (n, start, state = 'abstinent', units = 0, cost = 0) => ({id: id(n), started_on: start, state, units_week: units, cost_week: cost, note: ''});
 const occasion = (n, date, units = 2, cost = 12) => ({id: id(n), date, units, cost});
+const datedPeriod = (n, start, end, state = 'drinking', units = 14, cost = 70) => ({...event(n, start, state, units, cost), ended_on: end});
 const document = (start = ago(14)) => ({
   schema_version: 1, timezone: 'Europe/Paris',
   baseline: {started_on: moveDay(start, -365), units_week: 14, cost_week: 70},
@@ -344,14 +344,12 @@ test('segment aggregates equal bounded daily samples across baseline, periods, a
 });
 
 test('leap years and Paris clock changes retain exact civil-day durations', () => {
-  const moduleUrl = new URL('../timeline-core.mjs', import.meta.url).href;
-  const doc = document();
-  const script = `
-    import assert from 'node:assert/strict';
-    import {timelineSnapshot, timelineRows} from ${JSON.stringify(moduleUrl)};
-    const template = ${JSON.stringify(doc)};
-    for (const [start,today] of [['2024-02-28','2024-03-01'],['2026-03-28','2026-03-30'],['2026-10-24','2026-10-26']]) {
-      const doc = structuredClone(template);
+  const originalTimezone = process.env.TZ;
+  try {
+    process.env.TZ = 'Europe/Paris';
+    assert.equal(Intl.DateTimeFormat().resolvedOptions().timeZone, 'Europe/Paris');
+    for (const [start, today] of [['2024-02-28', '2024-03-01'], ['2026-03-28', '2026-03-30'], ['2026-10-24', '2026-10-26']]) {
+      const doc = document();
       doc.baseline.started_on = start;
       doc.events[0].started_on = start;
       const snapshot = timelineSnapshot(doc, [], today);
@@ -360,9 +358,316 @@ test('leap years and Paris clock changes retain exact civil-day durations', () =
       assert.equal(snapshot.currentStreak, 2);
       assert.equal(snapshot.summary.saved, 20);
       assert.equal(timelineRows(doc, [], start, today, today).length, 3);
+      const ranged = upsertTimelineRange(doc, datedPeriod(20, start, start), today);
+      const updated = timelineSnapshot(ranged, [], today);
+      assert.equal(updated.totalSoberDays, 1);
+      assert.equal(updated.currentStreakStartedOn, moveDay(start, 1));
+      assert.equal(updated.summary.units, 2);
+      assert.equal(updated.summary.cost, 10);
     }
-  `;
-  execFileSync(process.execPath, ['--input-type=module', '-e', script], {
-    env: {...process.env, TZ: 'Europe/Paris'}, timeout: 5000, stdio: 'pipe',
+  } finally {
+    if (originalTimezone === undefined) delete process.env.TZ;
+    else process.env.TZ = originalTimezone;
+  }
+});
+
+test('v1 reads keep their shape; an explicit v2 upgrade preserves declarations and facts', () => {
+  const original = document(), before = JSON.stringify(original);
+  assert.equal('ranges' in validateTimelineDocument(original, today), false);
+  const upgraded = upgradeTimelineDocument(original, today);
+  assert.equal(upgraded.schema_version, 2);
+  assert.deepEqual(upgraded.ranges, []);
+  assert.deepEqual(upgraded.events, original.events);
+  assert.deepEqual(upgraded.goal, original.goal);
+  assert.deepEqual(upgradeTimelineDocument(upgraded, today), upgraded);
+  assert.equal(JSON.stringify(original), before);
+  const same = upsertTimelineRange(upgraded, datedPeriod(2, ago(6), ago(5), 'drinking', '14,005', '70.125'), today);
+  assert.equal(same.ranges[0].units_week, 14.01);
+  assert.equal(same.ranges[0].cost_week, 70.13);
+  assert.equal(same.ranges[0].note, '');
+});
+
+test('finite ranges enforce date, state and amount limits and reject inclusive overlaps clearly', () => {
+  const valid = upsertTimelineRange(document(), datedPeriod(2, ago(10), ago(8)), today);
+  const mutations = [
+    d => { delete d.ranges; }, d => { d.ranges = null; },
+    d => { d.ranges = Array(501).fill(d.ranges[0]); },
+    d => { d.ranges[0].ended_on = ago(11); },
+    d => { d.ranges[0].ended_on = moveDay(today, 1); },
+    d => { d.ranges[0].started_on = '1899-12-31'; },
+    d => { d.ranges[0].started_on = '2026-02-30'; },
+    d => { d.ranges[0].ended_on = ''; },
+    d => { d.ranges[0].state = 'unknown'; },
+    d => { d.ranges[0].units_week = 0; },
+    d => { d.ranges[0].units_week = 7000.01; },
+    d => { d.ranges[0].units_week = ''; },
+    d => { d.ranges[0].cost_week = null; },
+    d => { d.ranges[0].cost_week = -1; },
+    d => { d.ranges[0].cost_week = 7000000.01; },
+    d => { d.ranges[0].state = 'abstinent'; },
+    d => { d.ranges[0].note = 'x'.repeat(301); },
+    d => { d.ranges[0].id = 'invalid'; },
+    d => { d.ranges[0].unexpected = true; },
+    d => { d.ranges.push({...d.ranges[0], started_on: ago(5), ended_on: ago(4)}); },
+  ];
+  for (const change of mutations) {
+    const doc = structuredClone(valid); change(doc);
+    assert.throws(() => validateTimelineDocument(doc, today));
+  }
+  for (const [start, end] of [[ago(12), ago(10)], [ago(8), ago(6)], [ago(9), ago(9)], [ago(11), ago(7)]]) {
+    assert.throws(() => upsertTimelineRange(valid, datedPeriod(3, start, end), today), /chevauche.*\d{4}-\d{2}-\d{2}.*historique/);
+  }
+  const adjacent = upsertTimelineRange(valid, datedPeriod(3, ago(7), ago(7), 'abstinent', 0, 0), today);
+  assert.equal(adjacent.ranges.length, 2);
+  assert.equal(adjacent.ranges[1].started_on, moveDay(adjacent.ranges[0].ended_on, 1));
+});
+
+test('a late drinking day updates the actual stop date, past record and effective history', () => {
+  const doc = document(ago(30));
+  doc.occasions.push(occasion(2, ago(10), 3, 12));
+  const result = timelineSnapshot(doc, [], today);
+  assert.equal(result.totalSoberDays, 29);
+  assert.equal(result.currentStreak, 9);
+  assert.equal(result.currentStreakStartedOn, ago(9));
+  assert.equal(result.bestStreak, 20);
+  assert.equal(result.lastConsumptionOn, ago(10));
+  assert.equal(result.current.event.started_on, ago(30)); // The original declaration remains editable.
+  assert.equal(result.summary.units, 3);
+  assert.equal(result.summary.cost, 12);
+  assert.equal(result.summary.saved, 288);
+  const actual = result.effectivePeriods.find(row => row.source === 'occasion');
+  assert.equal(actual.start, ago(10));
+  assert.equal(actual.end, ago(10));
+  assert.equal(actual.state, 'drinking');
+  assert.equal(actual.occasion_id, id(2));
+  assert.equal(actual.units, 3);
+  assert.equal(actual.units_week, null);
+  assert.equal(doc.goal.mode, 'abstain');
+});
+
+test('an inclusive closed range splits an existing stop and restoring/editing it has no lasting side effects', () => {
+  const original = document(ago(30)), before = JSON.stringify(original);
+  const doc = upsertTimelineRange(original, datedPeriod(2, ago(10), ago(7)), today);
+  const saved = timelineSnapshot(doc, [], today);
+  assert.equal(saved.totalSoberDays, 26);
+  assert.equal(saved.currentStreak, 6);
+  assert.equal(saved.currentStreakStartedOn, ago(6));
+  assert.equal(saved.bestStreak, 20);
+  assert.equal(saved.summary.units, 8);
+  assert.equal(saved.summary.cost, 40);
+  assert.equal(saved.summary.saved, 260);
+  assert.deepEqual(saved.bestPeriods, [
+    {start: ago(30), end: ago(11), days: 20, ongoing: false},
+    {start: ago(6), end: ago(1), days: 6, ongoing: true},
+  ]);
+  const restored = timelineRows(doc, [], ago(7), ago(6), today);
+  assert.equal(restored[0].source, 'range');
+  assert.equal(restored[0].range_id, id(2));
+  assert.equal(restored[1].source, 'period');
+  assert.equal(restored[1].range_id, null);
+  assert.equal(restored[1].sober_today, true);
+  assert.deepEqual(upsertTimelineRange(doc, doc.ranges[0], today), doc);
+  const edited = upsertTimelineRange(doc, datedPeriod(2, ago(5), ago(3)), today);
+  const updated = timelineSnapshot(edited, [], today);
+  assert.equal(edited.ranges.length, 1);
+  assert.equal(updated.totalSoberDays, 27);
+  assert.equal(updated.currentStreak, 2);
+  assert.equal(updated.bestStreak, 25);
+  assert.equal(updated.summary.cost, 30);
+  assert.equal(updated.summary.saved, 270);
+  assert.equal(timelineRows(edited, [], ago(10), ago(10), today)[0].sober_today, true);
+  assert.deepEqual(edited.events, original.events);
+  assert.deepEqual(edited.goal, original.goal);
+  assert.deepEqual(edited.occasions, []);
+  assert.equal(JSON.stringify(original), before);
+});
+
+test('ending a historical range restores the actual underlying event and preserves subsequent restarts', () => {
+  const original = document(ago(30));
+  original.events.push(event(2, ago(20), 'drinking', 21, 70), event(3, ago(10)));
+  const before = JSON.stringify(original.events);
+  const doc = upsertTimelineRange(original, datedPeriod(4, ago(25), ago(18), 'abstinent', 0, 0), today);
+  const snapshot = timelineSnapshot(doc, [], today);
+  assert.equal(snapshot.totalSoberDays, 23);
+  assert.equal(snapshot.currentStreak, 10);
+  assert.equal(snapshot.bestStreak, 13);
+  assert.equal(snapshot.summary.units, 21);
+  assert.equal(snapshot.summary.cost, 70);
+  const rows = new Map(timelineRows(doc, [], ago(26), ago(9), today).map(row => [row.checkin_date, row]));
+  assert.equal(rows.get(ago(18)).sober_today, true);
+  assert.equal(rows.get(ago(18)).source, 'range');
+  assert.equal(rows.get(ago(17)).sober_today, false);
+  assert.equal(rows.get(ago(17)).event_id, id(2));
+  assert.equal(rows.get(ago(17)).alcohol_units, 3);
+  assert.equal(rows.get(ago(10)).sober_today, true);
+  assert.equal(rows.get(ago(10)).event_id, id(3));
+  assert.equal(JSON.stringify(doc.events), before);
+  assert.equal(doc.goal.mode, 'abstain');
+});
+
+test('facts and finite ranges before the baseline affect history without inventing a reference or filling unknown gaps', () => {
+  const original = upgradeTimelineDocument(document(ago(14)), today); original.baseline.started_on = ago(20);
+  original.occasions.push(occasion(2, ago(35), 3, 12));
+  const doc = upsertTimelineRange(original, datedPeriod(3, ago(40), ago(38)), today);
+  const snapshot = timelineSnapshot(doc, [], today);
+  assert.equal(snapshot.historyStart, ago(40));
+  assert.equal(snapshot.firstEventDate, ago(14));
+  assert.equal(snapshot.summary.start, ago(40));
+  assert.equal(snapshot.summary.units, 21);
+  assert.equal(snapshot.summary.cost, 102);
+  assert.equal(snapshot.summary.saved, 140);
+  assert.equal(snapshot.summary.referenceStart, ago(20));
+  assert.equal(snapshot.summary.referenceCostDays, 20);
+  assert.equal(snapshot.summary.quantityDays, 24);
+  assert.equal(snapshot.totalSoberDays, 14);
+  assert.equal(snapshot.currentStreak, 14);
+  assert.deepEqual(doc.baseline, original.baseline);
+  const rows = new Map(timelineRows(doc, [], ago(40), ago(14), today).map(row => [row.checkin_date, row]));
+  assert.equal(rows.get(ago(39)).source, 'range');
+  assert.equal(rows.get(ago(39)).alcohol_units, 2);
+  assert.equal(rows.get(ago(37)).source, 'unknown');
+  assert.equal(rows.get(ago(37)).alcohol_units, null);
+  assert.equal(rows.get(ago(35)).source, 'occasion');
+  assert.equal(rows.get(ago(21)).alcohol_cost_eur, null);
+  assert.equal(rows.get(ago(20)).source, 'baseline');
+  const older = timelineSummary(doc, [], ago(40), ago(21), today);
+  assert.equal(older.units, 9);
+  assert.equal(older.cost, 42);
+  assert.equal(older.saved, null);
+  assert.equal(older.referenceDays, 0);
+  assert.equal(older.comparisonPercent, null);
+  const sober = upsertTimelineRange(doc, datedPeriod(3, ago(40), ago(36), 'abstinent', 0, 0), today);
+  const updated = timelineSnapshot(sober, [], today);
+  assert.equal(updated.totalSoberDays, 19);
+  assert.equal(updated.currentStreak, 14);
+  assert.equal(updated.bestPeriods.find(period => period.start === ago(40)).days, 5);
+  assert.equal(updated.summary.saved, 140);
+});
+
+test('an occasion before the first event enters home totals and can move before the reference without moving it', () => {
+  const doc = upgradeTimelineDocument(document(ago(14)), today); doc.baseline.started_on = ago(20);
+  doc.occasions.push(occasion(2, ago(18), 3, 12));
+  const first = timelineSnapshot(doc, [], today);
+  assert.equal(first.historyStart, ago(18));
+  assert.equal(first.summary.units, 9); // The actual day plus three reference days.
+  assert.equal(first.summary.cost, 42);
+  doc.occasions[0].date = ago(30);
+  const old = timelineSnapshot(doc, [], today);
+  assert.equal(old.historyStart, ago(30));
+  assert.equal(old.summary.units, 15); // The older fact plus six valid reference days.
+  assert.equal(old.summary.cost, 72);
+  assert.equal(old.summary.saved, 140);
+  assert.equal(doc.baseline.started_on, ago(20));
+  assert.equal(old.totalSoberDays, 14);
+});
+
+test('known real metrics override finite-range estimates independently without double counting', () => {
+  const doc = upsertTimelineRange(document(), datedPeriod(2, ago(7), ago(1), 'drinking', 21, 70), today);
+  doc.occasions.push(occasion(3, ago(3), 4, 5));
+  const checks = [
+    {checkin_date: ago(6), sober_today: true, alcohol_cost_eur: null},
+    {checkin_date: ago(5), sober_today: false, alcohol_units: null, alcohol_cost_eur: 0},
+    {checkin_date: ago(4), alcohol_units: 5, alcohol_cost_eur: null},
+    {checkin_date: ago(3), sober_today: false, alcohol_units: 2, alcohol_cost_eur: 3},
+  ];
+  const summary = timelineSummary(doc, checks, ago(7), ago(1), today);
+  assert.equal(summary.units, 18);
+  assert.equal(summary.cost, 55);
+  assert.equal(summary.soberDays, 1);
+  assert.equal(summary.quantityDays, 6);
+  assert.equal(summary.costDays, 7);
+  assert.equal(summary.estimatedDays, 5);
+  assert.equal(summary.actualDays, 4);
+  assert.equal(summary.comparisonPercent, null);
+  const snapshot = timelineSnapshot(doc, checks, today);
+  assert.equal(snapshot.totalSoberDays, 8);
+  assert.equal(snapshot.currentStreak, 0);
+  assert.equal(snapshot.currentStreakStartedOn, today);
+  const actual = timelineRows(doc, checks, ago(6), ago(6), today)[0];
+  assert.equal(actual.units_source, 'legacy');
+  assert.equal(actual.cost_source, 'range');
+  assert.equal(actual.alcohol_cost_eur, 10);
+});
+
+test('today uses the effective declared or real state without charging an estimated full day', () => {
+  const original = document();
+  const doc = upsertTimelineRange(original, datedPeriod(2, ago(2), today), today);
+  const declared = timelineSnapshot(doc, [], today);
+  assert.equal(declared.current.state, 'drinking');
+  assert.equal(declared.current.source, 'range');
+  assert.equal(declared.current.range.id, id(2));
+  assert.equal(declared.current.event.id, original.events[0].id);
+  assert.equal(declared.currentStreak, 0);
+  assert.equal(declared.currentStreakStartedOn, null);
+  assert.equal(declared.totalSoberDays, 12);
+  assert.equal(declared.summary.units, 4);
+  assert.equal(declared.summary.cost, 20);
+  assert.equal(declared.todayActual.alcohol_units, null);
+  assert.equal(declared.todayActual.alcohol_cost_eur, null);
+  assert.deepEqual(declared.summary.todayActual, {units: null, cost: null});
+  assert.equal(timelineRows(doc, [], today, today, today)[0].alcohol_units, null);
+  original.occasions.push(occasion(3, today, 3, 12));
+  const real = timelineSnapshot(original, [], today);
+  assert.equal(real.current.state, 'drinking');
+  assert.equal(real.current.source, 'occasion');
+  assert.equal(real.todayActual.alcohol_units, 3);
+  assert.equal(real.todayActual.alcohol_cost_eur, 12);
+  assert.equal(real.currentStreak, 0);
+  assert.equal(real.currentStreakStartedOn, null);
+  assert.equal(real.summary.units, 3);
+  assert.equal(real.summary.cost, 12);
+  assert.equal(real.totalSoberDays, 14);
+  assert.equal(real.summary.saved, 128);
+});
+
+test('v2 analytic summaries equal bounded daily samples across unknown history, ranges and actual exceptions', () => {
+  let doc = document(ago(40)); doc.baseline.started_on = ago(50);
+  doc.events.push(event(2, ago(20), 'drinking', 14, 31.21), event(3, ago(3)));
+  for (const period of [
+    datedPeriod(4, ago(300), ago(296), 'abstinent', 0, 0),
+    datedPeriod(5, ago(90), ago(85), 'drinking', 10.03, 18.19),
+    datedPeriod(6, ago(35), ago(32), 'drinking', 8.21, 32.23),
+    datedPeriod(7, ago(18), ago(15), 'abstinent', 0, 7.33),
+  ]) doc = upsertTimelineRange(doc, period, today);
+  doc.occasions = [occasion(8, ago(70), 2, 5), occasion(9, ago(34), 3, 12), occasion(10, today, 3.2, 12)];
+  const checks = [
+    {checkin_date: ago(298), sober_today: false, alcohol_units: null, alcohol_cost_eur: null},
+    {checkin_date: ago(16), sober_today: true, alcohol_cost_eur: 2.1},
+  ];
+  for (const span of [366, 120, 60, 30, 10, 1]) {
+    const rows = timelineRows(doc, checks, ago(span), ago(1), today);
+    const summary = timelineSummary(doc, checks, ago(span), today, today);
+    assert.equal(summary.units, round2(rows.reduce((total, row) => total + (row.alcohol_units ?? 0), 0) + 3.2));
+    assert.equal(summary.cost, round2(rows.reduce((total, row) => total + (row.alcohol_cost_eur ?? 0), 0) + 12));
+    assert.equal(summary.soberDays, rows.filter(row => row.sober_today === true).length);
+    assert.equal(summary.quantityDays, rows.filter(row => row.alcohol_units !== null).length);
+    assert.equal(summary.costDays, rows.filter(row => row.alcohol_cost_eur !== null).length);
+    assert.equal(summary.estimatedDays, rows.filter(row => row.estimated).length);
+    assert.equal(summary.actualDays, rows.filter(row => ['legacy', 'occasion'].includes(row.status_source) || ['legacy', 'occasion'].includes(row.units_source) || ['legacy', 'occasion'].includes(row.cost_source)).length);
+  }
+  const before = JSON.stringify({doc, checks});
+  timelineSnapshot(doc, checks, today);
+  assert.equal(JSON.stringify({doc, checks}), before);
+});
+
+test('long histories and maximum range counts use interval boundaries instead of generated daily facts', () => {
+  const original = document('1900-01-01'); original.baseline.started_on = '1900-01-01';
+  const doc = upsertTimelineRange(original, datedPeriod(2, '1950-01-01', '1999-12-31', 'drinking', 7, 7), today);
+  const snapshot = timelineSnapshot(doc, [], today);
+  const drinkingDays = dayDiff('2000-01-01', '1950-01-01');
+  assert.equal(snapshot.totalSoberDays, dayDiff(today, '1900-01-01') - drinkingDays);
+  assert.equal(snapshot.currentStreakStartedOn, '2000-01-01');
+  assert.equal(snapshot.summary.units, drinkingDays);
+  assert.equal(snapshot.summary.cost, drinkingDays);
+  assert.ok(snapshot.effectivePeriods.length <= 4);
+  assert.equal(doc.events.length, 1);
+  assert.equal(doc.occasions.length, 0);
+  assert.equal(doc.ranges.length, 1);
+  const maximum = upgradeTimelineDocument(original, today);
+  maximum.ranges = Array.from({length: 500}, (_, index) => {
+    const day = moveDay('1900-01-01', index * 2);
+    return datedPeriod(index + 2, day, day);
   });
+  assert.equal(validateTimelineDocument(maximum, today).ranges.length, 500);
+  assert.equal(timelineSnapshot(maximum, [], today).totalSoberDays, dayDiff(today, '1900-01-01') - 500);
 });

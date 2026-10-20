@@ -4,10 +4,10 @@ Frontend statique en français, sans build, hébergé sur Vercel. Backend Supaba
 
 ## Fonctions
 - Questionnaire initial : situation, date d’arrêt ou de changement de rythme, anciennes habitudes, dépenses et objectifs.
-- Suivi par périodes déclarées, sans calendrier quotidien ; consommations ponctuelles et changements de rythme en quelques champs.
+- Saisie « Un jour » ou « Une période », du / au inclus, même dans le passé ; arrêts et reprises sans calendrier quotidien.
 - Cumuls, séries, records datés et économies recalculés après correction, y compris avant l’inscription.
 - Courbes sur 7 jours, 30 jours et 12 mois glissants, avec arrêts/reprises, estimations identifiées et données notées prioritaires.
-- Paramètres du parcours, correction des périodes passées, conservation de l’historique et des objectifs.
+- Aperçu du bilan avant sauvegarde, correction des dates et périodes passées, conservation des acquis et des objectifs.
 - 30 étapes de réflexion à son rythme : contenus originaux, non validés comme traitement médical.
 - Journal privé (50 notes récentes à l'écran, export complet), plan de soutien et contact facultatif.
 - Minuteur basé sur une échéance réelle, respiration et ancrage, ressources d'aide.
@@ -16,7 +16,7 @@ Frontend statique en français, sans build, hébergé sur Vercel. Backend Supaba
 - Thème clair/sombre, icônes PNG, installation PWA ; cache limité aux ressources publiques.
 
 ## Déploiement
-Site statique : framework Other, aucune build command. Déploiement via le dépôt GitHub existant vers Vercel. La migration V4 `schema/20260928002847_create_journey_timelines.sql` ajoute un suivi privé par périodes, sans supprimer les tables ni les données antérieures. Voir [PROGRESSION.md](PROGRESSION.md) pour les règles de calcul et la persistance atomique.
+Site statique : framework Other, aucune build command. Déploiement via le dépôt GitHub existant vers Vercel. La migration V4 `schema/20260928002847_create_journey_timelines.sql` ajoute un suivi privé par périodes, sans supprimer les tables ni les données antérieures. La migration `schema/20261020001318_support_retroactive_consumption_ranges.sql` accepte les tranches finies du document v2 et protège leur sauvegarde contre les anciens clients. Voir [PROGRESSION.md](PROGRESSION.md) pour les règles de calcul et la persistance atomique.
 
 ## Limites explicites
 Pas de chatbot IA, pas de vidéos hébergées, pas de notifications push, pas de paiement, pas de sauvegarde automatique. La connexion et la sauvegarde du suivi nécessitent Internet. L'export personnel n'est pas chiffré. Les administrateurs Supabase disposent d'un accès technique ; ce n'est pas un chiffrement de bout en bout. Les signalements exigent une modération humaine. La suppression complète du compte et la documentation juridique doivent être finalisées avant commercialisation.

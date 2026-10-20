@@ -1,6 +1,5 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {execFileSync} from 'node:child_process';
 import {parseDay} from '../core.mjs';
 import {resolveAnchor} from '../progress-core.mjs';
 import {referenceStartDay, validateJourneyReference, journeyReferenceSummary} from '../journey-reference.mjs';
@@ -129,12 +128,10 @@ test('today has zero elapsed days but visible records; absent or unusable start 
 });
 
 test('elapsed duration and coverage use civil days through leap day and both Paris clock changes', () => {
-  const coreUrl = new URL('../core.mjs', import.meta.url).href;
-  const moduleUrl = new URL('../journey-reference.mjs', import.meta.url).href;
-  const script = `
-    import assert from 'node:assert/strict';
-    import {parseDay} from ${JSON.stringify(coreUrl)};
-    import {journeyReferenceSummary} from ${JSON.stringify(moduleUrl)};
+  const previousTZ = process.env.TZ;
+  process.env.TZ = 'Europe/Paris';
+  try {
+    assert.equal(Intl.DateTimeFormat().resolvedOptions().timeZone, 'Europe/Paris');
     for (const [start, today] of [['2024-02-28','2024-03-01'],['2026-03-28','2026-03-30'],['2026-10-24','2026-10-26']]) {
       const result = journeyReferenceSummary([], {started_at: parseDay(start).toISOString()}, {}, today);
       assert.equal(result.start, start);
@@ -144,8 +141,8 @@ test('elapsed duration and coverage use civil days through leap day and both Par
       assert.equal(result.summary.saved, null);
       assert.equal(result.comparisonPercent, null);
     }
-  `;
-  execFileSync(process.execPath, ['--input-type=module', '-e', script], {
-    env: {...process.env, TZ: 'Europe/Paris'}, timeout: 5000, stdio: 'pipe',
-  });
+  } finally {
+    if (previousTZ === undefined) delete process.env.TZ;
+    else process.env.TZ = previousTZ;
+  }
 });

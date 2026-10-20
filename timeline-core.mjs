@@ -5,7 +5,7 @@ import {numberOrNull, round2, percentChange} from './progress-core.mjs';
 const FIRST_DAY = '1900-01-01';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 const MODES = new Set(['abstain', 'reduce', 'observe']);
-const ESTIMATED = new Set(['baseline', 'period']);
+const ESTIMATED = new Set(['baseline', 'period', 'range']);
 const ACTUAL = new Set(['legacy', 'occasion']);
 
 function object(value, keys, label) {
@@ -53,8 +53,11 @@ function unique(rows, field, label) {
 
 export function validateTimelineDocument(input, today = dayKey()) {
   parseDay(today);
-  const doc = object(input, ['schema_version', 'timezone', 'baseline', 'events', 'occasions', 'goal'], 'Parcours');
-  if (doc.schema_version !== 1) throw Error('Version du parcours non prise en charge.');
+  const version = input?.schema_version;
+  if (![1, 2].includes(version)) throw Error('Version du parcours non prise en charge.');
+  const keys = ['schema_version', 'timezone', 'baseline', 'events', 'occasions', 'goal'];
+  if (version === 2) keys.push('ranges');
+  const doc = object(input, keys, 'Parcours');
   if (typeof doc.timezone !== 'string' || !doc.timezone || doc.timezone.length > 100) throw Error('Fuseau horaire invalide.');
   try { new Intl.DateTimeFormat('fr-FR', {timeZone: doc.timezone}).format(0); }
   catch { throw Error('Fuseau horaire invalide.'); }
@@ -83,11 +86,36 @@ export function validateTimelineDocument(input, today = dayKey()) {
   unique(events, 'started_on', 'Chaque date de début');
   if (baseline.started_on > events[0].started_on) throw Error('La référence doit commencer avant ou avec la première période.');
 
+  if (version === 2 && (!Array.isArray(doc.ranges) || doc.ranges.length > 500)) {
+    throw Error('Le parcours peut contenir au maximum 500 périodes datées.');
+  }
+  const ranges = (version === 2 ? doc.ranges : []).map(value => {
+    const row = object(value, ['id', 'started_on', 'ended_on', 'state', 'units_week', 'cost_week', 'note'], 'Période datée');
+    if (!['abstinent', 'drinking'].includes(row.state)) throw Error('État de période datée invalide.');
+    const units = number(row.units_week, 'Consommation hebdomadaire', 7000, row.state === 'drinking');
+    if (row.state === 'abstinent' && units !== 0) throw Error('Une période sans alcool doit avoir une consommation nulle.');
+    const start = date(row.started_on, 'Début de période', today);
+    const end = date(row.ended_on, 'Fin de période', today);
+    if (end < start) throw Error('La fin de la période doit être le même jour que son début ou après.');
+    return {
+      id: id(row.id), started_on: start, ended_on: end, state: row.state,
+      units_week: units, cost_week: number(row.cost_week, 'Budget hebdomadaire', 7000000),
+      note: text(row.note, 'Note de période', 300),
+    };
+  }).sort((a, b) => a.started_on.localeCompare(b.started_on));
+  unique(ranges, 'id', 'Chaque identifiant de période datée');
+  for (let i = 1; i < ranges.length; i++) {
+    const previous = ranges[i - 1];
+    if (ranges[i].started_on <= previous.ended_on) {
+      throw Error(`Cette période chevauche celle du ${previous.started_on} au ${previous.ended_on}. Modifie la période existante dans ton historique.`);
+    }
+  }
+
   if (!Array.isArray(doc.occasions) || doc.occasions.length > 1000) throw Error('Le parcours peut contenir au maximum 1 000 journées ponctuelles.');
   const occasions = doc.occasions.map(value => {
     const row = object(value, ['id', 'date', 'units', 'cost'], 'Journée ponctuelle');
     const recorded = date(row.date, 'Date de la journée', today);
-    if (recorded < baseline.started_on) throw Error('Une journée ne peut pas précéder le début de la référence.');
+    if (version === 1 && recorded < baseline.started_on) throw Error('Une journée ne peut pas précéder le début de la référence dans cette version du suivi.');
     return {id: id(row.id), date: recorded, units: number(row.units, 'Verres de la journée', 1000, true), cost: number(row.cost, 'Dépenses de la journée', 1000000)};
   }).sort((a, b) => a.date.localeCompare(b.date));
   unique(occasions, 'id', 'Chaque identifiant de journée');
@@ -110,7 +138,21 @@ export function validateTimelineDocument(input, today = dayKey()) {
     why: text(rawGoal.why, 'Raison personnelle', 1000), triggers,
     support_first: rawGoal.support_first, planned_action: text(rawGoal.planned_action, 'Prochaine action', 500),
   };
-  return {schema_version: 1, timezone: doc.timezone, baseline, events, occasions, goal};
+  return {schema_version: version, timezone: doc.timezone, baseline, events, occasions, goal, ...(version === 2 ? {ranges} : {})};
+}
+
+/** Explicit write upgrade; reading a v1 document does not mutate its shape. */
+export function upgradeTimelineDocument(input, today = dayKey()) {
+  const doc = validateTimelineDocument(input, today);
+  return {...doc, schema_version: 2, ranges: doc.ranges || []};
+}
+
+/** Save/edit one finite interval by stable id; repeated submissions never duplicate it. */
+export function upsertTimelineRange(input, period, today = dayKey()) {
+  const doc = upgradeTimelineDocument(input, today);
+  const selectedId = id(period?.id);
+  doc.ranges = [...doc.ranges.filter(row => row.id !== selectedId), period];
+  return validateTimelineDocument(doc, today);
 }
 
 function known(value, max) {
@@ -129,46 +171,58 @@ function context(document, checks, today) {
   }
   const occasions = new Map(doc.occasions.map(row => [row.date, row]));
   const exceptions = [...new Set([...legacy.keys(), ...occasions.keys()])].sort();
-  const segments = [];
-  let start = doc.baseline.started_on;
-  // Real older records remain available; the intervening days stay unknown.
-  if (exceptions[0] && exceptions[0] < start) segments.push({start: exceptions[0], end: start, event: null});
-  let event = null;
-  for (const next of doc.events) {
-    if (start < next.started_on) segments.push({start, end: next.started_on, event});
-    start = next.started_on;
-    event = next;
+  const historyStart = [doc.events[0].started_on, doc.ranges?.[0]?.started_on, exceptions[0]].filter(Boolean).sort()[0];
+  const ctx = {doc, legacy, occasions, exceptions, segments: [], today, historyStart};
+  // Only declaration boundaries split estimates. An interval ends inclusively;
+  // its next day returns to the underlying event, baseline, or unknown history.
+  const boundaries = new Set([doc.baseline.started_on, historyStart, today]);
+  for (const event of doc.events) boundaries.add(event.started_on);
+  for (const period of doc.ranges || []) {
+    boundaries.add(period.started_on);
+    boundaries.add(moveDay(period.ended_on, 1));
   }
-  if (start < today) segments.push({start, end: today, event});
-  return {doc, legacy, occasions, exceptions, segments, today};
+  const ordered = [...boundaries].filter(day => day <= today).sort();
+  ctx.segments = ordered.slice(0, -1).map((start, index) => ({
+    start, end: ordered[index + 1], event: activeEvent(ctx, start), range: activeRange(ctx, start),
+  }));
+  return ctx;
+}
+
+function latestStarting(rows, date) {
+  let low = 0, high = rows.length;
+  while (low < high) {
+    const middle = (low + high) >>> 1;
+    if (rows[middle].started_on <= date) low = middle + 1;
+    else high = middle;
+  }
+  return low ? rows[low - 1] : null;
 }
 
 function activeEvent(ctx, date) {
-  const events = ctx.doc.events;
-  let low = 0, high = events.length;
-  while (low < high) {
-    const middle = (low + high) >>> 1;
-    if (events[middle].started_on <= date) low = middle + 1;
-    else high = middle;
-  }
-  return low ? events[low - 1] : null;
+  return latestStarting(ctx.doc.events, date);
 }
 
-function emptyRow(date, event = null) {
-  return {checkin_date: date, sober_today: null, alcohol_units: null, alcohol_cost_eur: null, status_source: 'unknown', units_source: 'unknown', cost_source: 'unknown', event_id: event?.id || null};
+function activeRange(ctx, date) {
+  const period = latestStarting(ctx.doc.ranges || [], date);
+  return period && date <= period.ended_on ? period : null;
 }
 
-function baseRow(ctx, date, selectedEvent) {
-  if (date < ctx.doc.baseline.started_on || date > ctx.today) {
-    return emptyRow(date);
-  }
-  const event = selectedEvent === undefined ? activeEvent(ctx, date) : selectedEvent;
-  const reference = event || ctx.doc.baseline;
-  const source = event ? 'period' : 'baseline';
+function emptyRow(date, event = null, period = null) {
+  return {checkin_date: date, sober_today: null, alcohol_units: null, alcohol_cost_eur: null, status_source: 'unknown', units_source: 'unknown', cost_source: 'unknown', event_id: event?.id || null, range_id: period?.id || null, occasion_id: null};
+}
+
+function baseRow(ctx, date, selected) {
+  if (date > ctx.today) return emptyRow(date);
+  const event = selected ? selected.event : activeEvent(ctx, date);
+  const period = selected ? selected.range : activeRange(ctx, date);
+  if (!period && date < ctx.doc.baseline.started_on) return emptyRow(date, event);
+  const reference = period || event || ctx.doc.baseline;
+  const source = period ? 'range' : event ? 'period' : 'baseline';
   return {
-    checkin_date: date, sober_today: event ? event.state === 'abstinent' : null,
+    checkin_date: date, sober_today: period || event ? reference.state === 'abstinent' : null,
     alcohol_units: reference.units_week / 7, alcohol_cost_eur: reference.cost_week / 7,
-    status_source: source, units_source: source, cost_source: source, event_id: event?.id || null,
+    status_source: source, units_source: source, cost_source: source,
+    event_id: event?.id || null, range_id: period?.id || null, occasion_id: null,
   };
 }
 
@@ -200,12 +254,13 @@ function effectiveRow(ctx, date, base = baseRow(ctx, date)) {
   if (occasion) {
     row.sober_today = false; row.alcohol_units = occasion.units; row.alcohol_cost_eur = occasion.cost;
     row.status_source = 'occasion'; row.units_source = 'occasion'; row.cost_source = 'occasion';
+    row.occasion_id = occasion.id;
   }
   return withProvenance({...row, provisional: date === ctx.today});
 }
 
 function actualTodayRow(ctx) {
-  return effectiveRow(ctx, ctx.today, emptyRow(ctx.today, activeEvent(ctx, ctx.today)));
+  return effectiveRow(ctx, ctx.today, emptyRow(ctx.today, activeEvent(ctx, ctx.today), activeRange(ctx, ctx.today)));
 }
 
 function range(start, end, today) {
@@ -246,9 +301,9 @@ function summarize(ctx, start, end) {
       const from = segment.start > start ? segment.start : start;
       const until = segment.end < stop ? segment.end : stop;
       if (until > from) {
-        add(acc, baseRow(ctx, from, segment.event), dayDiff(until, from));
+        add(acc, baseRow(ctx, from, segment), dayDiff(until, from));
         const referenceFrom = from > referenceStart ? from : referenceStart;
-        if (until > referenceFrom) add(referenceAcc, baseRow(ctx, referenceFrom, segment.event), dayDiff(until, referenceFrom));
+        if (until > referenceFrom) add(referenceAcc, baseRow(ctx, referenceFrom, segment), dayDiff(until, referenceFrom));
       }
     }
     for (const day of ctx.exceptions) {
@@ -315,13 +370,13 @@ function soberPeriods(ctx) {
   let index = 0;
   for (const segment of ctx.segments) {
     let cursor = segment.start;
-    const sober = segment.event?.state === 'abstinent';
+    const sober = baseRow(ctx, segment.start, segment).sober_today === true;
     while (index < ctx.exceptions.length && ctx.exceptions[index] < segment.start) index++;
     while (index < ctx.exceptions.length && ctx.exceptions[index] < segment.end) {
       const day = ctx.exceptions[index++];
       append(cursor, day, sober);
       const next = moveDay(day, 1);
-      append(day, next, effectiveRow(ctx, day, baseRow(ctx, day, segment.event)).sober_today === true);
+      append(day, next, effectiveRow(ctx, day, baseRow(ctx, day, segment)).sober_today === true);
       cursor = next;
     }
     append(cursor, segment.end, sober);
@@ -333,18 +388,68 @@ function soberPeriods(ctx) {
   }));
 }
 
+/** Displayable effective history, split only at declarations and real exceptions. */
+function effectivePeriods(ctx) {
+  const result = [];
+  function append(start, until, input) {
+    start = start < ctx.historyStart ? ctx.historyStart : start;
+    if (until <= start) return;
+    const row = withProvenance(input);
+    const fields = {
+      state: row.sober_today === true ? 'abstinent' : row.sober_today === false ? 'drinking' : 'unknown',
+      source: row.source, event_id: row.event_id, range_id: row.range_id, occasion_id: row.occasion_id,
+      units_week: row.alcohol_units !== null && ESTIMATED.has(row.units_source) ? round2(row.alcohol_units * 7) : null,
+      cost_week: row.alcohol_cost_eur !== null && ESTIMATED.has(row.cost_source) ? round2(row.alcohol_cost_eur * 7) : null,
+      units: ACTUAL.has(row.units_source) ? row.alcohol_units : null,
+      cost: ACTUAL.has(row.cost_source) ? row.alcohol_cost_eur : null,
+      provisional: Boolean(row.provisional),
+    };
+    const last = result.at(-1), end = moveDay(until, -1);
+    if (last && moveDay(last.end, 1) === start && Object.keys(fields).every(key => last[key] === fields[key])) last.end = end;
+    else result.push({start, end, ...fields});
+  }
+  let index = 0;
+  for (const segment of ctx.segments) {
+    let cursor = segment.start;
+    const base = baseRow(ctx, segment.start, segment);
+    while (index < ctx.exceptions.length && ctx.exceptions[index] < segment.start) index++;
+    while (index < ctx.exceptions.length && ctx.exceptions[index] < segment.end) {
+      const day = ctx.exceptions[index++], next = moveDay(day, 1);
+      append(cursor, day, base);
+      append(day, next, effectiveRow(ctx, day, baseRow(ctx, day, segment)));
+      cursor = next;
+    }
+    append(cursor, segment.end, base);
+  }
+  // Today's state is useful for navigation; its estimated quantity/cost never
+  // contributes a completed day or a monetary credit to totals and records.
+  append(ctx.today, moveDay(ctx.today, 1), effectiveRow(ctx, ctx.today));
+  return result;
+}
+
 export function timelineSnapshot(doc, checks = [], today = dayKey()) {
   const ctx = context(doc, checks, today);
   const event = ctx.doc.events.at(-1);
+  const period = activeRange(ctx, today), declaration = period || event;
+  const todayRow = effectiveRow(ctx, today), realToday = actualTodayRow(ctx);
   const periods = soberPeriods(ctx);
   const bestPeriods = [...periods].sort((a, b) => b.days - a.days || b.start.localeCompare(a.start));
+  const currentPeriod = periods.find(period => period.ongoing);
+  const history = effectivePeriods(ctx);
   return {
-    current: {event, state: event.state, started_on: event.started_on, days: dayDiff(today, event.started_on), units_week: event.units_week, cost_week: event.cost_week},
+    current: {
+      event, range: period, state: todayRow.sober_today === true ? 'abstinent' : 'drinking', source: todayRow.status_source,
+      started_on: declaration.started_on, days: dayDiff(today, declaration.started_on),
+      units_week: declaration.units_week, cost_week: declaration.cost_week,
+    },
     totalSoberDays: periods.reduce((total, period) => total + period.days, 0),
-    currentStreak: periods.find(period => period.ongoing)?.days || 0,
+    currentStreak: currentPeriod?.days || 0,
+    currentStreakStartedOn: todayRow.sober_today === true ? currentPeriod?.start || today : null,
     bestStreak: bestPeriods[0]?.days || 0,
-    bestPeriods,
+    bestPeriods, effectivePeriods: history, todayActual: realToday,
+    lastConsumptionOn: history.findLast(period => period.state === 'drinking')?.end || null,
+    historyStart: ctx.historyStart,
     firstEventDate: ctx.doc.events[0].started_on,
-    summary: summarize(ctx, ctx.doc.events[0].started_on, today),
+    summary: summarize(ctx, ctx.historyStart, today),
   };
 }
