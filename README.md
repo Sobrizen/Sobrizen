@@ -3,6 +3,8 @@
 Frontend statique en français, sans build, hébergé sur Vercel. Backend Supabase existant. Aucun nouvel abonnement, API IA, service SMS ou service analytique requis.
 
 ## Fonctions
+- Bilan lisible : consommation, dépenses et économies sur 7 jours, 30 jours ou 12 mois, avec estimations identifiées.
+- Formulaires en trois étapes, boutons + / −, raccourci zéro euro, récapitulatif avant sauvegarde et valeurs conservées au retour.
 - Questionnaire initial : situation, date d’arrêt ou de changement de rythme, anciennes habitudes, dépenses et objectifs.
 - Saisie « Un jour » ou « Une période », du / au inclus, même dans le passé ; arrêts et reprises sans calendrier quotidien.
 - Cumuls, séries, records datés et économies recalculés après correction, y compris avant l’inscription.

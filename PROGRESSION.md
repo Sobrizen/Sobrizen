@@ -8,6 +8,14 @@ Une période d’arrêt déclarée continue jusqu’à un changement de rythme r
 
 L’historique réunit les dates et les corrections. Une déclaration erronée peut être retirée après confirmation explicite ; ses autres périodes, consommations et acquis restent conservés. La correction d’un arrêt redemande les anciennes estimations de consommation et de dépenses.
 
+## Interface simplifiée
+
+Le formulaire de consommation est guidé en trois étapes : « Quand ? », « Combien ? », « Vérifier ». Un seul écran de questions est affiché à la fois. Le retour conserve les champs, et la validation de chaque étape révèle les champs à corriger. Les boutons + / − complètent la saisie directe, et « 0 € · rien dépensé » est un choix explicite. Les détails et notes restent facultatifs. Une sauvegarde échouée conserve le récapitulatif et les saisies.
+
+Le reçu d’une période présente la moyenne hebdomadaire et le total effectivement retenu par le bilan, avec priorité aux journées déjà notées. Les montants réels d’aujourd’hui sont inclus, sans ajouter sa moyenne estimée. Les dates déjà renseignées proposent la correction de l’entrée existante, et les périodes qui se chevauchent sont bloquées dès le choix des dates.
+
+L’accueil et le rapport gratuit partagent un bilan synthétique à deux cartes : consommation et dépenses, puis économies estimées. Les boutons couvrent exactement 7 dates, 30 dates ou 12 mois glissants, aujourd’hui inclus. Les bornes correspondent à celles des courbes détaillées. Les totaux inconnus affichent « — », les estimations et les données partielles sont identifiées. Les courbes et analyses détaillées restent soumises à l’accès Premium existant.
+
 ## Règles de calcul
 
 - Les jours sans alcool et les séries comptent les journées civiles écoulées, sans ajouter une journée inachevée. Un arrêt commencé il y a 14 jours donne 14 jours, même si le compte vient d’être créé.
@@ -25,7 +33,7 @@ Les cumuls de longue durée sont calculés par intervalles et exceptions. Le mot
 
 ## Courbes et paramètres
 
-Les vues Semaine, Mois et Année couvrent 7 jours, 30 jours et 12 mois glissants, avec navigation dans l’historique. L’année passée est accessible avant l’inscription si elle fait partie de l’estimation confirmée par l’utilisateur. Les repères d’abonnement existants sont conservés en base, mais ne bloquent plus l’accès au passé déclaré.
+Les vues « 7 jours », « 30 jours » et « 12 mois » couvrent ces périodes glissantes, aujourd’hui inclus, avec navigation dans l’historique. L’année passée est accessible avant l’inscription si elle fait partie de l’estimation confirmée par l’utilisateur. Les repères d’abonnement existants sont conservés en base, mais ne bloquent plus l’accès au passé déclaré.
 
 Les courbes distinguent les estimations et les valeurs notées. Les périodes d’arrêt restent visibles ; l’intensité du vert s’éclaircit lorsque la consommation ou les dépenses baissent. Les moyennes annuelles évitent de confondre un mois plus long avec une hausse du rythme quotidien. Les journées renseignées et les limites des tranches restent identifiables même dans la vue annuelle. Une consommation réelle interrompt la bande d’arrêt à sa date exacte. Les points sélectionnés permettent d’ouvrir la journée ou la tranche concernée. Le point d’aujourd’hui reste distinct des moyennes closes. Les dates inconnues n’ont pas de fausse valeur zéro.
 

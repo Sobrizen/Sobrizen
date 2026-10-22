@@ -4,7 +4,7 @@ import {timelineRows, timelineSummary, timelineSnapshot} from './timeline-core.m
 
 const numberFormat = new Intl.NumberFormat('fr-FR', {maximumFractionDigits: 2});
 const moneyFormat = new Intl.NumberFormat('fr-FR', {style: 'currency', currency: 'EUR', maximumFractionDigits: 2});
-const scales = {week: 'Semaine', month: 'Mois', year: 'Année'};
+const scales = {week: '7 jours', month: '30 jours', year: '12 mois'};
 const estimatedSources = new Set(['baseline', 'period', 'range']);
 const actualSources = new Set(['legacy', 'occasion']);
 const sourceNames = {baseline: 'Repère estimé', period: 'Rythme estimé', range: 'Plage estimée', legacy: 'Journée notée', occasion: 'Consommation notée', mixed: 'Sources mixtes', unknown: 'Inconnu'};
@@ -18,9 +18,8 @@ const validDay = value => {try {parseDay(value); return true;} catch {return fal
 let chartCount = 0;
 
 function windowRange(scale, offset, today) {
-  const endExclusive = scale === 'year' ? addMonths(today, offset * 12) : moveDay(today, offset * (scale === 'week' ? 7 : 30));
-  const start = scale === 'year' ? addMonths(today, (offset - 1) * 12) : moveDay(endExclusive, -(scale === 'week' ? 7 : 30));
-  const end = offset === 0 ? today : moveDay(endExclusive, -1);
+  const end = scale === 'year' ? addMonths(today, offset * 12) : moveDay(today, offset * (scale === 'week' ? 7 : 30));
+  const start = scale === 'year' ? moveDay(addMonths(today, (offset - 1) * 12), 1) : moveDay(end, scale === 'week' ? -6 : -29);
   return {scale, offset, start, end, days: dayDiff(end, start) + 1};
 }
 
