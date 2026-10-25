@@ -2,11 +2,23 @@
 
 ## Parcours utilisateur
 
-L’onglet « Santé & bienfaits » est disponible dans le menu et depuis l’accueil. Il sépare les repères documentaires sur l’arrêt d’alcool et les observations personnelles. Six périodes permettent de consulter les recherches, leurs populations, leurs limites et leurs liens originaux. La date de vérification documentaire est affichée ; les références ne sont pas mises à jour automatiquement.
+L’onglet « Santé & bienfaits » est disponible dans le menu et depuis l’accueil. Il sépare les repères documentaires sur l’arrêt d’alcool et les observations personnelles. Onze périodes, des premières minutes à un an et au-delà, permettent de consulter les recherches, leurs populations, leurs limites et leurs liens originaux. La date de vérification documentaire est affichée ; les références ne sont pas mises à jour automatiquement.
 
 Le compteur et les dates indicatives utilisent `progression.snapshot()` : c’est le même historique effectif que celui du suivi de consommation. Une saisie rétroactive, une tranche de consommation ou une correction d’arrêt recalcule les repères sans effacer les ressentis. Pendant une reprise, une réduction sans arrêt déclaré ou en l’absence de parcours, les informations restent consultables sans projection datée d’abstinence personnelle.
 
 Les jalons décrivent le temps écoulé, jamais des organes guéris ou une récupération médicale validée. Les alertes de sevrage et les ressources d’aide restent accessibles à toutes les étapes. Les numéros français sont identifiés comme tels.
+
+## Date, heure et compteur précis
+
+Le formulaire initial et les corrections d’arrêt demandent l’heure du dernier verre, facultative. Un formulaire rapide « Modifier mon arrêt » permet de préciser la date et l’heure, avec un bouton « Maintenant » et le choix « Je ne sais pas ». Les heures répétées lors d’un changement d’heure demandent un choix explicite ; une heure inexistante ou future est refusée. Le fuseau canonique du parcours est affiché et n’est pas modifié lors d’un voyage.
+
+Le document de parcours v3 conserve `stopped_at` (instant UTC à la minute) et `stop_basis` (contexte des consommations connues ce jour-là) sur les événements d’arrêt. Les anciennes données ne reçoivent aucune heure inventée. Un arrêt peut commencer après une consommation le même jour ; le compteur précis est alors actif mais la consommation et les statistiques quotidiennes restent intactes. Toute nouvelle information qui invalide le contexte ou indique une consommation ultérieure empêche de réutiliser l’ancienne heure pour une projection précise. L’heure historique reste conservée.
+
+Les repères sont à 0, 6, 24, 48 et 72 heures, puis 7, 14, 28, 90, 180 et 365 jours. Les premiers seuils situent des périodes documentées, pas des bénéfices garantis à une minute donnée. Aucune baisse universelle de tension ou récupération mentale n’est annoncée à 20 minutes ; aucun calcul d’alcoolémie ou délai de conduite n’est proposé.
+
+Le compteur se rafraîchit localement, sans appel API, toutes les 15 secondes lorsque l’écran est visible et sans interrompre un formulaire. L’étape actuelle est sélectionnée automatiquement ; les autres restent consultables et un bouton permet de revenir à son étape. La prochaine étape affiche sa date et le temps restant. Sans heure connue, les repères restent approximatifs à la journée et les périodes inférieures à 24 heures restent informatives.
+
+La migration `schema/journey_stop_clock.sql` conserve les versions v1/v2, les politiques d’accès et le contrôle de version existants. Elle refuse une rétrogradation qui ferait perdre les heures du document v3. Les quinze références médicales et scientifiques sont accessibles depuis les cartes.
 
 ## Observations personnelles
 

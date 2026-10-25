@@ -1,5 +1,6 @@
 /** Self-reported wellbeing and evidence milestones; never a medical assessment. */
 import {dayKey, parseDay, moveDay, dayDiff} from './core.mjs';
+import {elapsedSince, instantMilliseconds, localDateTime} from './time-core.mjs';
 
 export const HEALTH_METRICS = Object.freeze([
   {key: 'mood', label: 'Humeur', low: 'Très difficile', high: 'Très bonne', positive: true},
@@ -97,7 +98,7 @@ export function mergeHealthObservations(rows = [], legacyChecks = [], today = da
 }
 
 /** Use the effective timeline, including retroactive occasions and finite ranges. */
-export function healthJourney(snapshot, today = dayKey()) {
+export function healthJourney(snapshot, today = dayKey(), now = new Date()) {
   parseDay(today);
   const knownCount = value => Number.isInteger(value) && value >= 0 ? value : null;
   const totalSoberDays = knownCount(snapshot?.totalSoberDays);
@@ -106,33 +107,73 @@ export function healthJourney(snapshot, today = dayKey()) {
   const days = knownCount(snapshot?.currentStreak);
   // A stale or contradictory snapshot cannot become a personal health timeline.
   // Day zero is a valid declared start, not a completed sober day.
-  const active = snapshot?.current?.state === 'abstinent'
+  const calendarActive = snapshot?.current?.state === 'abstinent'
     && snapshot?.current?.source !== 'unknown'
     && startDate !== null && days !== null && dayDiff(today, startDate) === days
     && (lastConsumptionOn === null || lastConsumptionOn < startDate);
-  return {active, startDate: active ? startDate : null, days: active ? days : null, totalSoberDays, lastConsumptionOn};
+  const base = {
+    active: calendarActive, startDate: calendarActive ? startDate : null,
+    days: calendarActive ? days : null, calendarDays: calendarActive ? days : null,
+    totalSoberDays, lastConsumptionOn,
+    precision: calendarActive ? 'day' : 'unknown',
+    startedAt: null, timeZone: snapshot?.stopClock?.timeZone || null,
+    elapsedMinutes: null, elapsedDays: null, elapsedHours: null, hours: null, minutes: null, elapsedLabel: null,
+  };
+  const clock = snapshot?.stopClock;
+  if (clock?.valid === true && validDay(clock.date, today)) {
+    try {
+      const startedAt = new Date(instantMilliseconds(clock.startedAt)).toISOString();
+      const local = localDateTime(startedAt, clock.timeZone);
+      if (local.date !== clock.date) return base;
+      const {label: elapsedLabel, ...elapsed} = elapsedSince(startedAt, now);
+      // A confirmed last-drink time can follow drinking earlier on the same day.
+      // It never changes that day's alcohol ledger or counts it as a sober day.
+      return {...base, active: true, precision: 'minute', startDate: clock.date,
+        startedAt, timeZone: clock.timeZone, days: elapsed.elapsedDays,
+        ...elapsed, elapsedLabel};
+    } catch { return base; }
+  }
+  return base;
 }
 
 /** Stage states describe elapsed time, never that a health benefit was acquired. */
-export function stageProgress(snapshot, stages = [], today = dayKey()) {
-  const journey = healthJourney(snapshot, today);
+export function stageProgress(snapshot, stages = [], today = dayKey(), now = new Date()) {
+  const journey = healthJourney(snapshot, today, now);
   if (!Array.isArray(stages)) throw Error('Les repères scientifiques sont invalides.');
   let previous = -1;
-  for (const stage of stages) {
-    if (!Number.isInteger(stage?.fromDays) || stage.fromDays < 0 || stage.fromDays <= previous) {
-      throw Error('Les repères doivent avoir des durées croissantes en jours entiers.');
+  const normalized = stages.map(stage => {
+    const fromMinutes = stage?.fromMinutes ?? (Number.isInteger(stage?.fromDays) ? stage.fromDays * 1440 : null);
+    if (!Number.isSafeInteger(fromMinutes) || fromMinutes < 0 || fromMinutes <= previous) {
+      throw Error('Les repères doivent avoir des durées croissantes en minutes entières.');
     }
-    previous = stage.fromDays;
+    previous = fromMinutes;
+    return {...stage, fromMinutes};
+  });
+  const exact = journey.precision === 'minute';
+  const dayStage = stage => stage.fromMinutes >= 1440 && stage.fromMinutes % 1440 === 0;
+  let stageIndex = -1;
+  if (journey.active) {
+    stageIndex = exact
+      ? normalized.findLastIndex(stage => stage.fromMinutes <= journey.elapsedMinutes)
+      : normalized.findLastIndex(stage => dayStage(stage) && stage.fromMinutes / 1440 <= journey.days);
+    if (!exact && stageIndex === -1 && normalized.length) stageIndex = 0;
   }
-  const stageIndex = journey.active ? stages.findLastIndex(stage => stage.fromDays <= journey.days) : -1;
   return {
     ...journey,
     stageIndex,
-    stages: stages.map((stage, index) => ({
-      ...stage,
-      state: !journey.active ? 'information' : index < stageIndex ? 'past' : index === stageIndex ? 'current' : 'future',
-      targetDate: journey.active ? moveDay(journey.startDate, stage.fromDays) : null,
-    })),
+    stages: normalized.map((stage, index) => {
+      const informative = !journey.active || (!exact && !dayStage(stage));
+      const targetAt = journey.active && exact
+        ? new Date(instantMilliseconds(journey.startedAt) + stage.fromMinutes * 60000).toISOString() : null;
+      return {
+        ...stage,
+        state: informative ? 'information' : index < stageIndex ? 'past' : index === stageIndex ? 'current' : 'future',
+        targetAt,
+        targetDate: targetAt ? localDateTime(targetAt, journey.timeZone).date
+          : !informative ? moveDay(journey.startDate, stage.fromMinutes / 1440) : null,
+        approx: !exact && journey.active && dayStage(stage),
+      };
+    }),
   };
 }
 

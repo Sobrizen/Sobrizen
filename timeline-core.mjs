@@ -1,6 +1,7 @@
 /** Declared periods plus sparse recorded exceptions; no invented daily check-ins. */
 import {dayKey, parseDay, moveDay, dayDiff} from './core.mjs';
 import {numberOrNull, round2, percentChange} from './progress-core.mjs';
+import {instantMilliseconds, localDateTime} from './time-core.mjs';
 
 const FIRST_DAY = '1900-01-01';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
@@ -51,12 +52,12 @@ function unique(rows, field, label) {
   if (new Set(rows.map(row => row[field])).size !== rows.length) throw Error(`${label} doit être unique.`);
 }
 
-export function validateTimelineDocument(input, today = dayKey()) {
+export function validateTimelineDocument(input, today = dayKey(), now = new Date()) {
   parseDay(today);
   const version = input?.schema_version;
-  if (![1, 2].includes(version)) throw Error('Version du parcours non prise en charge.');
+  if (![1, 2, 3].includes(version)) throw Error('Version du parcours non prise en charge.');
   const keys = ['schema_version', 'timezone', 'baseline', 'events', 'occasions', 'goal'];
-  if (version === 2) keys.push('ranges');
+  if (version >= 2) keys.push('ranges');
   const doc = object(input, keys, 'Parcours');
   if (typeof doc.timezone !== 'string' || !doc.timezone || doc.timezone.length > 100) throw Error('Fuseau horaire invalide.');
   try { new Intl.DateTimeFormat('fr-FR', {timeZone: doc.timezone}).format(0); }
@@ -72,24 +73,44 @@ export function validateTimelineDocument(input, today = dayKey()) {
     throw Error('Le parcours doit contenir entre 1 et 500 périodes.');
   }
   const events = doc.events.map(value => {
-    const row = object(value, ['id', 'started_on', 'state', 'units_week', 'cost_week', 'note'], 'Période');
+    const row = object(value, ['id', 'started_on', 'state', 'units_week', 'cost_week', 'note', ...(version === 3 ? ['stopped_at', 'stop_basis'] : [])], 'Période');
     if (!['abstinent', 'drinking'].includes(row.state)) throw Error('État de période invalide.');
     const units = number(row.units_week, 'Consommation hebdomadaire', 7000, row.state === 'drinking');
     if (row.state === 'abstinent' && units !== 0) throw Error('Une période sans alcool doit avoir une consommation nulle.');
+    const started_on = date(row.started_on, 'Début de période', today);
+    const clock = {};
+    if (Object.hasOwn(row, 'stopped_at') || Object.hasOwn(row, 'stop_basis')) {
+      if (row.state !== 'abstinent') throw Error('L’heure d’arrêt est réservée à une période sans alcool.');
+      if (row.stopped_at == null && row.stop_basis == null) {
+        clock.stopped_at = null; clock.stop_basis = null;
+      } else {
+        if (typeof row.stopped_at !== 'string' || !/^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d:00(?:\.000)?Z$/u.test(row.stopped_at)) {
+          throw Error('L’heure d’arrêt doit être un instant UTC précis à la minute.');
+        }
+        const millis = instantMilliseconds(row.stopped_at);
+        if (millis > instantMilliseconds(now)) throw Error('L’heure d’arrêt ne peut pas être dans le futur.');
+        if (localDateTime(millis, doc.timezone).date !== started_on) throw Error('L’heure d’arrêt doit correspondre à la date déclarée dans ton fuseau horaire.');
+        if (typeof row.stop_basis !== 'string' || new TextEncoder().encode(row.stop_basis).length > 16384) throw Error('La confirmation de l’heure d’arrêt est invalide.');
+        let basis;
+        try { basis = JSON.parse(row.stop_basis); } catch { throw Error('La confirmation de l’heure d’arrêt est invalide.'); }
+        if (!basis || typeof basis !== 'object' || Array.isArray(basis)) throw Error('La confirmation de l’heure d’arrêt est invalide.');
+        clock.stopped_at = new Date(millis).toISOString(); clock.stop_basis = row.stop_basis;
+      }
+    }
     return {
-      id: id(row.id), started_on: date(row.started_on, 'Début de période', today), state: row.state,
+      id: id(row.id), started_on, state: row.state,
       units_week: units, cost_week: number(row.cost_week, 'Budget hebdomadaire', 7000000),
-      note: text(row.note, 'Note de période', 300),
+      note: text(row.note, 'Note de période', 300), ...clock,
     };
   }).sort((a, b) => a.started_on.localeCompare(b.started_on));
   unique(events, 'id', 'Chaque identifiant de période');
   unique(events, 'started_on', 'Chaque date de début');
   if (baseline.started_on > events[0].started_on) throw Error('La référence doit commencer avant ou avec la première période.');
 
-  if (version === 2 && (!Array.isArray(doc.ranges) || doc.ranges.length > 500)) {
+  if (version >= 2 && (!Array.isArray(doc.ranges) || doc.ranges.length > 500)) {
     throw Error('Le parcours peut contenir au maximum 500 périodes datées.');
   }
-  const ranges = (version === 2 ? doc.ranges : []).map(value => {
+  const ranges = (version >= 2 ? doc.ranges : []).map(value => {
     const row = object(value, ['id', 'started_on', 'ended_on', 'state', 'units_week', 'cost_week', 'note'], 'Période datée');
     if (!['abstinent', 'drinking'].includes(row.state)) throw Error('État de période datée invalide.');
     const units = number(row.units_week, 'Consommation hebdomadaire', 7000, row.state === 'drinking');
@@ -138,21 +159,21 @@ export function validateTimelineDocument(input, today = dayKey()) {
     why: text(rawGoal.why, 'Raison personnelle', 1000), triggers,
     support_first: rawGoal.support_first, planned_action: text(rawGoal.planned_action, 'Prochaine action', 500),
   };
-  return {schema_version: version, timezone: doc.timezone, baseline, events, occasions, goal, ...(version === 2 ? {ranges} : {})};
+  return {schema_version: version, timezone: doc.timezone, baseline, events, occasions, goal, ...(version >= 2 ? {ranges} : {})};
 }
 
 /** Explicit write upgrade; reading a v1 document does not mutate its shape. */
-export function upgradeTimelineDocument(input, today = dayKey()) {
-  const doc = validateTimelineDocument(input, today);
-  return {...doc, schema_version: 2, ranges: doc.ranges || []};
+export function upgradeTimelineDocument(input, today = dayKey(), now = new Date()) {
+  const doc = validateTimelineDocument(input, today, now);
+  return {...doc, schema_version: doc.schema_version === 3 ? 3 : 2, ranges: doc.ranges || []};
 }
 
 /** Save/edit one finite interval by stable id; repeated submissions never duplicate it. */
-export function upsertTimelineRange(input, period, today = dayKey()) {
-  const doc = upgradeTimelineDocument(input, today);
+export function upsertTimelineRange(input, period, today = dayKey(), now = new Date()) {
+  const doc = upgradeTimelineDocument(input, today, now);
   const selectedId = id(period?.id);
   doc.ranges = [...doc.ranges.filter(row => row.id !== selectedId), period];
-  return validateTimelineDocument(doc, today);
+  return validateTimelineDocument(doc, today, now);
 }
 
 function known(value, max) {
@@ -160,8 +181,8 @@ function known(value, max) {
   return result !== null && result >= 0 && result <= max ? result : null;
 }
 
-function context(document, checks, today) {
-  const doc = validateTimelineDocument(document, today);
+function context(document, checks, today, now = new Date()) {
+  const doc = validateTimelineDocument(document, today, now);
   const legacy = new Map();
   for (const check of checks) {
     const key = check?.checkin_date;
@@ -346,13 +367,13 @@ function summarize(ctx, start, end) {
 }
 
 /** Inclusive query: days/coverage/comparison stay closed; actual today is separate. */
-export function timelineSummary(doc, checks = [], start, end, today = dayKey()) {
-  return summarize(context(doc, checks, today), start, end);
+export function timelineSummary(doc, checks = [], start, end, today = dayKey(), now = new Date()) {
+  return summarize(context(doc, checks, today, now), start, end);
 }
 
 /** Intended for bounded charts/export. Values retain daily estimate precision. */
-export function timelineRows(doc, checks = [], start, end, today = dayKey()) {
-  const ctx = context(doc, checks, today), window = range(start, end, today);
+export function timelineRows(doc, checks = [], start, end, today = dayKey(), now = new Date()) {
+  const ctx = context(doc, checks, today, now), window = range(start, end, today);
   if (window.days > 366) throw Error('Choisis au maximum 366 journées pour le détail de la courbe.');
   const rows = Array.from({length: window.days}, (_, index) => effectiveRow(ctx, moveDay(start, index)));
   if (start <= today && end >= today) rows.push(actualTodayRow(ctx));
@@ -427,8 +448,55 @@ function effectivePeriods(ctx) {
   return result;
 }
 
-export function timelineSnapshot(doc, checks = [], today = dayKey()) {
-  const ctx = context(doc, checks, today);
+/** Facts the user has seen when explicitly confirming a last-drink time. */
+export function timelineStopBasis(doc, checks = [], date) {
+  parseDay(date);
+  const identifier = value => typeof value === 'string' ? (UUID.test(value) ? value.toLowerCase() : value) : null;
+  const amount = (value, max) => {const valueKnown = known(value, max); return valueKnown === null ? null : round2(valueKnown);};
+  const occasion = (doc?.occasions || []).find(row => row.date === date);
+  const range = (doc?.ranges || []).find(row => row.state === 'drinking' && row.started_on <= date && row.ended_on >= date);
+  let check = null;
+  for (const row of Array.isArray(checks) ? checks : []) if (row?.checkin_date === date) check = row;
+  const sober = typeof check?.sober_today === 'boolean' ? check.sober_today : null;
+  const units = known(check?.alcohol_units, 1000), cost = known(check?.alcohol_cost_eur, 1000000);
+  return JSON.stringify({
+    occasion: occasion ? {id: identifier(occasion.id), date, units: amount(occasion.units, 1000), cost: amount(occasion.cost, 1000000)} : null,
+    range: range ? {id: identifier(range.id), started_on: range.started_on, ended_on: range.ended_on, state: 'drinking', units_week: amount(range.units_week, 7000), cost_week: amount(range.cost_week, 7000000)} : null,
+    legacy: check && (sober !== null || units !== null || cost !== null) ? {
+      id: identifier(check.id), checkin_date: date, sober_today: sober,
+      alcohol_units: units, alcohol_cost_eur: cost,
+      updated_at: typeof check.updated_at === 'string' ? check.updated_at : null,
+    } : null,
+  });
+}
+
+function stopClock(ctx, history, todayRow) {
+  const event = ctx.doc.events.at(-1);
+  const clock = {startedAt: event.state === 'abstinent' ? event.stopped_at || null : null,
+    date: event.state === 'abstinent' ? event.started_on : null, timeZone: ctx.doc.timezone, valid: false, reason: null};
+  if (event.state !== 'abstinent') return {...clock, reason: 'not-abstinent'};
+  if (!event.stopped_at) return {...clock, reason: 'time-unknown'};
+  // An explicit later drinking declaration always interrupts a previous clock,
+  // even if day-level corrections would hide one of its estimated daily rows.
+  if ((ctx.doc.ranges || []).some(row => row.state === 'drinking' && row.ended_on > event.started_on)
+    || history.some(row => row.state === 'drinking' && row.end > event.started_on)) {
+    return {...clock, reason: 'later-consumption'};
+  }
+  const basis = timelineStopBasis(ctx.doc, [...ctx.legacy.values()], event.started_on);
+  if (basis !== event.stop_basis) return {...clock, reason: 'consumption-changed'};
+  if (todayRow.sober_today !== true) {
+    const declared = JSON.parse(basis);
+    const sameDay = ctx.today === event.started_on && (
+      declared.occasion || declared.range?.ended_on === event.started_on
+      || declared.legacy?.sober_today === false || declared.legacy?.alcohol_units > 0
+    );
+    if (!sameDay) return {...clock, reason: 'not-abstinent'};
+  }
+  return {...clock, valid: true};
+}
+
+export function timelineSnapshot(doc, checks = [], today = dayKey(), now = new Date()) {
+  const ctx = context(doc, checks, today, now);
   const event = ctx.doc.events.at(-1);
   const period = activeRange(ctx, today), declaration = period || event;
   const todayRow = effectiveRow(ctx, today), realToday = actualTodayRow(ctx);
@@ -448,6 +516,7 @@ export function timelineSnapshot(doc, checks = [], today = dayKey()) {
     bestStreak: bestPeriods[0]?.days || 0,
     bestPeriods, effectivePeriods: history, todayActual: realToday,
     lastConsumptionOn: history.findLast(period => period.state === 'drinking')?.end || null,
+    stopClock: stopClock(ctx, history, todayRow),
     historyStart: ctx.historyStart,
     firstEventDate: ctx.doc.events[0].started_on,
     summary: summarize(ctx, ctx.historyStart, today),

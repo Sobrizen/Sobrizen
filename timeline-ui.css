@@ -147,3 +147,28 @@
  .tl-review-line>b,.tl-review-line>strong{max-width:100%}
 }
 @media(prefers-reduced-motion:reduce){.tl-wizard *{scroll-behavior:auto!important;animation:none!important;transition:none!important}.tl-wizard button:active{transform:none}}
+
+/* An exact time stays optional; civil dates still drive daily totals. */
+.tl-stop-time{margin-top:15px;padding:16px;border:1px solid var(--line);border-radius:16px;background:var(--bg)}
+.tl-clock-input-row{display:grid;grid-template-columns:minmax(120px,1fr) auto;align-items:end;gap:12px}
+.tl-clock-input-row>label{margin:0}
+.tl-wizard input[type=time]{width:100%;min-width:0;max-width:100%;font-variant-numeric:tabular-nums}
+.tl-clock-buttons{display:flex;flex-direction:column;align-items:stretch;gap:2px}
+.tl-clock-buttons>button{min-height:44px;padding:8px 12px;white-space:normal;font-size:13px}
+.tl-clock-buttons .text{padding:7px 8px}
+.tl-clock-zone{overflow-wrap:anywhere;margin:10px 0 0;font-size:12px}
+.tl-clock-zone b{font-weight:550}
+.tl-clock-preview{margin:10px 0 0;line-height:1.5;color:var(--green)}
+.tl-clock-preview.is-error{color:var(--danger,#9d402f)}
+.tl-wizard .tl-clock-occurrence{border-top:1px solid var(--line);padding-top:14px;margin:15px 0 0}
+.tl-wizard .tl-clock-occurrence>legend{font-size:14px;padding-top:10px}
+.tl-clock-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.tl-clock-options .checklabel{min-height:52px;align-items:center;gap:8px;margin:0;padding:10px;border:1px solid var(--line);border-radius:11px;background:var(--card);font-size:13px}
+.tl-clock-options .checklabel:has(input:checked){border-color:var(--green);background:var(--soft)}
+.tl-clock-options input{flex:0 0 18px;width:18px;height:18px;margin:0}
+.tl-clock-options small{display:block;color:var(--muted);font-size:11px;line-height:1.5}
+.tl-stop-form>.tl-fieldset{margin-top:12px}
+.tl-stop-form>.tl-confirm{margin:16px 0}
+.tl-current-main>strong{overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.tl-preview-grid strong{overflow-wrap:anywhere}
+@media(max-width:420px){.tl-clock-input-row{grid-template-columns:1fr;gap:8px}.tl-clock-buttons{flex-direction:row;flex-wrap:wrap;gap:8px}.tl-clock-buttons>button{flex:1}.tl-clock-options{grid-template-columns:1fr}.tl-stop-time{padding:13px}.tl-current-main>strong{font-size:clamp(25px,7.6vw,38px)}}

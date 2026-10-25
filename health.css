@@ -111,3 +111,48 @@ body.dark .hz-history .hz-delete{color:#ffb7b7}
 @media(max-width:1100px){.hz-stages{grid-template-columns:repeat(3,minmax(0,1fr))}.hz-hero{grid-template-columns:minmax(0,1fr) 175px;padding:25px;gap:20px}.hz-counter{min-width:160px}}
 @media(max-width:620px){.hz-hero{grid-template-columns:1fr;padding:23px;gap:20px}.hz-hero h2{font-size:30px}.hz-counter{justify-self:stretch;min-height:112px;flex-direction:row;align-items:center;justify-content:flex-start;gap:12px;text-align:left;flex-wrap:wrap;padding:17px}.hz-counter strong{font-size:45px}.hz-counter small{width:100%;margin:0}.hz-counter span{max-width:160px}.hz-hero-bottom{flex-direction:column;align-items:flex-start;font-size:11px}.hz-section{margin-top:23px}.hz-section-heading h2{font-size:24px}.hz-metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.hz-metric{padding:13px}.hz-evidence-grid{grid-template-columns:1fr}.hz-evidence{padding:20px}.hz-stage{padding:12px 6px}.hz-stage strong{font-size:11px}.hz-stage small{font-size:9px}.hz-personal-prompt{flex-direction:column;align-items:flex-start;padding:18px}.hz-history-row{flex-direction:column;gap:7px}.hz-rating-grid{grid-template-columns:1fr}.hz-rating-options label>span:first-of-type{min-height:48px}.hz-hero .row{align-items:stretch}.hz-hero .light{flex:1}.hz-section-heading>.primary{width:100%}.hz-safety{padding:20px}.hz-range{width:100%}.hz-range button{flex:1}}
 @media(prefers-reduced-motion:reduce){.hz-page *{scroll-behavior:auto;transition:none!important}}
+
+/* Minute-level clock: elapsed time is never a health score. */
+.hz-hero-clock{grid-template-columns:minmax(0,1fr) 225px;align-items:center}
+.hz-hero-clock h2{font-size:clamp(27px,3.5vw,40px);margin-bottom:12px}
+.hz-hero-clock .hz-counter{width:100%;min-height:188px}
+.hz-live-counter [data-health-clock-value]{font-variant-numeric:tabular-nums;font-size:clamp(42px,5vw,64px)}
+.hz-live-counter [data-health-clock-detail]{font-size:15px;font-variant-numeric:tabular-nums;letter-spacing:.01em}
+.hz-time-hint{display:flex;align-items:center;gap:13px;padding:14px 18px;border:1px solid var(--line);border-radius:16px;background:var(--card);margin-top:12px}
+.hz-time-hint>span{font-size:26px;color:var(--axis-health);flex-shrink:0}
+.hz-time-hint p{font-size:13px;line-height:1.6;margin:0;flex:1}
+.hz-time-hint button{flex-shrink:0;min-height:44px}
+.hz-early-help{border-left:3px solid #c78637;padding:12px 16px;background:color-mix(in srgb,var(--peach) 48%,var(--card));border-radius:0 14px 14px 0;margin-top:16px}
+.hz-early-help strong,.hz-early-help p,.hz-early-help a{font-size:12px;line-height:1.6}
+.hz-early-help p{margin:5px 0}
+.hz-early-help a{display:inline-block;min-height:30px;text-underline-offset:3px}
+.hz-milestones .hz-stages{display:flex;overflow-x:auto;gap:9px;scroll-snap-type:x proximity;overscroll-behavior-x:contain;padding:5px 3px 13px;margin:18px 0 10px;scrollbar-width:thin}
+.hz-milestones .hz-stages .hz-stage{flex:0 0 100px;min-width:100px;min-height:96px;padding:12px 7px;gap:5px;scroll-snap-align:start}
+.hz-milestones .hz-stage .hz-stage-dot{width:25px;height:25px;flex:0 0 25px;font-size:11px}
+.hz-milestones .hz-stage strong{font-size:13px}
+.hz-milestones .hz-stage small{font-size:10px}
+.hz-milestones .hz-stage.is-current:not(.selected){border-color:var(--axis-health)}
+.hz-stage-range{font-size:13px;color:var(--muted);margin:6px 0 0}
+.hz-stage-title .tag{display:inline-block;max-width:100%;white-space:normal;line-height:1.6}
+.hz-next{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-top:20px;border:1px solid var(--line);border-radius:18px;background:var(--card);padding:20px 23px}
+.hz-next h3{font-size:22px;margin:7px 0 5px}
+.hz-next h3 small{font-size:13px;font-weight:500;color:var(--muted);margin-left:6px}
+.hz-next p{font-size:13px;margin:0;color:var(--muted);line-height:1.6}
+.hz-next>button{flex-shrink:0;min-height:46px}
+.hz-evidence .hz-source-link{min-height:40px;text-underline-offset:3px}
+@media(max-width:620px){
+ .hz-hero-clock{grid-template-columns:1fr;padding:22px;gap:18px}
+ .hz-hero-clock .hz-counter{min-height:120px;width:100%;max-width:100%;display:grid;grid-template-columns:auto minmax(0,1fr);gap:5px 14px;align-items:center;padding:16px}
+ .hz-live-counter [data-health-clock-value]{grid-row:1/3;font-size:54px}
+ .hz-live-counter [data-health-clock-unit]{font-size:13px;max-width:none;align-self:end}
+ .hz-live-counter [data-health-clock-detail]{font-size:13px;margin:0;align-self:start}
+ .hz-time-hint{flex-wrap:wrap;padding:13px 15px;gap:7px 10px}
+ .hz-time-hint p{flex-basis:calc(100% - 40px);font-size:12px}
+ .hz-time-hint button{margin-left:35px;padding:6px 0}
+ .hz-next{padding:18px;align-items:flex-start;flex-direction:column;gap:12px}
+ .hz-next>button{width:100%}
+ .hz-milestones .hz-stages .hz-stage{flex-basis:94px;min-width:94px}
+}
+
+.hz-live-counter.is-idle [data-health-clock-value]{font-size:32px;letter-spacing:-.03em;overflow-wrap:normal}
+@media(max-width:620px){.hz-hero-clock .hz-counter.is-idle{grid-template-columns:1fr}.hz-live-counter.is-idle [data-health-clock-value]{grid-row:auto;font-size:31px}.hz-live-counter.is-idle [data-health-clock-detail]:empty{display:none}}

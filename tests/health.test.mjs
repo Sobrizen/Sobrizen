@@ -16,6 +16,7 @@ const document = (start = ago(30)) => ({
 });
 const stages = [0, 7, 28, 90, 180, 365].map(fromDays => ({id: `stage-${fromDays}`, fromDays, title: `Repère ${fromDays}`}));
 const metric = (rows, key, date = today) => healthTrends(rows, date).find(row => row.key === key);
+const daySummary = ({active, startDate, days, totalSoberDays, lastConsumptionOn}) => ({active, startDate, days, totalSoberDays, lastConsumptionOn});
 
 test('a sparse write preserves missing measurements and never writes alcohol status', () => {
   const input = {checkin_date: ago(2), mood: ' 4 ', energy: '', sleep_quality: '  ', anxiety: '2', note: '  Une journée calme.  ', sober_today: false};
@@ -104,7 +105,9 @@ test('a retrospectively reported drinking day moves the health start after that 
   doc.occasions.push({id: id(2), date: ago(10), units: 3, cost: 12});
   const snapshot = timelineSnapshot(doc, [], today);
   const journey = healthJourney(snapshot, today);
-  assert.deepEqual(journey, {active: true, startDate: ago(9), days: 9, totalSoberDays: 29, lastConsumptionOn: ago(10)});
+  assert.deepEqual(daySummary(journey), {active: true, startDate: ago(9), days: 9, totalSoberDays: 29, lastConsumptionOn: ago(10)});
+  assert.equal(journey.precision, 'day');
+  assert.equal(journey.elapsedMinutes, null);
   assert.equal(snapshot.current.started_on, ago(30));
   assert.equal(stageProgress(snapshot, stages, today).stages[2].targetDate, moveDay(ago(9), 28));
 });
@@ -112,7 +115,7 @@ test('a retrospectively reported drinking day moves the health start after that 
 test('an inclusive drinking range recalculates the current period and preserves earlier sober days', () => {
   const doc = upsertTimelineRange(document(), {...event(2, ago(10), 'drinking', 14), ended_on: ago(7)}, today);
   const journey = healthJourney(timelineSnapshot(doc, [], today), today);
-  assert.deepEqual(journey, {active: true, startDate: ago(6), days: 6, totalSoberDays: 26, lastConsumptionOn: ago(7)});
+  assert.deepEqual(daySummary(journey), {active: true, startDate: ago(6), days: 6, totalSoberDays: 26, lastConsumptionOn: ago(7)});
   const changed = upsertTimelineRange(doc, {...event(2, ago(5), 'drinking', 14), ended_on: ago(3)}, today);
   assert.equal(healthJourney(timelineSnapshot(changed, [], today), today).days, 2);
 });
@@ -149,8 +152,13 @@ test('an explicit start today is active day zero and does not award a completed 
   assert.equal(progress.days, 0);
   assert.equal(progress.totalSoberDays, 0);
   assert.equal(progress.stageIndex, 0);
-  assert.equal(progress.stages[0].targetDate, today);
+  assert.equal(progress.stages[0].state, 'information');
+  assert.equal(progress.stages[0].targetDate, null);
+  assert.equal(progress.stages[0].targetAt, null);
+  assert.equal(progress.precision, 'day');
+  assert.equal(progress.elapsedMinutes, null);
   assert.equal(progress.stages[1].targetDate, moveDay(today, 7));
+  assert.equal(progress.stages[1].approx, true);
 });
 
 test('missing, unknown, stale or future starts cannot fabricate a personal timeline', () => {

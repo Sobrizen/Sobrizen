@@ -1,6 +1,7 @@
 import {dayKey, moveDay, dayDiff, parseDay, dateLabel, esc} from './core.mjs';
 import {HEALTH_METRICS, validateHealthEntry, mergeHealthObservations, healthTrends, stageProgress} from './health-core.mjs';
 import {HEALTH_STAGES, HEALTH_SOURCES, HEALTH_REVIEWED_ON, HEALTH_SAFETY} from './health-evidence.mjs';
+import {localDateTime} from './time-core.mjs';
 
 const number = value => new Intl.NumberFormat('fr-FR', {maximumFractionDigits: 1}).format(value);
 const sourceMap = new Map(HEALTH_SOURCES.map(source => [source.id, source]));
@@ -12,7 +13,7 @@ const icons = {
 /** Public research stays separate from private, self-reported observations. */
 export function createHealth(api) {
   const {S, progression} = api;
-  const H = {rows: [], ready: false, error: '', uid: null, generation: 0, stage: null, metric: 'mood', window: 30, historyLimit: 10};
+  const H = {rows: [], ready: false, error: '', uid: null, generation: 0, stage: null, metric: 'mood', window: 30, historyLimit: 10, clockStage: null, clockDay: null, clockPrecision: null};
   const forms = new WeakMap();
   const today = () => progression.today();
   const consent = () => api.healthConsentActive();
@@ -59,21 +60,57 @@ export function createHealth(api) {
     return `<article class="card hz-evidence hz-${kind}"><div class="hz-card-heading"><span class="hz-icon">${icons[kind]}</span><h3>${kind === 'physical' ? 'Côté corps' : 'Côté esprit'}</h3></div>${items.map(item => `<div class="hz-finding"><h4>${esc(item.title)}</h4><p>${esc(item.text)}</p>${refs(item.sourceIds)}</div>`).join('')}</article>`;
   }
 
+  function instantLabel(value, zone) {
+    try {
+      const local = localDateTime(value, zone || 'UTC');
+      return `${dateLabel(local.date)} à ${local.time.replace(':', ' h ')}`;
+    } catch { return ''; }
+  }
+
+  function clockFace(progress) {
+    if (!progress.active) return {value: 'À ton rythme', unit: 'Chaque nouveau départ compte', detail: ''};
+    if (progress.precision !== 'minute') return {value: number(progress.days), unit: `jour${progress.days === 1 ? '' : 's'} · heure inconnue`, detail: 'Repères à la journée'};
+    if (progress.elapsedDays > 0) return {value: number(progress.elapsedDays), unit: `jour${progress.elapsedDays === 1 ? '' : 's'} depuis ton dernier verre`, detail: `+ ${progress.hours} h ${progress.minutes} min`};
+    if (progress.hours > 0) return {value: number(progress.hours), unit: `heure${progress.hours === 1 ? '' : 's'} depuis ton dernier verre`, detail: `+ ${progress.minutes} min`};
+    return {value: progress.elapsedMinutes ? number(progress.elapsedMinutes) : '< 1', unit: `minute${progress.elapsedMinutes > 1 ? 's' : ''} depuis ton dernier verre`, detail: 'Ton arrêt commence ici'};
+  }
+
+  function nextMilestone(progress) {
+    return progress.stages.find((stage, index) => index > progress.stageIndex && stage.state === 'future' && (progress.precision === 'minute' || stage.fromMinutes >= 1440));
+  }
+
+  function remainingLabel(stage) {
+    if (!stage?.targetAt) return '';
+    const minutes = Math.max(0, Math.ceil((Date.parse(stage.targetAt) - Date.now()) / 60000));
+    if (minutes < 60) return minutes ? `dans ${minutes} min` : 'ce repère commence';
+    const days = Math.floor(minutes / 1440), hours = Math.floor(minutes / 60) % 24, rest = minutes % 60;
+    if (days) return `dans ${days} j${hours ? ` ${hours} h` : ''}`;
+    return `dans ${hours} h${rest ? ` ${rest} min` : ''}`;
+  }
+
   function journeyHero(progress) {
-    const active = progress.active;
-    const current = active ? progress.stages[progress.stageIndex] : null;
-    const next = active ? progress.stages[progress.stageIndex + 1] : null;
-    return `<section class="hz-hero"><div><span class="hz-kicker">CHAQUE JOUR, UN PEU PLUS DE REPÈRES</span><h2>${active ? 'Ton arrêt avance.<br>Observe ce qui change.' : 'Ta santé mérite<br>ton attention.'}</h2><p>${active ? `Depuis le ${dateLabel(progress.startDate)}, selon ton historique déclaré.` : 'Des repères scientifiques et un espace pour noter comment tu te sens, à ton rythme.'}</p><div class="row"><button class="light" type="button" data-health-action="checkin" ${!consent() || !H.ready ? 'disabled' : ''}>Noter mon ressenti <span aria-hidden="true">＋</span></button><button class="hz-hero-link" type="button" data-page="progress">Voir mes dates →</button></div></div><div class="hz-counter" aria-label="${active ? `${progress.days} jours écoulés depuis le début déclaré de l’arrêt en cours` : 'Aucun arrêt en cours confirmé'}"><strong>${active ? number(progress.days) : 'À ton rythme'}</strong><span>${active ? `jour${progress.days === 1 ? '' : 's'} écoulé${progress.days === 1 ? '' : 's'} sans alcool` : 'Chaque observation compte'}</span>${active ? `<small>${esc(current?.rangeLabel || '')}</small>` : ''}</div><div class="hz-hero-bottom"><span>${active ? `Prochain repère : ${next ? `${esc(next.rangeLabel)} · ${dateLabel(next.targetDate)}` : 'continuer ton suivi dans la durée'}` : 'Les dates des repères apparaîtront lorsqu’un arrêt en cours sera déclaré.'}</span><span>Repères ≠ bilan médical</span></div></section>`;
+    const face = clockFace(progress), next = nextMilestone(progress);
+    const origin = !progress.active ? '' : progress.precision === 'minute' ? instantLabel(progress.startedAt, progress.timeZone) : dateLabel(progress.startDate);
+    return `<section class="hz-hero hz-hero-clock"><div><span class="hz-kicker">TON ARRÊT, PAS À PAS</span><h2>${progress.active ? 'Où en es-tu<br>aujourd’hui ?' : 'Un nouveau départ,<br>à ton rythme.'}</h2><p>${progress.active ? `Depuis le ${esc(origin)}, selon ce que tu as déclaré.` : 'Indique ton dernier arrêt pour retrouver les repères qui correspondent à ton parcours.'}</p><div class="row"><button class="light" type="button" data-health-action="stop-time" ${!consent() ? 'disabled' : ''}>${progress.precision === 'minute' ? 'Modifier mon arrêt' : progress.active ? 'Préciser mon heure' : 'Renseigner mon arrêt'}</button><button class="hz-hero-link" type="button" data-health-action="checkin" ${!consent() || !H.ready ? 'disabled' : ''}>Noter mon ressenti ＋</button></div></div><div class="hz-counter hz-live-counter ${progress.active ? '' : 'is-idle'}" aria-label="Durée depuis ton dernier verre déclaré"><strong data-health-clock-value>${esc(face.value)}</strong><span data-health-clock-unit>${esc(face.unit)}</span><small data-health-clock-detail>${esc(face.detail)}</small></div><div class="hz-hero-bottom"><span>${next ? `Prochain repère : ${esc(next.label || next.rangeLabel)}${next.targetAt ? ` · <span data-health-countdown>${esc(remainingLabel(next))}</span>` : next.targetDate ? ` · vers le ${dateLabel(next.targetDate)}` : ''}` : progress.active ? 'Continue à observer ce qui change pour toi.' : 'Tu peux aussi consulter toutes les étapes librement.'}</span><span>Ton rythme reste personnel</span></div></section>${progress.active && progress.precision !== 'minute' ? `<div class="hz-time-hint"><span aria-hidden="true">◷</span><p>Tu connais l’heure de ton dernier verre ? Ajoute-la pour un suivi en heures et en minutes. Sinon, garde simplement la date.</p><button class="text" type="button" data-health-action="stop-time" ${!consent() ? 'disabled' : ''}>Ajouter l’heure</button></div>` : ''}`;
+  }
+
+  function personalDetail(progress, stage) {
+    const rows = observations(), last = rows.at(-1);
+    if (!progress.active) return 'Tes observations restent conservées, quel que soit ton parcours.';
+    if (stage.state === 'future') return 'Tu retrouveras ici tes repères si ton arrêt se poursuit. Tu peux déjà consulter cette étape.';
+    if (!last) return 'Ton premier ressenti te servira de point de comparaison. Quelques réponses suffisent.';
+    const scores = HEALTH_METRICS.filter(metric => Number.isFinite(last[metric.key])).slice(0, 3).map(metric => `${metric.label.toLocaleLowerCase('fr-FR')} ${last[metric.key]}/5`);
+    return `Ton dernier ressenti, le ${dateLabel(last.checkin_date)} : ${scores.join(' · ')}. Tes réponses décrivent ce que tu observes, à la journée.`;
   }
 
   function stageView(progress) {
-    const selected = H.stage === null ? Math.max(0, progress.stageIndex) : H.stage;
-    const stage = progress.stages[selected] || progress.stages[0];
-    const stateLabels = {past: 'Repère passé', current: 'Ta période actuelle', future: 'Si l’arrêt continue', information: 'Pour comprendre'};
-    const nextDate = progress.stages[selected + 1]?.targetDate;
-    const stageRows = progress.active && stage.targetDate <= today() ? observations().filter(row => row.checkin_date >= stage.targetDate && (!nextDate || row.checkin_date < nextDate)) : [];
-    const personalDetail = !progress.active ? 'Tes ressentis restent accessibles dans ton historique, quel que soit ton objectif.' : stage.state === 'future' ? 'Ce repère sera relié à tes observations si ton arrêt se poursuit.' : stageRows.length ? `${stageRows.length} bilan${stageRows.length === 1 ? '' : 's'} de ressenti pour cette période · dernier le ${dateLabel(stageRows.at(-1).checkin_date)}.` : 'Tu n’as pas encore noté de ressenti pour cette période. Tu peux en ajouter quand tu le souhaites.';
-    return `<section class="hz-section" aria-labelledby="hz-timeline-title"><div class="hz-section-heading"><div><span class="eyebrow">CE QUE MONTRENT LES RECHERCHES</span><h2 id="hz-timeline-title">Des repères au fil du temps</h2></div><button type="button" class="text" data-health-action="sources">Toutes les sources</button></div><p class="hz-caption">Ces plages sont indicatives. Elles ne valident pas une récupération et ne prédisent pas ton état de santé.</p><div class="hz-stages" role="group" aria-label="Choisir une période d’arrêt">${progress.stages.map((item, i) => `<button type="button" class="hz-stage ${i === selected ? 'selected' : ''}" data-health-action="stage" data-index="${i}" aria-pressed="${i === selected}"><span class="hz-stage-dot" aria-hidden="true">${i + 1}</span><strong>${esc(item.rangeLabel)}</strong><small>${stateLabels[item.state]}</small></button>`).join('')}</div><div class="hz-stage-content"><div class="hz-stage-title"><span class="tag">${stateLabels[stage.state]}${stage.targetDate ? (stage.state === 'future' ? ' · à partir du ' : ' · repère du ') + dateLabel(stage.targetDate) : ''}</span><h3>${esc(stage.title)}</h3></div><div class="hz-evidence-grid">${evidenceCard('physical', stage.physical)}${evidenceCard('mental', stage.mental)}</div><div class="hz-personal-prompt"><div><strong>Ton point de repère personnel</strong><p>${esc(stage.checkInPrompt)}</p><p class="hz-caption">${esc(personalDetail)}</p></div><button type="button" class="secondary" data-health-action="checkin" ${!consent() || !H.ready ? 'disabled' : ''}>Faire le point</button></div><div class="hz-outlook"><span class="eyebrow">${progress.active ? 'SI TU POURSUIVS TON ARRÊT' : 'À SAVOIR POUR LA SUITE'}</span><p>${esc(stage.outlook)}</p>${refs(stage.sourceIds)}</div></div></section>`;
+    const selected = H.stage === null ? Math.max(0, progress.stageIndex) : Math.min(H.stage, progress.stages.length - 1);
+    const stage = progress.stages[selected] || progress.stages[0], next = nextMilestone(progress);
+    const stateLabels = {past: 'Repère passé', current: progress.precision === 'minute' ? 'En ce moment pour toi' : 'Repère approximatif', future: 'Si l’arrêt continue', information: 'Pour comprendre'};
+    const targetLabel = stage.targetAt ? instantLabel(stage.targetAt, progress.timeZone) : stage.targetDate ? dateLabel(stage.targetDate) : '';
+    const stateDate = targetLabel ? (stage.state === 'future' ? ' · à partir du ' : ' · depuis le ') + targetLabel : '';
+    const nextPreview = next ? `<div class="hz-next"><div><span class="eyebrow">LA PROCHAINE ÉTAPE</span><h3>${esc(next.label || next.rangeLabel)}${next.targetAt ? ` <small data-health-countdown>${esc(remainingLabel(next))}</small>` : ''}</h3><p>${esc(next.title)}${next.targetAt ? ` · ${esc(instantLabel(next.targetAt, progress.timeZone))}` : next.targetDate ? ` · vers le ${dateLabel(next.targetDate)}` : ''}</p></div><button type="button" class="secondary" data-health-action="stage" data-index="${progress.stages.indexOf(next)}">Découvrir →</button></div>` : '';
+    return `<section class="hz-section hz-milestones" aria-labelledby="hz-timeline-title"><div class="hz-section-heading"><div><span class="eyebrow">CORPS & ESPRIT</span><h2 id="hz-timeline-title">Ton évolution, étape par étape</h2></div>${H.stage !== null && progress.stageIndex >= 0 && H.stage !== progress.stageIndex ? '<button type="button" class="secondary" data-health-action="current-stage">Revenir à mon étape</button>' : '<button type="button" class="text" data-health-action="sources">Les sources</button>'}</div><p class="hz-caption">Le temps situe les repères scientifiques. Les effets varient selon chacun.</p><div class="hz-stages" role="group" aria-label="Choisir une période d’arrêt">${progress.stages.map((item, i) => `<button type="button" class="hz-stage ${i === selected ? 'selected' : ''} ${item.state === 'current' ? 'is-current' : ''}" data-health-action="stage" data-index="${i}" aria-pressed="${i === selected}" ${item.state === 'current' ? 'aria-current="step"' : ''}><span class="hz-stage-dot" aria-hidden="true">${item.state === 'current' ? '●' : i + 1}</span><strong>${esc(item.label || item.rangeLabel)}</strong><small>${item.state === 'current' ? 'Tu es ici' : item.state === 'past' ? 'Parcouru' : item.state === 'future' ? 'À venir' : 'À découvrir'}</small></button>`).join('')}</div><div class="hz-stage-content"><div class="hz-stage-title"><span class="tag">${stateLabels[stage.state]}${esc(stateDate)}</span><h3>${esc(stage.title)}</h3><p class="hz-stage-range">${esc(stage.rangeLabel)}</p></div><div class="hz-evidence-grid">${evidenceCard('physical', stage.physical)}${evidenceCard('mental', stage.mental)}</div><div class="hz-personal-prompt"><div><strong>Et pour toi, qu’est-ce qui change ?</strong><p>${esc(stage.checkInPrompt)}</p><p class="hz-caption">${esc(personalDetail(progress, stage))}</p></div><button type="button" class="secondary" data-health-action="checkin" ${!consent() || !H.ready ? 'disabled' : ''}>Faire le point</button></div><div class="hz-outlook"><span class="eyebrow">${progress.active ? 'POUR LA SUITE' : 'À SAVOIR'}</span><p>${esc(stage.outlook)}</p>${refs(stage.sourceIds)}</div>${nextPreview}</div></section>`;
   }
 
   function trendCards(rows) {
@@ -114,9 +151,12 @@ export function createHealth(api) {
   }
 
   function view() {
-    const progress = stageProgress(snapshot(), HEALTH_STAGES, today());
+    const progress = stageProgress(snapshot(), HEALTH_STAGES, today(), new Date());
+    const anchor = `${S.user?.id || ''}|${progress.precision}|${progress.startedAt || progress.startDate || ''}`;
+    if (H.anchor !== anchor) { H.stage = null; H.anchor = anchor; }
+    H.clockStage = progress.stageIndex; H.clockDay = today(); H.clockPrecision = progress.precision;
     const existing = snapshot();
-    return `<div class="hz-page"><div class="greeting"><span class="eyebrow">SANTÉ & BIENFAITS</span><h1>Ta santé, à ton rythme.</h1><p class="muted">Les effets possibles de l’arrêt, et les changements que tu constates.</p></div>${journeyHero(progress)}<p class="hz-clarity">Ton compteur situe les repères scientifiques. Seules tes observations décrivent ton ressenti ; un professionnel évalue ton état de santé. <a href="#hz-safety-title">Quand demander de l’aide ?</a></p>${progress.active && progress.days < 7 ? `<div class="hz-context"><strong>Les premiers jours, fais-toi accompagner si nécessaire.</strong><p>${esc(HEALTH_SAFETY.withdrawal)}</p><p>Confusion, hallucinations ou convulsions : urgences sans attendre (15 ou 112 en France, numéro local ailleurs).</p></div>` : ''}${!progress.active && consent() ? `<section class="hz-context"><strong>${existing ? 'Ton suivi reste utile pendant une réduction ou une reprise.' : 'Renseigne ton parcours pour personnaliser les dates.'}</strong><p>${existing ? 'Les repères d’abstinence restent informatifs tant qu’aucun arrêt en cours n’est déclaré. Tes observations et ton historique sont conservés.' : 'Les informations ci-dessous sont générales pour le moment.'}</p><button type="button" class="text" data-page="progress">Ouvrir mon suivi →</button></section>` : ''}${stageView(progress)}${feelingsView()}${safetyView(progress)}<footer class="hz-evidence-footer"><strong>Des sources accessibles, des limites explicites.</strong><p>Études scientifiques, médecins et organismes de santé. Les repères ne constituent ni un diagnostic, ni une promesse de résultat. L’état du foie, la tension ou la santé mentale ne se calculent pas à partir du nombre de jours.</p><div class="row"><button type="button" class="text" data-health-action="sources">Consulter les ${HEALTH_SOURCES.length} sources</button><span>Sources vérifiées le ${dateLabel(HEALTH_REVIEWED_ON)}</span></div></footer></div>`;
+    return `<div class="hz-page"><div class="greeting"><span class="eyebrow">SANTÉ & BIENFAITS</span><h1>Chaque étape compte.</h1><p class="muted">Des repères pour ton corps, ton esprit et ce que tu ressens.</p></div>${journeyHero(progress)}<p class="hz-clarity">Ta durée d’arrêt situe ces repères ; elle ne mesure ni ton alcoolémie ni ton état de santé. <a href="#hz-safety-title">Quand demander de l’aide ?</a></p>${progress.active && progress.days < 7 ? `<aside class="hz-early-help"><strong>Un arrêt accompagné si nécessaire.</strong><p>Consommation quotidienne importante ou signes de manque : demande un avis médical. Confusion, convulsions, difficulté à respirer ou à rester éveillé : urgences (15 / 112 en France).</p><a href="#hz-safety-title">Voir les repères de sécurité</a></aside>` : ''}${!progress.active && consent() ? `<section class="hz-context"><strong>${existing ? 'Ton suivi reste utile pendant une réduction ou une reprise.' : 'Renseigne ton parcours pour personnaliser les dates.'}</strong><p>${existing ? 'Les repères d’abstinence restent informatifs tant qu’aucun arrêt en cours n’est déclaré. Tes observations et ton historique sont conservés.' : 'Les informations ci-dessous sont générales pour le moment.'}</p><button type="button" class="text" data-page="progress">Ouvrir mon suivi →</button></section>` : ''}${stageView(progress)}${feelingsView()}${safetyView(progress)}<footer class="hz-evidence-footer"><strong>Des sources accessibles, des limites explicites.</strong><p>Études scientifiques, médecins et organismes de santé. Les repères ne constituent ni un diagnostic, ni une promesse de résultat. L’état du foie, la tension ou la santé mentale ne se calculent pas à partir du nombre de jours.</p><div class="row"><button type="button" class="text" data-health-action="sources">Consulter les ${HEALTH_SOURCES.length} sources</button><span>Sources vérifiées le ${dateLabel(HEALTH_REVIEWED_ON)}</span></div></footer></div>`;
   }
 
   function openSources(ids) {
@@ -182,6 +222,21 @@ export function createHealth(api) {
     H.rows = H.rows.filter(item => item.id !== id); api.render(); api.notify('Ressenti supprimé. Les anciens bilans éventuels restent conservés.');
   }
 
+  function tickClock() {
+    if (S.page !== 'health' || !S.user || document.hidden || document.querySelector('dialog[open]')) return;
+    const progress = stageProgress(snapshot(), HEALTH_STAGES, today(), new Date());
+    if (H.clockStage !== progress.stageIndex || H.clockDay !== today() || H.clockPrecision !== progress.precision) { api.render(); return; }
+    const face = clockFace(progress);
+    for (const [part, value] of Object.entries(face)) {
+      const el = document.querySelector(`[data-health-clock-${part}]`);
+      if (el && el.textContent !== value) el.textContent = value;
+    }
+    const countdown = remainingLabel(nextMilestone(progress));
+    for (const el of document.querySelectorAll('[data-health-countdown]')) if (el.textContent !== countdown) el.textContent = countdown;
+  }
+  window.setInterval(tickClock, 15000);
+  document.addEventListener('visibilitychange', tickClock);
+
   document.addEventListener('click', async event => {
     const button = event.target.closest('[data-health-action]');
     if (!button || button.disabled) return;
@@ -190,6 +245,8 @@ export function createHealth(api) {
     try {
       if (action === 'sources') openSources(button.dataset.sources?.split(','));
       else if (action === 'checkin') openCheckin(button.dataset.date || today());
+      else if (action === 'stop-time') { if (consent()) progression.openStopTime(); }
+      else if (action === 'current-stage') { H.stage = null; api.render(); document.querySelector('.hz-stage.selected')?.focus({preventScroll: true}); }
       else if (action === 'stage') {
         const index = Number(button.dataset.index);
         if (Number.isInteger(index) && HEALTH_STAGES[index]) {H.stage = index; api.render(); document.querySelector(`[data-health-action="stage"][data-index="${index}"]`)?.focus({preventScroll: true});}

@@ -3,10 +3,10 @@
 Frontend statique en français, sans build, hébergé sur Vercel. Backend Supabase existant. Aucun nouvel abonnement, API IA, service SMS ou service analytique requis.
 
 ## Fonctions
-- Onglet « Santé & bienfaits » : six repères scientifiques datés selon l’arrêt effectif, sources et limites consultables, six ressentis privés facultatifs et évolution des observations réellement saisies.
+- Onglet « Santé & bienfaits » : onze repères scientifiques des premières minutes aux premiers mois, datés selon l’arrêt effectif, sources et limites consultables, six ressentis privés facultatifs et évolution des observations réellement saisies.
 - Bilan lisible : consommation, dépenses et économies sur 7 jours, 30 jours ou 12 mois, avec estimations identifiées.
 - Formulaires en trois étapes, boutons + / −, raccourci zéro euro, récapitulatif avant sauvegarde et valeurs conservées au retour.
-- Questionnaire initial : situation, date d’arrêt ou de changement de rythme, anciennes habitudes, dépenses et objectifs.
+- Questionnaire initial : situation, date et heure facultative du dernier verre, anciennes habitudes, dépenses et objectifs.
 - Saisie « Un jour » ou « Une période », du / au inclus, même dans le passé ; arrêts et reprises sans calendrier quotidien.
 - Cumuls, séries, records datés et économies recalculés après correction, y compris avant l’inscription.
 - Courbes sur 7 jours, 30 jours et 12 mois glissants, avec arrêts/reprises, estimations identifiées et données notées prioritaires.
@@ -20,6 +20,8 @@ Frontend statique en français, sans build, hébergé sur Vercel. Backend Supaba
 
 ## Déploiement
 Site statique : framework Other, aucune build command. Déploiement via le dépôt GitHub existant vers Vercel. La migration V4 `schema/20260928002847_create_journey_timelines.sql` ajoute un suivi privé par périodes, sans supprimer les tables ni les données antérieures. La migration `schema/20261020001318_support_retroactive_consumption_ranges.sql` accepte les tranches finies du document v2 et protège leur sauvegarde contre les anciens clients. Voir [PROGRESSION.md](PROGRESSION.md) pour les règles de calcul et la persistance atomique.
+
+La migration `schema/journey_stop_clock.sql` ajoute la précision à la minute au document v3, sans convertir les anciennes dates en heures fictives. Voir [HEALTH.md](HEALTH.md) pour les onze étapes scientifiques, la gestion des reprises et le suivi des ressentis.
 
 ## Limites explicites
 Pas de chatbot IA, pas de vidéos hébergées, pas de notifications push, pas de paiement, pas de sauvegarde automatique. La connexion et la sauvegarde du suivi nécessitent Internet. L'export personnel n'est pas chiffré. Les administrateurs Supabase disposent d'un accès technique ; ce n'est pas un chiffrement de bout en bout. Les signalements exigent une modération humaine. La suppression complète du compte et la documentation juridique doivent être finalisées avant commercialisation.

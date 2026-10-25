@@ -1,8 +1,9 @@
 /** Period-based progression. The timeline is canonical; daily records remain intact. */
 import {createTimelineUI} from './timeline-ui.mjs';
-import {validateTimelineDocument,timelineSnapshot} from './timeline-core.mjs';
+import {validateTimelineDocument,timelineSnapshot,timelineStopBasis} from './timeline-core.mjs';
 import {dayKey,moveDay,dateLabel,esc,parseDay} from './core.mjs';
 import {addMonths,chapterAt,round2} from './progress-core.mjs';
+import {localDateTime} from './time-core.mjs';
 
 export function createProgress(api){
  const {S}=api;
@@ -40,7 +41,7 @@ export function createProgress(api){
   if(demo){
    const updated_at=new Date().toISOString(),last=doc.events.at(-1),g=doc.goal,c=currentChapter();
    const changed=!c||['mode','weekly_limit','daily_limit','support_first','planned_action'].some(k=>(c[k]??null)!==(g[k]??null));
-   result={journey:{...S.journey,user_id:uid,started_at:parseDay(last.started_on).toISOString(),weekly_spend_estimate:doc.baseline.cost_week,why_text:g.why,updated_at},progress_settings:{...P.settings,user_id:uid,baseline_units_week:doc.baseline.units_week,baseline_cost_week:doc.baseline.cost_week,baseline_note:'Estimations confirmées dans le parcours par périodes.',updated_at},timeline:{...P.timeline,user_id:uid,document:doc,revision:before.revision+1,updated_at},chapters:changed?[...P.chapters,{id:crypto.randomUUID(),user_id:uid,effective_on:timelineToday(),mode:g.mode,weekly_limit:g.weekly_limit,daily_limit:g.daily_limit,planned_action:g.planned_action,support_first:g.support_first,origin:'chosen',created_at:updated_at}]:P.chapters};
+   result={journey:{...S.journey,user_id:uid,started_at:last.state==='abstinent'&&last.stopped_at?last.stopped_at:parseDay(last.started_on).toISOString(),weekly_spend_estimate:doc.baseline.cost_week,why_text:g.why,updated_at},progress_settings:{...P.settings,user_id:uid,baseline_units_week:doc.baseline.units_week,baseline_cost_week:doc.baseline.cost_week,baseline_note:'Estimations confirmées dans le parcours par périodes.',updated_at},timeline:{...P.timeline,user_id:uid,document:doc,revision:before.revision+1,updated_at},chapters:changed?[...P.chapters,{id:crypto.randomUUID(),user_id:uid,effective_on:timelineToday(),mode:g.mode,weekly_limit:g.weekly_limit,daily_limit:g.daily_limit,planned_action:g.planned_action,support_first:g.support_first,origin:'chosen',created_at:updated_at}]:P.chapters};
   }else{
    const db=await api.getClient();
    if(S.user!==user||S.demo!==demo||P.generation!==generation)return false;
@@ -53,16 +54,19 @@ export function createProgress(api){
   return true;
  }
  function seedDemo(){
-  reset();const today=dayKey(),start=moveDay(today,-119),updated_at=new Date().toISOString();
+  reset();const zone=Intl.DateTimeFormat().resolvedOptions().timeZone||'Europe/Paris',now=new Date(),today=localDateTime(now,zone).date,start=moveDay(today,-119),updated_at=now.toISOString();
   const goal={mode:'abstain',weekly_limit:null,daily_limit:null,target_on:null,why:'Retrouver de la place pour les choses qui comptent.',triggers:['Stress','Fin de journée'],support_first:false,planned_action:'Préparer une activité calme à la fin de ma journée.'};
   const event=(back,state,units,cost)=>({id:crypto.randomUUID(),started_on:moveDay(today,-back),state,units_week:units,cost_week:cost,note:''});
-  const doc={schema_version:1,timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'Europe/Paris',baseline:{started_on:addMonths(today,-12),units_week:28,cost_week:70},events:[event(119,'drinking',21,52.5),event(75,'abstinent',0,0),event(50,'drinking',14,35),event(14,'abstinent',0,0)],occasions:[],goal};
+  const stoppedAt=new Date(Math.floor(now.getTime()/60000)*60000-14*86400000).toISOString(),last=event(14,'abstinent',0,0);last.started_on=localDateTime(stoppedAt,zone).date;last.stopped_at=stoppedAt;last.note='Date et heure fictives de démonstration.';
+  const doc={schema_version:3,timezone:zone,baseline:{started_on:addMonths(today,-12),units_week:28,cost_week:70},events:[event(119,'drinking',21,52.5),event(75,'abstinent',0,0),event(50,'drinking',14,35),last],occasions:[],ranges:[],goal};
   P.uid='demo';P.ready=true;P.settings={user_id:'demo',subscription_started_on:start,baseline_units_week:28,baseline_cost_week:70,updated_at};
   P.timeline={user_id:'demo',document:doc,revision:1,created_at:updated_at,updated_at};
   P.chapters=[{id:crypto.randomUUID(),user_id:'demo',effective_on:moveDay(today,-14),...goal,created_at:updated_at}];
-  S.profile.created_at=parseDay(start).toISOString();S.journey={...S.journey,user_id:'demo',started_at:parseDay(moveDay(today,-14)).toISOString(),updated_at};
+  S.profile.created_at=parseDay(start).toISOString();S.journey={...S.journey,user_id:'demo',started_at:stoppedAt,updated_at};
   // Sparse fictitious records illustrate measured points without requiring daily entry.
   S.checks=[100,92,40,31,20].map((back,i)=>({id:'demo-progress-'+i,user_id:'demo',checkin_date:moveDay(today,-back),sober_today:false,alcohol_units:round2(2+i/4),alcohol_cost_eur:round2(5+i*0.625),quantity_method:'standard',mood:3,craving:2,note:'Donnée fictive de démonstration.'}));
+  last.stop_basis=timelineStopBasis(doc,S.checks,last.started_on);
+  P.timeline.document=validateTimelineDocument(doc,today,now);
  }
  function unavailable(){return `<section class="card"><h2>Parcours momentanément indisponible</h2><p>${esc(P.error||'Connecte-toi pour retrouver ton suivi.')}</p><button class="secondary" data-progress-action="reload">Réessayer</button></section>`;}
  const safety=()=>`<details class="card pg-section"><summary>Santé et soutien</summary><p>Une consommation quotidienne, des signes de manque ou un antécédent de sevrage compliqué nécessitent un avis médical avant un arrêt brutal ou une forte réduction.</p><p>Confusion, hallucinations, convulsions ou malaise sévère : 15 / 112 en France.</p><a href="https://www.alcool-info-service.fr/agir-sur-sa-consommation/comment-arreter-de-boire/sevrage-ce-quil-faut-savoir-pour-mieux-vous" target="_blank" rel="noopener noreferrer">Comprendre le sevrage</a></details>`;
@@ -77,12 +81,12 @@ export function createProgress(api){
  function view(){if(!P.ready)return unavailable();if(!timelineDocument())return ui.view()+safety();return api.isPremium?.()?ui.view()+safety():freeReport()+safety();}
  function dateSummary(){
   if(!P.ready)return '';const doc=timelineDocument();if(!doc)return ui.settingsSummary();
-  const s=timelineSnapshot(doc,S.checks,timelineToday()),c=s.current;
-  const label=s.currentStreakStartedOn?'Mon arrêt actuel depuis le':s.todayActual?.sober_today===false?'Consommation renseignée le':c.range?'Ma période renseignée':'Mon rythme actuel depuis le';
-  const value=s.currentStreakStartedOn?dateLabel(s.currentStreakStartedOn):s.todayActual?.sober_today===false?dateLabel(timelineToday()):c.range?`${dateLabel(c.range.started_on)} → ${dateLabel(c.range.ended_on)}`:dateLabel(c.started_on);
+  const s=timelineSnapshot(doc,S.checks,timelineToday()),c=s.current,clock=s.stopClock?.valid?s.stopClock:null,local=clock?localDateTime(clock.startedAt,doc.timezone):null;
+  const label=clock||s.currentStreakStartedOn?'Mon arrêt actuel depuis le':s.todayActual?.sober_today===false?'Consommation renseignée le':c.range?'Ma période renseignée':'Mon rythme actuel depuis le';
+  const value=clock?`${dateLabel(local.date)} à ${local.time} · ${esc(doc.timezone)}`:s.currentStreakStartedOn?dateLabel(s.currentStreakStartedOn):s.todayActual?.sober_today===false?dateLabel(timelineToday()):c.range?`${dateLabel(c.range.started_on)} → ${dateLabel(c.range.ended_on)}`:dateLabel(c.started_on);
   return `<div class="journey-date row between"><div><span class="small">${label}</span><p><b>${value}</b></p></div><button class="text" data-action="journey-date" aria-label="Modifier mon suivi">Modifier</button></div>`;
  }
  async function extraExport(){checkReady();const uid=S.user.id,demo=S.demo,generation=P.generation;if(demo)return {journey_timeline:P.timeline,progress_settings:P.settings,progress_chapters:P.chapters,subscription_anchor:P.verified};const db=await api.getClient();const [timeline,chapters]=await Promise.all([db.from('journey_timelines').select('*').eq('user_id',uid).maybeSingle(),api.ownRows('progress_chapters','created_at')]);if(S.user?.id!==uid||S.demo!==demo||generation!==P.generation)throw Error('Le compte a changé pendant l’export.');return {journey_timeline:api.checkResult(timeline),progress_settings:P.settings,progress_chapters:chapters,subscription_anchor:P.verified};}
  document.addEventListener('click',async e=>{const b=e.target.closest('[data-progress-action]');if(!b)return;e.preventDefault();e.stopImmediatePropagation();try{if(b.dataset.progressAction==='reload'){await api.refresh();}else if(['goal','settings','weekly-review'].includes(b.dataset.progressAction))ui.openSettings();else if(b.dataset.progressAction==='advanced')openPage('progress');}catch(err){api.notify(api.message(err));}},true);
- return {load,reset,seedDemo,home,view,dateSummary,today:timelineToday,capCard:()=>P.ready?ui.settingsSummary():unavailable(),journey:()=>P.ready?ui.journey():unavailable(),openSettings:ui.openSettings,openDate:ui.openDate,openOccasion:ui.openOccasion,openChange:ui.openChange,extraExport,enhanceCheck:()=>{},mode:()=>timelineDocument()?.goal.mode||currentChapter()?.mode||'observe',snapshot:()=>timelineDocument()?timelineSnapshot(timelineDocument(),S.checks,timelineToday()):null};
+ return {load,reset,seedDemo,home,view,dateSummary,today:timelineToday,capCard:()=>P.ready?ui.settingsSummary():unavailable(),journey:()=>P.ready?ui.journey():unavailable(),openSettings:ui.openSettings,openDate:ui.openDate,openStopTime:ui.openStopTime,openOccasion:ui.openOccasion,openChange:ui.openChange,extraExport,enhanceCheck:()=>{},mode:()=>timelineDocument()?.goal.mode||currentChapter()?.mode||'observe',snapshot:()=>timelineDocument()?timelineSnapshot(timelineDocument(),S.checks,timelineToday()):null};
 }
