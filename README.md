@@ -3,6 +3,7 @@
 Frontend statique en français, sans build, hébergé sur Vercel. Backend Supabase existant. Aucun nouvel abonnement, API IA, service SMS ou service analytique requis.
 
 ## Fonctions
+- Onglet « Santé & bienfaits » : six repères scientifiques datés selon l’arrêt effectif, sources et limites consultables, six ressentis privés facultatifs et évolution des observations réellement saisies.
 - Bilan lisible : consommation, dépenses et économies sur 7 jours, 30 jours ou 12 mois, avec estimations identifiées.
 - Formulaires en trois étapes, boutons + / −, raccourci zéro euro, récapitulatif avant sauvegarde et valeurs conservées au retour.
 - Questionnaire initial : situation, date d’arrêt ou de changement de rythme, anciennes habitudes, dépenses et objectifs.
