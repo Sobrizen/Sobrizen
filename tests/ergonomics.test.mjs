@@ -1,0 +1,11 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {PAGE_LABELS,normalizeSearch,filterItems,gameCategory,formFingerprint} from '../ergonomics-core.mjs';
+test('all nine existing sections remain navigable',()=>assert.equal(Object.keys(PAGE_LABELS).length,9));
+test('French search ignores accents, case and repeated spaces',()=>assert.equal(normalizeSearch('  RéFLEXION  ÉTÉ '),'reflexion ete'));
+test('history filters combine categories, search and pagination without mutation',()=>{const items=[{category:'sober',text:'Arrêt le 12 octobre'},{category:'drinking',text:'Soirée du 14 octobre'},{category:'sober',text:'Arrêt le 20 octobre'}],before=JSON.stringify(items);const r=filterItems(items,{category:'sober',query:'arret',limit:1});assert.equal(r.total,2);assert.equal(r.visible.length,1);assert.equal(r.remaining,1);assert.equal(JSON.stringify(items),before);});
+test('an empty result never invents history',()=>assert.deepEqual(filterItems([{category:'sober',text:'repos'}],{query:'2027'}),{visible:[],total:0,remaining:0}));
+test('unknown or excessive page sizes are bounded or finite',()=>{assert.equal(filterItems([1,2,3].map(text=>({text})),{limit:NaN}).visible.length,3);assert.equal(filterItems([{text:1},{text:2}],{limit:-3}).visible.length,1);});
+test('game categories do not grant or revoke access',()=>{assert.equal(gameCategory('merge'),'calm');assert.equal(gameCategory('snake'),'reflex');assert.equal(gameCategory('sequence'),'calm');});
+test('form snapshot distinguishes an unchecked checkbox and an empty field',()=>{const fields=[{name:'title',type:'text',value:''},{name:'ok',type:'checkbox',checked:false}];assert.notEqual(formFingerprint(fields),formFingerprint([{...fields[0],value:'Note'},fields[1]]));assert.notEqual(formFingerprint(fields),formFingerprint([fields[0],{...fields[1],checked:true}]));});
+test('passwords, file inputs and action buttons are excluded',()=>{assert.equal(formFingerprint([{name:'password',type:'password',value:'DO_NOT_STORE'},{name:'file',type:'file',value:'x'},{name:'action',type:'submit',value:'save'}]),'[]');});
