@@ -111,7 +111,7 @@ export function initErgonomics(){
  }
  function enhanceHealth(){
   const hero=$('.hz-hero',content);if(!hero)return;
-  const anchors=[['hz-hero','Mon arrêt'],['hz-timeline-title','Corps & esprit'],['ux-health-observations','Mes ressentis']];
+  const anchors=[['hz-hero','Mon arrêt'],['hz-wins','Mes progrès'],['hz-addiction','Mes envies'],['hz-timeline-title','Les bienfaits'],['ux-health-observations','Mes ressentis']];
   hero.id='hz-hero';const metrics=$('.hz-metrics',content);if(metrics)metrics.id='ux-health-observations';
   const nav=element('nav','ux-section-links');nav.setAttribute('aria-label','Dans Santé & bienfaits');
   for(const [id,label] of anchors){if(!document.getElementById(id))continue;const a=element('a','',label);a.href='#'+id;nav.append(a);}

@@ -1,5 +1,6 @@
 /** Run: node tests/ux-dom.test.mjs [--group=demo|without-consent|member|premium|races]. */
 import assert from 'node:assert/strict';
+import {HEALTH_SOURCES} from '../health-evidence.mjs';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {environment,boot,mockService,UID,UID2,$,$$,txt,click,value,submit,key,closeModal,route,settle,setNow,now} from './ux-dom-support.mjs';
@@ -8,7 +9,16 @@ const group=process.argv.find(arg=>arg.startsWith('--group='))?.slice(8);
 const groups=['demo','without-consent','member','premium','races'];
 if(!group){
   let failures=0;
-  for(const name of groups){const result=spawnSync(process.execPath,[fileURLToPath(import.meta.url),`--group=${name}`],{encoding:'utf8',timeout:120000,env:process.env});process.stdout.write(result.stdout||'');process.stderr.write(result.stderr||'');if(result.status!==0){failures++;if(result.error)console.error(result.error.message);}}
+  for(const name of groups){
+    const result=spawnSync(process.execPath,[fileURLToPath(import.meta.url),`--group=${name}`],{encoding:'utf8',timeout:120000,env:process.env});
+    process.stdout.write(result.stdout||'');process.stderr.write(result.stderr||'');
+    const summary=result.stdout?.split('\n').find(line=>line.startsWith(`UX DOM ${name}: `));
+    const completed=summary?.match(/: (\d+)\/(\d+) passed; real network disabled$/);
+    if(result.error||result.status!==0||!completed||Number(completed[2])<1||completed[1]!==completed[2]){
+      failures++;
+      console.error(result.error?.message||`UX DOM ${name} did not complete successfully (status ${result.status}).`);
+    }
+  }
   console.log(`UX DOM GROUPS: ${groups.length-failures}/${groups.length} passed`);process.exitCode=failures?1:0;
 }else{
   assert.ok(groups.includes(group),`Unknown group ${group}`);
@@ -60,8 +70,8 @@ if(!group){
       const input=$('#journalSearch');input.value='QA unique';input.dispatchEvent(new Event('input',{bubbles:true}));await settle();assert.equal($$('#journalList article').length,1);await click('#journalList [data-action="journal-edit"]');await value($('#journalForm'),'body','Texte QA corrigé');await submit($('#journalForm'));assert.match(txt('#journalList'),/Texte QA corrigé/);
       const article=$$('#journalList article').find(el=>el.textContent.includes('Note QA unique')),remove=article.querySelector('[data-action="journal-delete"]');env.answer(false);await click(remove);assert.ok(article.isConnected);env.answer(true);await click(remove);assert.doesNotMatch(txt('#journalList'),/Note QA unique/);
     });
-    await check('health has eleven evidence windows, fifteen sources and a twenty-minute live clock',async()=>{
-      await click('[data-action="logout"]');setNow('2026-10-27T12:30:00Z');await click('[data-action="demo"]');await route('health');assert.equal($$('.hz-stage').length,11);assert.equal($$('.hz-metric').length,6);await click('.hz-evidence-footer [data-health-action="sources"]');assert.equal($$('#modal a[href^="https://"]').length,15);assert.match(txt('#modalContent'),/Population|population/);assert.match(txt('#modalContent'),/Limites|limites/);await closeModal();
+    await check('health has eleven evidence windows, sourced explanations and a twenty-minute live clock',async()=>{
+      await click('[data-action="logout"]');setNow('2026-10-27T12:30:00Z');await click('[data-action="demo"]');await route('health');assert.equal($$('.hz-stage').length,11);assert.equal($$('.hz-metric').length,6);await click('.hz-evidence-footer [data-health-action="sources"]');assert.equal($$('#modal a[href^="https://"]').length,HEALTH_SOURCES.length);assert.match(txt('#modalContent'),/Population|population/);assert.match(txt('#modalContent'),/Limites|limites/);await closeModal();
       await click('.hz-hero [data-health-action="stop-time"]');const form=$('#tlStopTimeForm');await value(form,'started_on','2026-10-27');await value(form,'stopped_time','13:10');await value(form,'confirm_stop_time',true);await submit(form);assert.equal($('#modal').open,false,txt('[data-tl-error]'));assert.equal(txt('[data-health-clock-value]'),'20');setNow('2026-10-27T12:31:00Z');await env.tick();assert.equal(txt('[data-health-clock-value]'),'21');
     });
     await check('health drafts, future rejection and unknown hours never fabricate progress',async()=>{

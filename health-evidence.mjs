@@ -153,6 +153,28 @@ export const HEALTH_SOURCES = [
     population: 'Personnes en détresse ou ayant des pensées suicidaires, et leurs proches, en France.',
     limits: 'Numéro gratuit accessible 24 h/24 et 7 j/7 en France. En cas de danger immédiat, contacter les urgences ; ailleurs, utiliser les services locaux.',
     url: 'https://3114.fr/'
+  },
+  {
+    id: 'niaaa-cravings',
+    title: 'How to Stop Alcohol Cravings',
+    authors: 'National Institute on Alcohol Abuse and Alcoholism · NIH',
+    year: 'consulté en 2026',
+    reviewedOn: '2026-10-27',
+    type: 'Information médicale institutionnelle',
+    population: 'Adultes souhaitant réduire ou arrêter l’alcool.',
+    limits: 'Stratégies de soutien, pas un traitement du sevrage. Aucun délai personnel de disparition des envies. Un professionnel peut aider lorsque les envies restent difficiles à vivre.',
+    url: 'https://rethinkingdrinking.niaaa.nih.gov/tools/worksheets-more/how-stop-alcohol-cravings'
+  },
+  {
+    id: 'niaaa-recovery',
+    title: 'Support Recovery: It’s a Marathon, Not a Sprint',
+    authors: 'National Institute on Alcohol Abuse and Alcoholism · NIH',
+    year: 2025,
+    reviewedOn: '2026-10-27',
+    type: 'Synthèse institutionnelle de recherches et de pratiques de soins',
+    population: 'Personnes en rétablissement d’un trouble de l’usage d’alcool.',
+    limits: 'Parcours variés, avec ou sans soins. Les études décrivent des groupes ; ni l’arrêt seul ni un compteur ne prédisent le rétablissement individuel. Les envies peuvent persister.',
+    url: 'https://www.niaaa.nih.gov/health-professionals-communities/core-resource-on-alcohol/support-recovery-its-marathon-not-sprint'
   }
 ];
 
@@ -163,23 +185,23 @@ export const HEALTH_STAGES = [
     fromDays: 0,
     label: 'Début',
     rangeLabel: '0 à 6 heures',
-    title: 'Tu as commencé',
+    title: 'Un premier pas qui compte',
     physical: [
       {
-        title: 'Les premières minutes comptent',
-        text: 'Même après 20 minutes, l’alcool déjà bu peut encore passer dans le sang. Ton compteur ne permet pas d’affirmer un changement physique précis à cet instant.',
+        title: 'Une première action pour ta santé',
+        text: 'Ce temps donne un premier repère à ton arrêt. Même après 20 minutes, l’alcool déjà consommé peut encore passer dans le sang : le compteur décrit une durée, pas ton alcoolémie.',
         sourceIds: ['niaaa-overdose']
       }
     ],
     mental: [
       {
-        title: 'Un premier repère pour toi',
-        text: 'L’alcool récemment consommé peut encore influencer l’attention et le jugement. Note simplement comment tu te sens, sans chercher à mesurer une récupération.',
+        title: 'Faire de la place à ce que tu ressens',
+        text: 'Ton premier ressenti sera un point de comparaison pour la suite. Note ton humeur, ton énergie ou ton calme ; l’alcool récent peut encore influencer l’attention et le jugement.',
         sourceIds: ['niaaa-overdose']
       }
     ],
-    checkInPrompt: 'Comment te sens-tu au début de ce nouveau départ ?',
-    outlook: 'Ce premier repère servira à regarder ton évolution. L’heure du dernier verre ne permet pas de calculer quand l’alcool aura disparu de ton organisme.',
+    checkInPrompt: 'Qu’aimerais-tu retrouver dans ton quotidien ? Comment te sens-tu maintenant ?',
+    outlook: 'Tu poses le premier repère de ton parcours. Garde-le pour regarder, au fil des jours, ce qui change réellement pour toi.',
     sourceIds: ['niaaa-overdose']
   },
   {
@@ -188,23 +210,23 @@ export const HEALTH_STAGES = [
     fromDays: 0.25,
     label: '6 h',
     rangeLabel: '6 à 24 heures',
-    title: 'Prendre tes premiers repères',
+    title: 'Avancer avec du soutien',
     physical: [
       {
-        title: 'Une adaptation différente pour chacun',
-        text: 'En cas de dépendance, des signes de manque peuvent débuter entre 6 et 24 heures. Un professionnel peut t’aider à traverser cette étape en sécurité.',
+        title: 'Un accompagnement pour les premiers jours',
+        text: 'Les soins du sevrage aident à traverser le manque en sécurité. En cas de dépendance, des symptômes peuvent commencer entre 6 et 24 heures après l’arrêt.',
         sourceIds: ['asam-2020']
       }
     ],
     mental: [
       {
-        title: 'Écouter ton sommeil et ton humeur',
-        text: 'Agitation ou sommeil perturbé peuvent accompagner le sevrage. Leur présence et leur intensité varient d’une personne à l’autre.',
+        title: 'Des appuis pour retrouver du calme',
+        text: 'L’accompagnement prend aussi en compte l’agitation et le sommeil. Une première journée inconfortable ne résume pas la suite de ton parcours : parle de ce que tu ressens.',
         sourceIds: ['asam-2020']
       }
     ],
-    checkInPrompt: 'Comment évoluent ton calme, ton énergie et ton confort ?',
-    outlook: 'Les premières heures ne prédisent pas la suite. Demande de l’aide si un symptôme apparaît ou s’aggrave.',
+    checkInPrompt: 'Qu’est-ce qui t’aide à te sentir soutenu aujourd’hui ?',
+    outlook: 'T’entourer fait partie du chemin. Un symptôme nouveau ou qui s’aggrave mérite un avis médical rapide.',
     sourceIds: ['asam-2020']
   },
   {
@@ -213,23 +235,23 @@ export const HEALTH_STAGES = [
     fromDays: 1,
     label: '1 jour',
     rangeLabel: '24 à 48 heures',
-    title: 'Une journée pour te connaître',
+    title: 'Une journée qui compte',
     physical: [
       {
-        title: 'Le lendemain peut encore être difficile',
-        text: 'Après une alcoolisation, fatigue, maux de tête ou nausées peuvent durer 24 heures ou davantage. Ce délai varie selon les personnes et la consommation.',
+        title: 'Vers des lendemains plus légers',
+        text: 'Poursuivre l’arrêt évite une nouvelle exposition à l’alcool. Les effets du dernier épisode, comme la fatigue, les maux de tête ou les nausées, peuvent encore durer 24 heures ou davantage.',
         sourceIds: ['niaaa-hangovers']
       }
     ],
     mental: [
       {
-        title: 'L’attention peut rester perturbée',
-        text: 'Un lendemain d’alcool peut encore affecter la concentration et les décisions. Ton ressenti n’est pas un test d’aptitude à conduire.',
+        title: 'Des repères pour retrouver de la clarté',
+        text: 'Ce premier bilan aide à suivre ta concentration et ton humeur. Après une alcoolisation, l’attention et les décisions peuvent encore être perturbées ; le ressenti ne suffit pas à juger l’aptitude à conduire.',
         sourceIds: ['niaaa-hangovers']
       }
     ],
-    checkInPrompt: 'Qu’est-ce qui a changé depuis ton premier point ?',
-    outlook: 'Un jour d’arrêt ne garantit pas la fin du risque de sevrage chez une personne dépendante. Continue l’accompagnement prévu avec ton professionnel.',
+    checkInPrompt: 'Quel petit changement ou quelle difficulté veux-tu noter aujourd’hui ?',
+    outlook: 'Une journée est un repère concret. Continue l’accompagnement prévu : le risque de sevrage ne s’arrête pas automatiquement à ce jalon.',
     sourceIds: ['asam-2020']
   },
   {
@@ -238,24 +260,24 @@ export const HEALTH_STAGES = [
     fromDays: 2,
     label: '2 jours',
     rangeLabel: '48 à 72 heures',
-    title: 'Deux jours, à ton rythme',
+    title: 'Construire de nouveaux appuis',
     physical: [
       {
-        title: 'Continuer à prendre soin de toi',
-        text: 'À 48 heures, un sevrage peut encore évoluer chez une personne dépendante. Le nombre d’heures écoulées ne remplace pas l’avis du soignant.',
+        title: 'Des soins qui soutiennent ton arrêt',
+        text: 'Un accompagnement adapté aide à traverser cette étape. À 48 heures, le sevrage peut encore évoluer : garde le contact avec le professionnel qui te suit.',
         sourceIds: ['asam-2020']
       }
     ],
     mental: [
       {
-        title: 'Des émotions encore changeantes',
-        text: 'Le sommeil et l’humeur peuvent rester perturbés pendant les premiers jours. Tu peux chercher du soutien même si ton compteur avance.',
-        sourceIds: ['ais-withdrawal']
+        title: 'Une envie n’est pas une obligation',
+        text: 'Pour traverser une envie, le NIAAA conseille de repérer son déclencheur, de préparer une autre réponse et de s’appuyer sur quelqu’un de confiance.',
+        sourceIds: ['niaaa-cravings']
       }
     ],
-    checkInPrompt: 'Ton sommeil ou ton humeur ont-ils changé depuis hier ?',
-    outlook: 'La suite peut être plus confortable, mais 48 heures n’est pas une date de récupération garantie. Tes observations comptent davantage qu’une attente de résultat.',
-    sourceIds: ['nhs-withdrawal']
+    checkInPrompt: 'Quelle personne ou quelle activité t’aide dans un moment difficile ?',
+    outlook: 'Préparer un appui concret aujourd’hui te donne une réponse à retrouver lors d’une prochaine envie.',
+    sourceIds: ['nhs-withdrawal', 'niaaa-cravings']
   },
   {
     id: 'three-days',
@@ -263,23 +285,23 @@ export const HEALTH_STAGES = [
     fromDays: 3,
     label: '3 jours',
     rangeLabel: '3 à 7 jours',
-    title: 'Laisser de la place à ton rythme',
+    title: 'Les premiers signes d’apaisement',
     physical: [
       {
-        title: 'Un apaisement progressif est possible',
+        title: 'L’inconfort s’atténue souvent en plusieurs jours',
         text: 'Les symptômes simples s’atténuent souvent en plusieurs jours. Certaines complications peuvent toutefois débuter après 72 heures chez les personnes à risque.',
         sourceIds: ['nhs-withdrawal', 'asam-2020']
       }
     ],
     mental: [
       {
-        title: 'Le sommeil peut demander du temps',
-        text: 'Des nuits irrégulières ou une humeur difficile peuvent persister. Tu n’as pas besoin d’attendre une semaine pour en parler à un professionnel.',
+        title: 'Repérer les moments plus calmes',
+        text: 'Le sommeil et l’humeur évoluent pendant les premiers jours. Note les moments de confort autant que les difficultés ; demander du soutien fait aussi partie de ton avancée.',
         sourceIds: ['ais-withdrawal']
       }
     ],
-    checkInPrompt: 'Remarques-tu des moments plus confortables dans ta journée ?',
-    outlook: 'Un mieux peut apparaître pendant cette première semaine, avec des rythmes différents. Un symptôme inquiétant reste urgent, même après plusieurs jours.',
+    checkInPrompt: 'As-tu remarqué un moment plus calme ou plus confortable, même bref ?',
+    outlook: 'Les premiers changements se remarquent parfois dans de petites choses. Un symptôme inquiétant reste urgent, même après plusieurs jours.',
     sourceIds: ['nhs-withdrawal']
   },
   {
@@ -288,23 +310,23 @@ export const HEALTH_STAGES = [
     fromDays: 7,
     label: '1 semaine',
     rangeLabel: '1 à 2 semaines',
-    title: 'Observer les premiers changements',
+    title: 'Une semaine pour voir ce qui change',
     physical: [
       {
-        title: 'Une évolution à ton rythme',
-        text: 'Certains symptômes physiques s’atténuent souvent après plusieurs jours. Une gêne persistante ou qui s’aggrave doit être discutée avec un professionnel.',
+        title: 'Un quotidien qui gagne en confort',
+        text: 'Les symptômes simples de sevrage s’atténuent généralement en plusieurs jours. Si une gêne persiste ou s’aggrave, un professionnel t’aide à comprendre ce qui se passe.',
         sourceIds: ['nhs-withdrawal']
       }
     ],
     mental: [
       {
-        title: 'Des émotions parfois plus stables',
-        text: 'Dans une étude en soins, anxiété et humeur dépressive diminuaient chez certains participants au cours des premières semaines, mais persistaient chez d’autres.',
+        title: 'Moins d’anxiété dans les premières semaines de soins',
+        text: 'Dans une étude auprès de 1 005 personnes, les trajectoires les plus fréquentes montraient une baisse de l’anxiété et des symptômes dépressifs pendant les premières semaines de soins. Les rythmes d’amélioration différaient.',
         sourceIds: ['gopaldas-2025']
       }
     ],
-    checkInPrompt: 'Depuis tes premières observations, ton énergie, ton sommeil ou ton humeur ont-ils changé ?',
-    outlook: 'Des améliorations sont possibles durant les prochaines semaines. Leur absence n’est pas un échec et peut justifier un soutien adapté.',
+    checkInPrompt: 'En regardant tes premiers ressentis, qu’est-ce qui a changé pour toi ?',
+    outlook: 'Ces résultats donnent une raison concrète d’espérer. Ton propre suivi montre ce que tu ressens ; si le mieux tarde, tu mérites un soutien adapté.',
     sourceIds: ['gopaldas-2025', 'nice-cg115', 'nhs-withdrawal']
   },
   {
@@ -313,24 +335,24 @@ export const HEALTH_STAGES = [
     fromDays: 14,
     label: '2 semaines',
     rangeLabel: '2 à 4 semaines',
-    title: 'Observer ce qui change pour toi',
+    title: 'Les changements prennent forme',
     physical: [
       {
-        title: 'Des changements internes sont possibles',
-        text: 'Dans une petite étude de sevrage hospitalier, certains marqueurs d’atteinte légère du foie s’amélioraient après deux semaines. Cela ne signifie pas que ton foie est rétabli.',
+        title: 'Des marqueurs du foie en amélioration',
+        text: 'Une petite étude en sevrage hospitalier a observé une amélioration de certains marqueurs d’atteinte légère du foie en deux semaines. Un bilan médical renseigne sur ta propre situation.',
         sourceIds: ['kirpich-2017']
       }
     ],
     mental: [
       {
-        title: 'Des trajectoires différentes',
-        text: 'Les études en soins montrent des évolutions variées de l’anxiété et de l’humeur au cours du premier mois. Compare-toi à tes propres observations.',
-        sourceIds: ['gopaldas-2025']
+        title: 'Des envies qui prennent moins de place',
+        text: 'Les recherches présentées par le NIAAA associent le maintien de l’abstinence à une diminution des envies d’alcool et des émotions négatives au fil du temps, avec l’aide des soins et des stratégies apprises.',
+        sourceIds: ['niaaa-recovery']
       }
     ],
-    checkInPrompt: 'Comment sont ton énergie, ton sommeil et ton humeur par rapport au début ?',
-    outlook: 'Autour d’un mois, un point peut aider à repérer ce qui s’améliore et ce qui mérite du soutien. Une difficulté persistante peut être discutée dès maintenant.',
-    sourceIds: ['nice-cg115']
+    checkInPrompt: 'Qu’est-ce qui te demande moins d’effort ? De quel soutien as-tu encore besoin ?',
+    outlook: 'Le changement se construit dans la durée. Prépare un bilan autour d’un mois pour reconnaître tes progrès et ajuster ton accompagnement.',
+    sourceIds: ['nice-cg115', 'niaaa-recovery']
   },
   {
     id: 'one-month',
@@ -338,28 +360,28 @@ export const HEALTH_STAGES = [
     fromDays: 28,
     label: '1 mois',
     rangeLabel: 'Autour d’un mois',
-    title: 'Faire un premier bilan',
+    title: 'Un premier mois de chemin parcouru',
     physical: [
       {
-        title: 'Tension et métabolisme',
-        text: 'Un mois sans alcool était associé à de meilleurs marqueurs de tension, de sensibilité à l’insuline et de poids chez des consommateurs réguliers étudiés. Tes résultats nécessitent des mesures réelles.',
+        title: 'Des résultats mesurés pour la tension et le métabolisme',
+        text: 'Dans une étude de consommateurs réguliers sans dépendance, un mois d’abstinence était associé à une amélioration de la tension, de la sensibilité à l’insuline et du poids. Ces changements se vérifient avec des mesures réelles.',
         sourceIds: ['mehta-2018']
       }
     ],
     mental: [
       {
-        title: 'Certaines capacités peuvent progresser',
-        text: 'Chez 30 patients hospitalisés, certaines capacités de mémoire de travail et de langage s’amélioraient en trois semaines. D’autres fonctions évoluaient peu : le rythme n’est pas uniforme.',
+        title: 'Mémoire de travail et aisance verbale en progrès',
+        text: 'Chez 30 patients hospitalisés, les tests de mémoire de travail, de fluidité verbale et d’inhibition verbale se sont améliorés entre les jours 4 et 26. Les capacités complexes de planification évoluaient moins.',
         sourceIds: ['manning-2008']
       },
       {
-        title: 'Si l’anxiété ou la tristesse persistent',
-        text: 'Autour de trois à quatre semaines, un point avec un professionnel est utile si ces difficultés persistent. Tu peux consulter plus tôt si tu souffres.',
+        title: 'Un accompagnement ajusté à tes besoins',
+        text: 'Le NICE recommande un point sur l’anxiété ou la dépression si elles persistent après trois à quatre semaines d’abstinence, pour proposer des soins adaptés. En cas de souffrance, consulte sans attendre ce délai.',
         sourceIds: ['nice-cg115']
       }
     ],
-    checkInPrompt: 'Qu’est-ce qui s’est amélioré pour toi ? Qu’est-ce qui reste difficile ?',
-    outlook: 'Poursuivre ton arrêt peut soutenir ces changements. Ni ton ressenti ni le compteur ne permettent de connaître seuls l’état de tes organes.',
+    checkInPrompt: 'Quels changements veux-tu garder en mémoire ? Qu’aimerais-tu encore améliorer ?',
+    outlook: 'Fais le point sur tes ressentis et, si nécessaire, avec ton soignant. Ce bilan donne une direction à la suite de ton parcours.',
     sourceIds: ['mehta-2018', 'manning-2008', 'nice-cg115', 'nhs-liver']
   },
   {
@@ -368,23 +390,23 @@ export const HEALTH_STAGES = [
     fromDays: 90,
     label: '3 mois',
     rangeLabel: 'Point à 3 mois',
-    title: 'Comprendre ton évolution',
+    title: 'Ancrer les habitudes qui te font du bien',
     physical: [
       {
-        title: 'Le foie : des bénéfices possibles, à évaluer',
-        text: 'L’arrêt peut permettre une amélioration de certaines lésions du foie. La récupération dépend de leur nature ; un bilan médical, pas le compteur, renseigne sur ton état.',
+        title: 'L’arrêt au cœur de la santé du foie',
+        text: 'L’arrêt fait partie du traitement des maladies du foie liées à l’alcool. Certaines lésions, comme la stéatose, sont réversibles ; la récupération dépend de leur nature et se suit avec un professionnel.',
         sourceIds: ['nhs-liver']
       }
     ],
     mental: [
       {
-        title: 'Le sommeil peut demander plus de temps',
-        text: 'Chez des personnes avec dépendance suivies en soins, des difficultés de sommeil pouvaient persister plusieurs mois malgré l’abstinence. Un trouble durable mérite une aide adaptée.',
+        title: 'Vers des nuits plus reposantes',
+        text: 'Dans une étude suivie sur six mois, l’abstinence était associée à une amélioration du sommeil après des soins pour dépendance à l’alcool. Une insomnie persistante mérite aussi son propre accompagnement.',
         sourceIds: ['brower-2011']
       }
     ],
-    checkInPrompt: 'Compare ton sommeil, ton énergie et ta concentration à tes premiers bilans. De quoi as-tu besoin maintenant ?',
-    outlook: 'Ce rendez-vous est un repère pour ton suivi, pas une date de récupération attendue. Les lésions avancées peuvent nécessiter des soins malgré la poursuite de l’arrêt.',
+    checkInPrompt: 'Quelles habitudes soutiennent ton sommeil, ton énergie ou ta concentration ?',
+    outlook: 'Ce point à trois mois sert à reconnaître ce qui t’aide et à faire évoluer ton soutien. Les soins nécessaires continuent à faire partie du parcours.',
     sourceIds: ['nhs-liver', 'brower-2011']
   },
   {
@@ -393,28 +415,28 @@ export const HEALTH_STAGES = [
     fromDays: 180,
     label: '6 mois',
     rangeLabel: 'Point à 6 mois',
-    title: 'Voir le chemin parcouru',
+    title: 'Des progrès qui s’inscrivent dans la durée',
     physical: [
       {
-        title: 'Continuer à prendre soin de ton corps',
-        text: 'Poursuivre l’arrêt reste important en cas de maladie du foie. Même si tu te sens mieux, les éventuels examens et soins restent utiles selon ton médecin.',
+        title: 'Prendre soin du corps dans la durée',
+        text: 'En cas de maladie du foie liée à l’alcool, poursuivre l’arrêt est une part essentielle du traitement. Les examens et les soins prévus permettent de suivre ta situation.',
         sourceIds: ['nhs-liver']
       }
     ],
     mental: [
       {
-        title: 'Mémoire et organisation',
-        text: 'Une petite étude a observé une amélioration de tests de mémoire et d’organisation après six mois d’abstinence. Elle ne permet pas d’affirmer que toutes tes capacités sont rétablies.',
+        title: 'Mémoire et organisation : des progrès mesurés',
+        text: 'Dans une petite étude, les participants restés abstinents ont progressé en six mois sur les tests de mémoire épisodique et de fonctions exécutives étudiés, comme l’inhibition et la souplesse mentale.',
         sourceIds: ['pitel-2009']
       },
       {
-        title: 'Ton ressenti compte toujours',
-        text: 'Des troubles du sommeil peuvent encore être présents chez certaines personnes suivies après une dépendance. Les signaler permet d’en parler avec un professionnel.',
+        title: 'Continuer à soutenir ton sommeil',
+        text: 'L’étude sur six mois a observé une amélioration du sommeil associée à l’abstinence, tout en repérant des insomnies persistantes. Parler de tes nuits aide à choisir un accompagnement adapté.',
         sourceIds: ['brower-2011']
       }
     ],
-    checkInPrompt: 'Qu’est-ce qui est devenu plus facile au quotidien ? Qu’aimerais-tu améliorer avec de l’aide ?',
-    outlook: 'Garde comme repères tes observations réelles et, si nécessaire, tes bilans médicaux. Six mois n’est pas une échéance de rétablissement identique pour tous.',
+    checkInPrompt: 'Qu’est-ce qui est devenu plus facile ? De quoi veux-tu prendre soin maintenant ?',
+    outlook: 'Relis tes premiers bilans et reconnais les changements que tu observes. Ton parcours et tes besoins restent les meilleurs repères pour la suite.',
     sourceIds: ['nhs-liver', 'pitel-2009', 'brower-2011']
   },
   {
@@ -423,26 +445,64 @@ export const HEALTH_STAGES = [
     fromDays: 365,
     label: '1 an',
     rangeLabel: '1 an et au-delà',
-    title: 'Prendre soin de la suite',
+    title: 'Plus de place pour ce qui compte',
     physical: [
       {
-        title: 'Des bénéfices dans la durée',
-        text: 'L’arrêt durable est associé à une baisse du risque de cancers de la bouche et de l’œsophage. Il ne s’agit pas d’un bénéfice acquis précisément à un an ni d’un risque devenu nul.',
+        title: 'Réduire les risques dans la durée',
+        text: 'L’évaluation du CIRC conclut que l’arrêt durable réduit l’incidence des cancers de la bouche et de l’œsophage. Ce bénéfice se construit à long terme ; il ne correspond pas à un risque devenu nul au premier anniversaire.',
         sourceIds: ['iarc-2024']
       }
     ],
     mental: [
       {
-        title: 'Un bilan qui t’appartient',
-        text: 'Relis tes observations de sommeil, d’humeur et de concentration. Si une difficulté te pèse, un professionnel peut t’aider, quelle que soit la durée de ton arrêt.',
-        sourceIds: ['nice-cg115']
+        title: 'Du mieux-être au-delà du compteur',
+        text: 'Les recherches sur le rétablissement décrivent des progrès de santé mentale, de qualité de vie et de relations dans la durée. Fais le point sur les changements qui comptent pour toi et les soutiens que tu veux garder.',
+        sourceIds: ['niaaa-recovery']
       }
     ],
-    checkInPrompt: 'Quels changements constates-tu dans ta vie ? Quel soutien veux-tu garder pour la suite ?',
-    outlook: 'Poursuivre l’arrêt contribue à réduire certaines expositions et certains risques à long terme. Ton risque individuel dépend aussi de ton histoire et de ta santé ; il ne se calcule pas avec un nombre de jours.',
-    sourceIds: ['iarc-2024', 'nice-cg115', 'nhs-liver']
+    checkInPrompt: 'Qu’as-tu retrouvé ou découvert dans ta vie ? Quelle place veux-tu lui donner pour la suite ?',
+    outlook: 'Les jours comptent, et ce que tu en fais aussi. Continue à nourrir les habitudes, les liens et les projets qui soutiennent ton parcours.',
+    sourceIds: ['iarc-2024', 'nice-cg115', 'nhs-liver', 'niaaa-recovery']
   }
 ];
+
+export const HEALTH_ADDICTION = {
+  title: 'Plus de liberté face aux envies',
+  text: 'Dans les recherches sur le rétablissement, le maintien de l’abstinence s’accompagne d’une diminution des envies d’alcool et des émotions négatives. Les stratégies apprises et le soutien donnent des appuis pour avancer.',
+  sourceIds: ['niaaa-recovery', 'niaaa-cravings'],
+  steps: [
+    {
+      title: 'Reconnaître le déclencheur',
+      text: 'Repère la situation, l’émotion ou le moment qui précède l’envie.',
+      sourceIds: ['niaaa-cravings']
+    },
+    {
+      title: 'Préparer une autre réponse',
+      text: 'Prévois une activité sans alcool ou un lieu où tu te sens soutenu.',
+      sourceIds: ['niaaa-cravings']
+    },
+    {
+      title: 'Laisser passer la vague',
+      text: 'Observe l’envie sans y répondre immédiatement : son intensité évolue.',
+      sourceIds: ['niaaa-cravings']
+    },
+    {
+      title: 'T’appuyer sur quelqu’un',
+      text: 'Parle à une personne de confiance ou à un soignant.',
+      sourceIds: ['niaaa-cravings']
+    }
+  ],
+  support: {
+    title: 'Tu peux te faire aider',
+    text: 'Un professionnel peut proposer des stratégies et des traitements pour réduire les envies difficiles à vivre.',
+    sourceIds: ['niaaa-cravings', 'nhs-withdrawal']
+  },
+  setback: {
+    title: 'Ton parcours continue',
+    text: 'Une consommation ne retire pas la valeur de tes efforts. Chercher du soutien et comprendre ce qui s’est passé aide à préparer la suite.',
+    sourceIds: ['niaaa-recovery']
+  }
+};
 
 export const HEALTH_SAFETY = {
   withdrawal: 'Si tu buvais quotidiennement, en grande quantité, ou as déjà ressenti un manque, demande un avis médical pour sécuriser l’arrêt. Des tremblements, sueurs ou nausées après l’arrêt nécessitent un avis rapide.',
