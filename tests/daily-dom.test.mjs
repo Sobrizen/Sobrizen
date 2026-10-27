@@ -131,6 +131,7 @@ try{
     const saved=row(mock);assert.equal(saved.sober_today,true);assert.equal(saved.alcohol_units,0);
     assert.equal(saved.alcohol_cost_eur,null);assert.equal(saved.craving,null);
     assert.equal(day(today).dataset.state,'abstinent');assert.equal(day(today).dataset.provenance,'declared');
+    assert.equal(document.activeElement.dataset.date,today,'Saving restores focus to the recorded date');
     assert.equal($$('.dy-week-days [data-provenance="declared"]').length,2);
     assert.equal(txt('[data-daily-clock-value]'),'2','Recording today must not add a completed day to the clock');
     assert.match(txt('[data-daily-clock-detail]'),/depuis ton dernier verre déclaré/,'A sober declaration must preserve the precise stop clock');
@@ -161,6 +162,7 @@ try{
     assert.equal($('.dy-page'),page);assert.equal(document.activeElement,focus);assert.equal($('.dy-safety').open,true);
     assert.equal(txt('[data-daily-clock-value]'),'3');assert.match(txt('[data-daily-earned]'),/3 jours/);
     assert.match(txt('[data-daily-cap-title]'),/7 jours/);assert.equal(writes(mock).length,count);
+    assert.equal($('.dy-cap-track').getAttribute('aria-valuenow'),'42','Three completed days remain visible toward seven instead of resetting to zero');
   });
 
   await check('calendar','seven dated cells distinguish declared, estimated and unknown days',async()=>{

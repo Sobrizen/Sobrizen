@@ -28,7 +28,7 @@ export function initErgonomics(){
  const title=element('span','ux-page-title');$('.header-identity')?.append(title);
  function groupMenu(){
   const nav=$('#nav');if(!nav)return;
-  if(!nav.dataset.uxGrouped){nav.dataset.uxGrouped='true';for(const [page,label] of [['home','Mon quotidien'],['journal','Mes ressources'],['profile','Mon compte']]){const item=$(`[data-page="${page}"]`,nav);if(item){const h=element('span','ux-nav-group',label);h.setAttribute('aria-hidden','true');item.before(h);}}}
+  if(!nav.dataset.uxGrouped){nav.dataset.uxGrouped='true';for(const [page,label] of [['home','L’essentiel'],['journal','Mes ressources'],['profile','Mon compte']]){const item=$(`[data-page="${page}"]`,nav);if(item){const h=element('span','ux-nav-group',label);h.setAttribute('aria-hidden','true');item.before(h);}}}
   for(const item of $$('button[data-page],button[data-move="open"]',nav)){
    if(item.dataset.uxNavDecorated)continue;
    const page=item.dataset.page||'movement',label=page==='health'?'Santé':PAGE_LABELS[page];if(!label)continue;const copy=element('span','ux-nav-copy');copy.append(element('span','ux-nav-label',label),element('small','ux-nav-hint',PAGE_HINTS[page]));item.replaceChildren(icon(page),copy);item.setAttribute('aria-label',label);item.dataset.uxNavDecorated='true';

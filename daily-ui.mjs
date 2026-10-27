@@ -33,8 +33,7 @@ export function createDailyUI(api){
  function capText(m){
   if(!m.nextCap)return {title:'Ton parcours continue',detail:'Chaque nouvelle journée garde sa place.',percent:100};
   const cap=m.nextCap,elapsed=m.journey.precision==='minute'?m.journey.elapsedMinutes:m.journey.days*1440;
-  const start=m.currentCap?.fromMinutes||0;
-  const percent=Math.max(0,Math.min(100,Math.floor((elapsed-start)/(cap.fromMinutes-start)*100)));
+  const percent=Math.max(0,Math.min(100,Math.floor(elapsed/cap.fromMinutes*100)));
   const target=cap.targetAt?localDateTime(cap.targetAt,m.timeZone):null;
   return {title:`Prochain repère : ${cap.label}`,detail:target?`${dateLabel(target.date)} à ${target.time}`:`Vers le ${dateLabel(cap.targetDate)} · heure à préciser`,percent};
  }

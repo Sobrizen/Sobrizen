@@ -229,6 +229,8 @@ export function createDailyEntry(api) {
       }
       if (document.contains(form) && form.closest('dialog')?.open && S.page === context.page) {
         api.closeModal(); api.render();
+        const dayButton=[...document.querySelectorAll('#content [data-daily-action="day"]')].find(button=>button.dataset.date===context.model.date&&!button.disabled);
+        (dayButton||document.getElementById('dy-calendar-title'))?.focus({preventScroll:true});
       }
       api.notify(context.demo ? 'Journée mise à jour dans la démo, sans sauvegarde en ligne.' : 'Journée enregistrée. Ton suivi est à jour.');
     } finally {
