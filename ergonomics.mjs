@@ -1,10 +1,10 @@
-import {PAGE_LABELS,filterItems,gameCategory,formFingerprint} from './ergonomics-core.mjs';
+import {PAGE_LABELS,PAGE_HINTS,filterItems,gameCategory,formFingerprint} from './ergonomics-core.mjs';
 /* Additive interface layer. Existing controllers alone own auth, payments and writes.
    No fetch, analytics, private-data persistence or automatic health progression. */
 const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
 const element=(tag,className,text)=>{const e=document.createElement(tag);if(className)e.className=className;if(text!==undefined)e.textContent=text;return e;};
 const button=(text,action,value)=>{const e=element('button','',text);e.type='button';e.dataset.uxAction=action;if(value)e.dataset.uxValue=value;return e;};
-const paths={home:'M3 10 12 3l9 7M5 9v12h14V9M9 21v-7h6v7',progress:'M4 3v18h17M7 15l4-5 4 3 5-7',help:'M12 21S3 16 3 9a5 5 0 0 1 9-3 5 5 0 0 1 9 3c0 7-9 12-9 12Z',community:'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M16 3a4 4 0 0 1 0 8M22 21v-2a4 4 0 0 0-3-3.9M13 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0',menu:'M4 6h16M4 12h16M4 18h16'};
+const paths={home:'M3 10 12 3l9 7M5 9v12h14V9M9 21v-7h6v7',progress:'M4 3v18h17M7 15l4-5 4 3 5-7',health:'M12 21S3 16 3 9a5 5 0 0 1 9-3 5 5 0 0 1 9 3c0 7-9 12-9 12ZM4 12h4l2-4 3 7 2-3h5',help:'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM12 16v.01M9.5 9a2.5 2.5 0 1 1 4.1 1.9c-1 .7-1.6 1-1.6 2.1',journey:'M6 3v13a4 4 0 0 0 8 0V8a4 4 0 0 1 8 0M3 3h6M19 8h5',journal:'M5 3h14v18H5V3ZM8 7h8M8 11h8M8 15h5',movement:'M14 5a2 2 0 1 0 0-4 2 2 0 0 0 0 4ZM7 11l3-4 4 1 3 5h4M5 21l5-7 3 2v6M10 14l2-6M3 8l4 3',games:'M7 6h10a4 4 0 0 1 4 4l1 7a2 2 0 0 1-3 2l-4-3H9l-4 3a2 2 0 0 1-3-2l1-7a4 4 0 0 1 4-4ZM7 9v5M4.5 11.5h5M16 10v.01M19 13v.01',community:'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M16 3a4 4 0 0 1 0 8M22 21v-2a4 4 0 0 0-3-3.9M13 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0',profile:'M20 21v-2a7 7 0 0 0-14 0v2M17 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0',menu:'M4 6h16M4 12h16M4 18h16'};
 function icon(name){const svg=document.createElementNS('http://www.w3.org/2000/svg','svg'),path=document.createElementNS(svg.namespaceURI,'path');svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('aria-hidden','true');path.setAttribute('d',paths[name]||paths.menu);svg.append(path);return svg;}
 let started=false;
 export function initErgonomics(){
@@ -23,20 +23,23 @@ export function initErgonomics(){
  function route(page){if(page==='movement')clickNative('#nav [data-move="open"]');else if(Object.hasOwn(PAGE_LABELS,page))clickNative(`#nav [data-page="${page}"]`);}
  function nativeButton(text,key,value,className='secondary'){const b=element('button',className,text);b.type='button';b.dataset[key]=value;return b;}
  const bottom=element('nav','ux-bottom-nav');bottom.setAttribute('aria-label','Accès rapides');
- for(const [name,label] of [['home','Accueil'],['progress','Suivi'],['help','Aide'],['community','Ensemble'],['menu','Menu']]){const b=button(label,'navigate',name);b.replaceChildren(icon(name),element('span','',label));if(name==='menu'){b.setAttribute('aria-controls','appNav');b.setAttribute('aria-expanded','false');}bottom.append(b);}
+ for(const [name,label] of [['home','Accueil'],['progress','Suivi'],['health','Santé'],['help','Aide'],['menu','Menu']]){const b=button(label,'navigate',name);b.replaceChildren(icon(name),element('span','',label));if(name==='menu'){b.setAttribute('aria-controls','appNav');b.setAttribute('aria-expanded','false');}bottom.append(b);}
  if(workspace)workspace.append(bottom);
  const title=element('span','ux-page-title');$('.header-identity')?.append(title);
  function groupMenu(){
-  const nav=$('#nav');if(!nav||nav.dataset.uxGrouped)return;
-  nav.dataset.uxGrouped='true';
-  for(const [page,label] of [['home','MON PARCOURS'],['journal','MES RESSOURCES'],['profile','MON COMPTE']]){const item=$(`[data-page="${page}"]`,nav);if(item){const h=element('span','ux-nav-group',label);h.setAttribute('aria-hidden','true');item.before(h);}}
+  const nav=$('#nav');if(!nav)return;
+  if(!nav.dataset.uxGrouped){nav.dataset.uxGrouped='true';for(const [page,label] of [['home','Mon quotidien'],['journal','Mes ressources'],['profile','Mon compte']]){const item=$(`[data-page="${page}"]`,nav);if(item){const h=element('span','ux-nav-group',label);h.setAttribute('aria-hidden','true');item.before(h);}}}
+  for(const item of $$('button[data-page],button[data-move="open"]',nav)){
+   if(item.dataset.uxNavDecorated)continue;
+   const page=item.dataset.page||'movement',label=page==='health'?'Santé':PAGE_LABELS[page];if(!label)continue;const copy=element('span','ux-nav-copy');copy.append(element('span','ux-nav-label',label),element('small','ux-nav-hint',PAGE_HINTS[page]));item.replaceChildren(icon(page),copy);item.setAttribute('aria-label',label);item.dataset.uxNavDecorated='true';
+  }
  }
  function visibleFocus(root){return $$('button:not(:disabled),a[href],input:not([type="hidden"]):not(:disabled),select:not(:disabled),textarea:not(:disabled),summary,[tabindex="0"]',root).filter(e=>!e.closest('[hidden],[inert]')&&e.getClientRects().length);}
  function syncShell(){
   if(!workspace)return;
   const active=!workspace.hidden,page=document.body.dataset.page||'home',open=active&&small.matches&&document.body.classList.contains('menu-open');
   bottom.hidden=!active;title.textContent=PAGE_LABELS[page]||'Sobrizen';
-  for(const b of $$('[data-ux-action="navigate"]',bottom)){const name=b.dataset.uxValue,current=page===name||name==='menu'&&!['home','progress','community'].includes(page);b.classList.toggle('selected',current);if(current&&name!=='help')b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');if(name==='menu')b.setAttribute('aria-expanded',String(open));}
+  for(const b of $$('[data-ux-action="navigate"]',bottom)){const name=b.dataset.uxValue,current=page===name||name==='menu'&&!['home','progress','health'].includes(page);b.classList.toggle('selected',current);if(current&&name!=='help')b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');if(name==='menu')b.setAttribute('aria-expanded',String(open));}
   if(drawer){drawer.inert=small.matches&&!open;if(small.matches&&!open)drawer.setAttribute('aria-hidden','true');else drawer.removeAttribute('aria-hidden');if(open){drawer.setAttribute('role','dialog');drawer.setAttribute('aria-modal','true');}else{drawer.removeAttribute('role');drawer.removeAttribute('aria-modal');}}
   const main=$('.main',workspace);if(main)main.inert=open;bottom.inert=open;
   if(!lastOpen&&open)($('#nav [aria-current="page"]',drawer)||visibleFocus(drawer)[0])?.focus({preventScroll:true});
@@ -49,7 +52,7 @@ export function initErgonomics(){
  const editable=f=>f.matches('form[data-tl-form],#journalForm,#profileForm,#settingsForm,#programForm,#journeyForm,#reasonForm,#postForm,#commentForm,#checkForm,#healthCheckinForm,form[data-health-form]');
  function isDirty(f){return forms.has(f)&&forms.get(f)!==formHash(f);}
  function dirtyForms(root=document){return $$('form',root).filter(f=>f.isConnected&&editable(f)&&!f.closest('#workspace[hidden]')&&(!f.closest('dialog')||f.closest('dialog').open)&&isDirty(f));}
- function guard(root=document){if(!dirtyForms(root).length)return true;return confirm('Tes modifications ne sont pas encore enregistrées. Quitter sans les enregistrer ?');}
+ function guard(root=document){if(!dirtyForms(root).length)return true;return confirm('Tes modifications ne sont pas encore enregistrées. Continuer sans les enregistrer ?');}
  function trackForms(root){for(const f of $$('form',root)){if(editable(f)&&!forms.has(f))forms.set(f,formHash(f));}
   for(const area of $$('textarea[maxlength]',root)){if(enhanced.has(area))continue;enhanced.add(area);const counter=element('span','ux-character-count');counter.dataset.uxCounter='true';area.after(counter);updateCounter(area);}
   for(const input of $$('input[type="email"]',root)){input.setAttribute('inputmode','email');input.setAttribute('autocapitalize','none');input.spellcheck=false;}
@@ -101,13 +104,16 @@ export function initErgonomics(){
  }
  function enhanceJourney(){
   const grid=$('.step-grid',content);if(grid){const details=element('details','ux-step-picker'),current=$('.current',grid);const label=current?.getAttribute('aria-label')||'Mon programme';details.append(element('summary','',`${label} · choisir une étape`));grid.before(details);details.append(grid);}
+  const form=$('#programForm',content),step=Number($('[name="step"]',form||content)?.value);
+  const destinations={2:['Mes raisons','page','profile'],7:['Ouvrir mon suivi','page','progress'],8:['Trouver du soutien','action','help'],9:['Noter mon ressenti','page','health'],13:['Ouvrir mon journal','page','journal'],14:['Relire mon journal','page','journal'],15:['Mon plan personnel','page','profile'],18:['Vérifier mon profil','page','profile'],21:['Noter une consommation','tlAction','occasion'],22:['Mes outils de soutien','action','help'],26:['Ouvrir la communauté','page','community'],28:['Voir mon bilan','page','progress']};
+  if(form&&destinations[step]){const [label,key,value]=destinations[step],links=element('div','ux-program-link');links.append(nativeButton(label+' →',key,value));form.before(links);}
   enhanceHistory();
  }
  function enhanceHealth(){
   const hero=$('.hz-hero',content);if(!hero)return;
-  const anchors=[['hz-hero','Mon ressenti'],['hz-timeline-title','Les repères'],['ux-health-observations','Mes observations']];
+  const anchors=[['hz-hero','Mon arrêt'],['hz-timeline-title','Corps & esprit'],['ux-health-observations','Mes ressentis']];
   hero.id='hz-hero';const metrics=$('.hz-metrics',content);if(metrics)metrics.id='ux-health-observations';
-  const nav=element('nav','ux-section-links');nav.setAttribute('aria-label','Dans Santé et ressentis');
+  const nav=element('nav','ux-section-links');nav.setAttribute('aria-label','Dans Santé & bienfaits');
   for(const [id,label] of anchors){if(!document.getElementById(id))continue;const a=element('a','',label);a.href='#'+id;nav.append(a);}
   hero.before(nav);
   const selected=$('.hz-stage.selected',content);if(selected){const rail=selected.parentElement;rail.scrollLeft=Math.max(0,selected.offsetLeft-rail.offsetLeft-rail.clientWidth/2+selected.clientWidth/2);}
@@ -137,6 +143,7 @@ export function initErgonomics(){
   pageRoot=root;filterObserver?.disconnect();filterView=null;
   const page=document.body.dataset.page||'home';
   ({home:enhanceHome,journey:enhanceJourney,progress:enhanceHistory,journal:enhanceJournal,games:enhanceGames,community:enhanceCommunity,health:enhanceHealth,profile:enhanceProfile,movement:enhanceMovement}[page]||(()=>{}))();
+  if(['journal','community','profile','games'].includes(page)){const heading=$('h1',content);if(heading)heading.textContent=PAGE_LABELS[page];}
   trackForms(content);syncShell();
   if(lastPage&&lastPage!==page&&!$('dialog[open]')){const heading=$('h1',content);if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true});}}lastPage=page;
   if(pendingStepFocus){const form=$('#programForm',content),heading=form&&$$(':scope > h2',form.closest('section')).at(-1);if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true});}pendingStepFocus=false;}
@@ -152,7 +159,10 @@ export function initErgonomics(){
   const target=e.target.closest?.('button,a,summary');if(!target)return;
   if(target.matches('[data-action="menu-toggle"]'))returnFocus=target;
   const modalTransition=modal?.open&&modal.contains(target)&&target.matches('[data-tl-action="edit-event"],[data-tl-action="edit-range"],[data-tl-action="edit-occasion"],[data-tl-action="new-range"],[data-tl-action="remove-open"],[data-tl-action="settings"],[data-tl-action="date"]');
-  const leaving=modalTransition||target.matches('[data-action="close"],[data-action="logout"],[data-action="step"],[data-page],[data-move="open"],[data-tl-action="history"],[data-tl-action="progress"]')||target.matches('a[href]')&&!target.getAttribute('href').startsWith('#')&&!/^(tel:|mailto:)/.test(target.getAttribute('href'));
+  // These actions can save and redraw the page behind their dialog. Protect
+  // inline reflections/settings before opening them, not after data is lost.
+  const pageTransition=!modal?.open&&!target.closest('form')&&target.matches('[data-tl-action],[data-tl-chart-action],[data-tl-summary-action],[data-health-action="checkin"],[data-action="journey-settings"],[data-action="journey-date"],[data-action="reason-new"],[data-action="journal-new"],[data-action="journal-edit"],[data-action="post-new"],[data-action="post-edit"],[data-action="comments"],[data-action="help"]');
+  const leaving=modalTransition||pageTransition||target.matches('[data-action="close"],[data-action="logout"],[data-action="step"],[data-page],[data-move="open"],[data-tl-action="history"],[data-tl-action="progress"]')||target.matches('a[href]')&&!target.getAttribute('href').startsWith('#')&&!/^(tel:|mailto:)/.test(target.getAttribute('href'));
   if(leaving&&!target.disabled&&!guard((target.dataset.action==='close'||modalTransition)&&modal?modal:document)){e.preventDefault();e.stopImmediatePropagation();return;}
   if(target.dataset.action==='step')pendingStepFocus=true;
   const action=target.dataset.uxAction,value=target.dataset.uxValue;

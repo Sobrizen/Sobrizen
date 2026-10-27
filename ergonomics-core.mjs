@@ -1,5 +1,6 @@
 /** Presentation helpers only. No health scores, money, dates or account access. */
-export const PAGE_LABELS=Object.freeze({home:'Accueil',progress:'Mon suivi',health:'Santé & ressentis',journey:'Mon parcours',journal:'Mon journal',movement:'Bouger',games:'Mes jeux',community:'Communauté',profile:'Mon espace'});
+export const PAGE_LABELS=Object.freeze({home:'Accueil',progress:'Mon suivi',health:'Santé & bienfaits',journey:'Mon parcours',journal:'Mon journal',movement:'Bouger',games:'Jeux',community:'Communauté',profile:'Mon profil'});
+export const PAGE_HINTS=Object.freeze({home:'L’essentiel aujourd’hui',progress:'Consommation & budget',health:'Corps, esprit & ressentis',journey:'Mes étapes & mon histoire',journal:'Mes notes personnelles',movement:'Exercices à mon rythme',games:'Une pause pour moi',community:'Échanger & se soutenir',profile:'Préférences & compte'});
 export const normalizeSearch=value=>String(value??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('fr-FR').replace(/\s+/g,' ').trim();
 export function filterItems(items,{category='all',query='',limit=12}={}){
  const needle=normalizeSearch(query),bounded=Number.isFinite(limit)?Math.max(1,Math.floor(limit)):12;

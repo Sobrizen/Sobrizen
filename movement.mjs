@@ -47,19 +47,127 @@ function chair(x,y,back=true){return `<g fill="none" stroke="#ba9574" stroke-wid
 export function illustration(id,phase=.24,animated=false){const item=EXERCISES.find(e=>e.id===id),floor=['bridge','quadruped','pushup','plank'].includes(id);return `<svg viewBox="0 0 300 226" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${escapeHTML(item?.title||'Mouvement')} — illustration schématique" class="mv-svg"><rect width="300" height="226" rx="20" fill="#edf4ef"/><circle cx="242" cy="54" r="65" fill="#e0eee4"/><path d="M0 202h300" stroke="#cbded0" stroke-width="2"/><rect x="20" y="24" width="45" height="49" rx="3" fill="#fafaf6" stroke="#d4e3d7" stroke-width="4"/><path d="M28 61l12-17 10 9 8-7v21H28" fill="#c7dfd0"/><path d="M24 198v-39m0 17q-17-3-15-20 17 2 15 20m0-9q18-4 17-22-17 3-17 22" fill="#99bca5" stroke="#99bca5" stroke-width="2"/><path d="M12 182h24l-4 20H16z" fill="#d8c4ac"/>${floor?'<rect x="36" y="200" width="230" height="7" rx="4" fill="#abcbbb"/>':''}${id==='wall'?'<path d="M253 38v164" stroke="#c0d7c7" stroke-width="10"/>':''}${['ankles','sitstand'].includes(id)?chair(87,154):''}${id==='heels'?chair(207,153):''}<g ${animated?'data-mv-person':''}>${person(pose(id,phase))}</g></svg>`;}
 
 const $=selector=>document.querySelector(selector);
-let active=false,level='doux',player=null,frame=0,previousTime=0,origin=null;
+let active=false,level='doux',player=null,frame=0,previousTime=0,origin=null,renderedPremium=null;
 const motionQuery=typeof matchMedia==='function'?matchMedia('(prefers-reduced-motion: reduce)'):null;
 const premiumAccess=()=>document.documentElement.dataset.premium==='true';
-function selectedNav(){document.querySelectorAll('#nav button').forEach(b=>{const current=b.dataset.move==='open';b.classList.toggle('selected',current);b.setAttribute('aria-current',current?'page':'false');});}
+function selectedNav(){renderedPremium=premiumAccess();if(active&&document.body.dataset.page!=='movement')document.body.dataset.page='movement';document.querySelectorAll('#nav button').forEach(b=>{const current=b.dataset.move==='open';b.classList.toggle('selected',current);b.setAttribute('aria-current',current?'page':'false');});}
 function renderPage(focus=false){const content=$('#content');if(!content||!active||$('#workspace')?.hidden)return;const premium=premiumAccess();if(!premium&&level!=='doux')level='doux';const set=EXERCISES.filter(e=>e.level===level);content.innerHTML=`<section id="movement-root" class="mv-root"><div class="greeting"><span class="eyebrow">UNE PAUSE POUR TOI</span><h1 tabindex="-1" id="mv-heading">Bouger à la maison</h1><p class="muted">12 mouvements illustrés. Doux est gratuit ; Moyen et Intense sont inclus dans Premium.</p></div><div class="mv-intro"><div><span class="tag">Sans matériel de sport · Sans saut</span><h2>Un petit mouvement.<br>Une place pour toi.</h2><p>Choisis ton niveau, découvre le geste et lance le minuteur si tu veux.</p></div><div class="mv-intro-art" aria-hidden="true">${illustration('march')}</div></div>${premium?'':`<div class="mv-warning"><b>Gratuit :</b> 4 mouvements Doux. Moyen et Intense sont Premium. <a href="/abonnement.html">Découvrir Premium — 29,99 € / an →</a></div>`}<div class="mv-tabs" role="tablist" aria-label="Niveau d’intensité">${Object.entries(LEVELS).map(([key,v])=>{const locked=!premium&&key!=='doux';return `<button type="button" role="tab" id="mv-tab-${key}" data-move="level" data-level="${key}" aria-selected="${key===level}" aria-controls="mv-panel" aria-label="${v.label}${locked?' — Premium':''}" tabindex="${key===level?'0':'-1'}"><span class="mv-level-dot mv-${key}"></span>${v.label}${locked?'<span class="tag">Premium</span>':''}</button>`;}).join('')}</div><div id="mv-panel" role="tabpanel" aria-labelledby="mv-tab-${level}"><div class="mv-level-head"><div><h2>${LEVELS[level].subtitle}</h2><p class="muted">${LEVELS[level].description}</p></div><span class="tag">4 exercices</span></div>${level==='intense'?'<p class="mv-warning">« Intense » décrit un effort musculaire relatif, pas un objectif maximal. Après une longue inactivité ou en cas de maladie connue, demande un avis médical avant ce niveau.</p>':''}<div class="mv-grid">${set.map((e,i)=>`<article class="mv-card"><div class="mv-art">${illustration(e.id)}</div><div class="mv-card-body"><span class="eyebrow">MOUVEMENT 0${i+1}</span><h3>${e.title}</h3><p>${e.short}</p><div class="mv-card-bottom"><span class="mv-dose">${e.goal}</span><button type="button" class="primary" data-move="exercise" data-id="${e.id}" aria-label="Voir ${e.title}">Voir le geste <span aria-hidden="true">→</span></button></div></div></article>`).join('')}</div></div><div class="mv-guided"><div><h2>Les 4 mouvements, à ton rythme</h2><p>Une démonstration pour chaque exercice, un minuteur facultatif et des pauses libres. Aucun enchaînement imposé.</p></div><button type="button" class="primary" data-move="session">Ouvrir la séance guidée →</button></div><details class="mv-safety"><summary>Sécurité avant de commencer</summary><p>Ces mouvements soutiennent une remise en forme générale ; ils ne « réparent » pas les effets de l’alcool et ne traitent pas le sevrage. Les quantités sont des repères à adapter, pas une prescription.</p><p>Prévois un espace dégagé, un appui stable et un échauffement progressif avant le renforcement. Respire sans bloquer. Arrête en cas de douleur, vertige, malaise ou essoufflement inhabituel. Laisse au moins une journée de récupération entre deux séances de renforcement des mêmes muscles.</p><p>Arrêt récent d’une consommation importante avec tremblements, sueurs ou palpitations : demande rapidement un avis médical plutôt que de faire du sport. Confusion, hallucinations, convulsions, douleur thoracique ou difficulté importante à respirer : appelle le 15 ou le 112 en France.</p><p class="small">Illustrations schématiques, sans correction automatique de ta posture. Aucun résultat sportif ni donnée de santé n’est enregistré par cette rubrique.</p><p class="small">Repères : <a href="https://www.nhs.uk/live-well/exercise/strength-exercises/" target="_blank" rel="noopener noreferrer">NHS — renforcement</a> · <a href="https://www.nhs.uk/live-well/exercise/sitting-exercises/" target="_blank" rel="noopener noreferrer">NHS — mobilité assise</a> · <a href="https://www.mayoclinic.org/healthy-lifestyle/fitness/in-depth/core-strength/art-20546851" target="_blank" rel="noopener noreferrer">Mayo Clinic — exercices du tronc</a> · <a href="https://www.nhs.uk/conditions/alcohol-misuse/treatment/" target="_blank" rel="noopener noreferrer">NHS — sevrage</a></p></details></section>`;selectedNav();if(focus)$('#mv-heading')?.focus({preventScroll:true});}
 function openPage(){if($('#workspace')?.hidden)return;active=true;document.body.dataset.page='movement';document.body.classList.remove('menu-open');document.querySelector('[data-action="menu-toggle"]')?.setAttribute('aria-expanded','false');renderPage(true);window.scrollTo({top:0,behavior:'instant'});}
-function playerDialog(){let dialog=$('#movement-player');if(!dialog){dialog=document.createElement('dialog');dialog.id='movement-player';dialog.setAttribute('aria-labelledby','mv-player-title');document.body.append(dialog);dialog.addEventListener('close',()=>{cancelAnimationFrame(frame);player=null;origin?.focus?.({preventScroll:true});});dialog.addEventListener('cancel',()=>{if(player)player.running=false;});}return dialog;}
-function showExercise(id,queue=null,index=0){const exercise=EXERCISES.find(e=>e.id===id);if(!exercise)return;origin=document.activeElement;cancelAnimationFrame(frame);player={exercise,queue,index,remaining:exercise.seconds,running:false,motion:!motionQuery?.matches,phase:0,ended:false};renderPlayer();const dialog=playerDialog();if(!dialog.open)dialog.showModal();$('#mv-play')?.focus({preventScroll:true});previousTime=performance.now();frame=requestAnimationFrame(tick);}
-function renderPlayer(){if(!player)return;const {exercise:e,queue,index}=player;const dialog=playerDialog();dialog.innerHTML=`<div class="mv-player-inner"><div class="mv-player-top"><span class="tag">${LEVELS[e.level].label}${queue?' · Exercice '+(index+1)+' / '+queue.length:''}</span><button type="button" class="close" data-move="close" aria-label="Fermer la démonstration">×</button></div><h2 id="mv-player-title">${e.title}</h2><p class="muted">${e.equipment}</p><div class="mv-player-art">${illustration(e.id,0,true)}</div><div class="mv-demo-bar"><span class="small">${e.id==='plank'?'Position à maintenir en respirant':'Démonstration schématique · à ton rythme'}</span><button type="button" class="text" data-move="motion" aria-pressed="${player.motion}">${player.motion?'Figer l’animation':'Animer le geste'}</button></div><div class="mv-instructions"><ol>${e.steps.map(step=>`<li>${step}</li>`).join('')}</ol><p class="mv-tip">${e.tip}</p><details><summary>Une version plus facile</summary><p>${e.easy}</p></details></div><div class="mv-timer-box"><span class="mv-dose">Repère : ${e.goal}</span><div id="mv-clock" class="mv-clock" role="timer" aria-label="Temps restant">${formatTime(player.remaining)}</div><p id="mv-status" class="small" role="status" aria-live="polite">${queue&&index>0?'Prends le repos nécessaire avant de continuer.':'Installe-toi, puis démarre quand tu es prêt.'}</p><div class="mv-controls"><button type="button" class="primary" id="mv-play" data-move="play">Démarrer le minuteur</button><button type="button" class="secondary" data-move="reset" aria-label="Remettre le minuteur à zéro">Recommencer</button></div><p class="small">Tu peux t’arrêter avant la fin. Le minuteur ne compte pas tes répétitions.</p></div>${e.level!=='doux'?'<p class="mv-warning small">Échauffe-toi progressivement avant le renforcement. Ne cherche ni l’épuisement ni une amplitude douloureuse.</p>':''}<div class="mv-player-bottom">${queue?`<button type="button" class="secondary full" data-move="next">${index+1<queue.length?'Mouvement suivant →':'Terminer la séance'}</button>`:'<button type="button" class="secondary full" data-move="close">Revenir aux exercices</button>'}</div></div>`;}
+function clearPlayer(restoreFocus=true){
+ cancelAnimationFrame(frame);frame=0;previousTime=0;player=null;
+ const target=origin;origin=null;
+ if(restoreFocus&&target&&!$('#workspace')?.hidden){
+  if(target.isConnected)target.focus({preventScroll:true});
+  else if(active)$('#mv-heading')?.focus({preventScroll:true});
+ }
+}
+function playerDialog(){
+ let dialog=$('#movement-player');
+ if(!dialog){
+  dialog=document.createElement('dialog');dialog.id='movement-player';dialog.setAttribute('aria-labelledby','mv-player-title');document.body.append(dialog);
+  // A close event is queued by the browser. It must not clear a newer session.
+  dialog.addEventListener('close',()=>{if(!dialog.open)clearPlayer();});
+  dialog.addEventListener('cancel',()=>{if(player)player.running=false;});
+ }
+ return dialog;
+}
+function showExercise(id,queue=null,index=0){
+ const exercise=EXERCISES.find(e=>e.id===id);if(!exercise)return;
+ if(exercise.level!=='doux'&&!premiumAccess()){closePlayer();location.href='/abonnement.html';return;}
+ const dialog=playerDialog(),sameSession=dialog.open&&player?.queue===queue&&queue!==null;
+ const motion=sameSession?player.motion:!motionQuery?.matches;
+ // Keep the original card/session button while navigating within the dialog.
+ if(!dialog.open)origin=document.activeElement;
+ cancelAnimationFrame(frame);player={exercise,queue,index,remaining:exercise.seconds,running:false,motion,phase:0,ended:false};
+ renderPlayer();if(!dialog.open)dialog.showModal();$('#mv-play')?.focus({preventScroll:true});
+ previousTime=performance.now();frame=requestAnimationFrame(tick);
+}
+function renderPlayer(){if(!player)return;const {exercise:e,queue,index}=player;const dialog=playerDialog();dialog.innerHTML=`<div class="mv-player-inner"><div class="mv-player-top"><span class="tag">${LEVELS[e.level].label}${queue?' · Exercice '+(index+1)+' / '+queue.length:''}</span><button type="button" class="close" data-move="close" aria-label="Fermer la démonstration">×</button></div><h2 id="mv-player-title">${e.title}</h2><p class="muted">${e.equipment}</p><div class="mv-player-art">${illustration(e.id,0,true)}</div><div class="mv-demo-bar"><span class="small">${e.id==='plank'?'Position à maintenir en respirant':'Démonstration schématique · à ton rythme'}</span><button type="button" class="text" data-move="motion" aria-pressed="${player.motion}">${player.motion?'Figer l’animation':'Animer le geste'}</button></div><div class="mv-instructions"><ol>${e.steps.map(step=>`<li>${step}</li>`).join('')}</ol><p class="mv-tip">${e.tip}</p><details><summary>Une version plus facile</summary><p>${e.easy}</p></details></div><div class="mv-timer-box"><span class="mv-dose">Repère : ${e.goal}</span><div id="mv-clock" class="mv-clock" role="timer" aria-label="Temps restant">${formatTime(player.remaining)}</div><p id="mv-status" class="small" role="status" aria-live="polite">${queue&&index>0?'Prends le repos nécessaire avant de continuer.':'Installe-toi, puis démarre quand tu es prêt.'}</p><div class="mv-controls"><button type="button" class="primary" id="mv-play" data-move="play">Démarrer le minuteur</button><button type="button" class="secondary" data-move="reset" aria-label="Remettre le minuteur à zéro">Recommencer</button></div><p class="small">Tu peux t’arrêter avant la fin. Le minuteur ne compte pas tes répétitions.</p></div>${e.level!=='doux'?'<p class="mv-warning small">Échauffe-toi progressivement avant le renforcement. Ne cherche ni l’épuisement ni une amplitude douloureuse.</p>':''}<div class="mv-player-bottom">${playerNavigation(queue,index)}</div></div>`;}
+function playerNavigation(queue,index){
+ if(!queue)return '<button type="button" class="secondary full" data-move="close">Revenir aux exercices</button>';
+ return `<div class="mv-session-nav"><button type="button" class="secondary" data-move="previous"${index===0?' disabled':''}>← Mouvement précédent</button><button type="button" class="secondary" data-move="next">${index+1<queue.length?'Mouvement suivant →':'Terminer la séance'}</button></div>`;
+}
 function formatTime(seconds){const n=Math.max(0,Math.ceil(seconds));return `${String(Math.floor(n/60)).padStart(2,'0')}:${String(n%60).padStart(2,'0')}`;}
 function syncTimer(){if(!player)return;$('#mv-clock').textContent=formatTime(player.remaining);$('#mv-play').textContent=player.ended?'Minuteur terminé':player.running?'Pause':player.remaining<player.exercise.seconds?'Reprendre':'Démarrer le minuteur';$('#mv-play').disabled=player.ended;}
 function tick(now){if(!player||!$('#movement-player')?.open)return;const delta=(now-previousTime)/1000;previousTime=now;if(!document.hidden){if(player.running){player.remaining=Math.max(0,player.remaining-delta);if(player.remaining<=0){player.running=false;player.ended=true;$('#mv-status').textContent='Temps écoulé. Repose-toi ; aucune répétition n’est enregistrée automatiquement.';}syncTimer();}if(player.motion){player.phase=(player.phase+delta/player.exercise.cycle)%1;const svg=$('#movement-player [data-mv-person]');if(svg)svg.innerHTML=person(pose(player.exercise.id,player.phase));}}frame=requestAnimationFrame(tick);}
-function closePlayer(){if(player)player.running=false;cancelAnimationFrame(frame);$('#movement-player')?.close();player=null;}
-function onClick(event){const native=event.target.closest?.('[data-page], [data-action="logout"], [data-action="demo"], [data-action="step"]');if(native){active=false;closePlayer();const moveButton=$('#nav [data-move="open"]');moveButton?.classList.remove('selected');moveButton?.setAttribute('aria-current','false');}if(event.target.closest?.('[data-action="help"], [data-action="privacy"]'))closePlayer();const b=event.target.closest?.('[data-move]');if(!b)return;event.preventDefault();const action=b.dataset.move;if(action==='open')openPage();if(action==='level'&&LEVELS[b.dataset.level]){if(b.dataset.level!=='doux'&&!premiumAccess()){location.href='/abonnement.html';return}level=b.dataset.level;renderPage();$(`#mv-tab-${level}`)?.focus({preventScroll:true});}if(action==='exercise'){const exercise=EXERCISES.find(e=>e.id===b.dataset.id);if(exercise?.level!=='doux'&&!premiumAccess()){location.href='/abonnement.html';return}showExercise(b.dataset.id);}if(action==='session'){if(level!=='doux'&&!premiumAccess()){location.href='/abonnement.html';return}const queue=EXERCISES.filter(e=>e.level===level).map(e=>e.id);showExercise(queue[0],queue);}if(action==='close')closePlayer();if(action==='play'&&player&&!player.ended){player.running=!player.running;previousTime=performance.now();$('#mv-status').textContent=player.running?'Respire librement. Arrête avant la fin si nécessaire.':'Minuteur en pause. Prends ton temps.';syncTimer();}if(action==='reset'&&player){player.running=false;player.ended=false;player.remaining=player.exercise.seconds;player.phase=0;$('#mv-status').textContent='Minuteur remis à zéro. Démarre lorsque tu es prêt.';syncTimer();}if(action==='motion'&&player){player.motion=!player.motion;b.setAttribute('aria-pressed',String(player.motion));b.textContent=player.motion?'Figer l’animation':'Animer le geste';}if(action==='next'&&player){const {queue,index}=player;if(queue&&index+1<queue.length)showExercise(queue[index+1],queue,index+1);else closePlayer();}}
-function init(){const nav=$('#nav');if(!nav)return;if(!nav.querySelector('[data-move="open"]')){const button=document.createElement('button');button.type='button';button.dataset.move='open';button.innerHTML='<svg aria-hidden="true" class="mv-nav-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="15" cy="4" r="2"/><path d="M12 8l-3 5 4 3-2 6m-2-9l-4 5m7-10l4 4 4-1M7 9l5-1"/></svg><span>Bouger</span>';button.setAttribute('aria-label','Bouger à la maison');nav.querySelector('[data-page="games"]')?.before(button);if(!button.isConnected)nav.append(button);}nav.classList.add('mv-nav');document.addEventListener('click',onClick,true);document.addEventListener('keydown',event=>{const tab=event.target.closest?.('[role="tab"][data-move="level"]');if(!tab)return;const keys=Object.keys(LEVELS);let i=keys.indexOf(tab.dataset.level);if(event.key==='ArrowRight')i=(i+1)%keys.length;else if(event.key==='ArrowLeft')i=(i+keys.length-1)%keys.length;else if(event.key==='Home')i=0;else if(event.key==='End')i=keys.length-1;else return;event.preventDefault();const next=keys[i];if(next!=='doux'&&!premiumAccess()){$(`#mv-tab-${next}`)?.focus({preventScroll:true});return}level=next;renderPage();$(`#mv-tab-${level}`)?.focus({preventScroll:true});});document.addEventListener('sobrizen-access-change',()=>{if(!premiumAccess()&&player?.exercise?.level!=='doux')closePlayer();if(active)renderPage();});document.addEventListener('visibilitychange',()=>{if(document.hidden&&player){player.running=false;syncTimer();$('#mv-status').textContent='Minuteur en pause pendant ton absence. Reprends à ton rythme.';}previousTime=performance.now();});motionQuery?.addEventListener?.('change',event=>{if(event.matches&&player){player.motion=false;const b=$('#movement-player [data-move="motion"]');if(b){b.textContent='Animer le geste';b.setAttribute('aria-pressed','false');}}});const workspace=$('#workspace');new MutationObserver(()=>{if(workspace.hidden){active=false;closePlayer();const moveButton=$('#nav [data-move="open"]');moveButton?.classList.remove('selected');moveButton?.setAttribute('aria-current','false');}}).observe(workspace,{attributes:true,attributeFilter:['hidden']});new MutationObserver(()=>{if(active&&!$('#movement-root')&&!workspace.hidden)renderPage();}).observe($('#content'),{childList:true});}
+function closePlayer({restoreFocus=true}={}){const dialog=$('#movement-player');if(dialog?.open)dialog.close();clearPlayer(restoreFocus);}
+function pausePlayer(message){if(!player||!player.running)return;player.running=false;syncTimer();$('#mv-status').textContent=message;previousTime=performance.now();}
+function onClick(event){
+ // The body also has data-page. Only an actual navigation button leaves this
+ // section; closest('[data-page]') would otherwise match every internal click.
+ const b=event.target.closest?.('button');if(!b||b.disabled||event.defaultPrevented)return;
+ if(b.matches('[data-page],[data-action="logout"],[data-action="demo"],[data-action="step"]')){
+  active=false;closePlayer({restoreFocus:false});const moveButton=$('#nav [data-move="open"]');
+  moveButton?.classList.remove('selected');moveButton?.setAttribute('aria-current','false');return;
+ }
+ if(b.matches('[data-action="help"],[data-action="privacy"]'))closePlayer({restoreFocus:false});
+ const action=b.dataset.move;if(!action)return;event.preventDefault();
+ if(action==='open'){openPage();return;}
+ if(!active||$('#workspace')?.hidden)return;
+ if(player&&player.exercise.level!=='doux'&&!premiumAccess()){closePlayer();renderPage();return;}
+ if(action==='level'&&LEVELS[b.dataset.level]){
+  if(b.dataset.level!=='doux'&&!premiumAccess()){location.href='/abonnement.html';return;}
+  level=b.dataset.level;renderPage();$(`#mv-tab-${level}`)?.focus({preventScroll:true});return;
+ }
+ if(action==='exercise'){showExercise(b.dataset.id);return;}
+ if(action==='session'){
+  if(level!=='doux'&&!premiumAccess()){location.href='/abonnement.html';return;}
+  const queue=EXERCISES.filter(e=>e.level===level).map(e=>e.id);showExercise(queue[0],queue);return;
+ }
+ if(action==='close'){closePlayer();return;}
+ if(action==='play'&&player&&!player.ended){
+  player.running=!player.running;previousTime=performance.now();
+  $('#mv-status').textContent=player.running?'Respire librement. Arrête avant la fin si nécessaire.':'Minuteur en pause. Prends ton temps.';syncTimer();return;
+ }
+ if(action==='reset'&&player){
+  player.running=false;player.ended=false;player.remaining=player.exercise.seconds;player.phase=0;
+  const drawing=$('#movement-player [data-mv-person]');if(drawing)drawing.innerHTML=person(pose(player.exercise.id,0));
+  $('#mv-status').textContent='Minuteur remis à zéro. Démarre lorsque tu es prêt.';syncTimer();return;
+ }
+ if(action==='motion'&&player){player.motion=!player.motion;b.setAttribute('aria-pressed',String(player.motion));b.textContent=player.motion?'Figer l’animation':'Animer le geste';return;}
+ if((action==='next'||action==='previous')&&player){
+  const {queue,index}=player;if(!queue)return;const next=index+(action==='next'?1:-1);
+  if(next>=0&&next<queue.length)showExercise(queue[next],queue,next);
+  else if(action==='next')closePlayer();
+ }
+}
+function init(){
+ const nav=$('#nav'),workspace=$('#workspace'),content=$('#content');if(!nav||!workspace||!content)return;
+ if(!nav.querySelector('[data-move="open"]')){
+  const button=document.createElement('button');button.type='button';button.dataset.move='open';
+  button.innerHTML='<svg aria-hidden="true" class="mv-nav-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="15" cy="4" r="2"/><path d="M12 8l-3 5 4 3-2 6m-2-9l-4 5m7-10l4 4 4-1M7 9l5-1"/></svg><span>Bouger</span>';
+  button.setAttribute('aria-label','Bouger à la maison');nav.querySelector('[data-page="games"]')?.before(button);if(!button.isConnected)nav.append(button);
+ }
+ nav.classList.add('mv-nav');document.addEventListener('click',onClick,true);
+ document.addEventListener('keydown',event=>{
+  const tab=event.target.closest?.('[role="tab"][data-move="level"]');if(!tab||tab.disabled||event.defaultPrevented||!active)return;
+  const keys=Object.keys(LEVELS);let i=keys.indexOf(tab.dataset.level);
+  if(event.key==='ArrowRight')i=(i+1)%keys.length;
+  else if(event.key==='ArrowLeft')i=(i+keys.length-1)%keys.length;
+  else if(event.key==='Home')i=0;
+  else if(event.key==='End')i=keys.length-1;
+  else return;
+  event.preventDefault();const next=keys[i];
+  if(next!=='doux'&&!premiumAccess()){$('#mv-tab-'+next)?.focus({preventScroll:true});return;}
+  level=next;renderPage();$('#mv-tab-'+level)?.focus({preventScroll:true});
+ });
+ document.addEventListener('sobrizen-access-change',()=>{
+  const premium=premiumAccess();
+  if(player&&!premium&&player.exercise.level!=='doux')closePlayer();
+  if(active&&premium!==renderedPremium)renderPage();
+ });
+ document.addEventListener('visibilitychange',()=>{
+  if(document.hidden)pausePlayer('Minuteur en pause pendant ton absence. Reprends à ton rythme.');
+  previousTime=performance.now();
+ });
+ window.addEventListener('blur',()=>pausePlayer('Minuteur en pause. Reprends lorsque tu es prêt.'));
+ window.addEventListener('pagehide',()=>closePlayer({restoreFocus:false}));
+ motionQuery?.addEventListener?.('change',event=>{
+  if(event.matches&&player){player.motion=false;const b=$('#movement-player [data-move="motion"]');if(b){b.textContent='Animer le geste';b.setAttribute('aria-pressed','false');}}
+ });
+ new MutationObserver(()=>{
+  if(workspace.hidden){active=false;closePlayer({restoreFocus:false});const moveButton=$('#nav [data-move="open"]');moveButton?.classList.remove('selected');moveButton?.setAttribute('aria-current','false');}
+ }).observe(workspace,{attributes:true,attributeFilter:['hidden']});
+ new MutationObserver(()=>{if(active&&!$('#movement-root')&&!workspace.hidden)renderPage();}).observe(content,{childList:true});
+}
 if(typeof document!=='undefined')init();

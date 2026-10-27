@@ -41,7 +41,10 @@ export function createSimpleSummary(api) {
     const quantity = metric === 'units';
     const value = info.known ? quantity ? count(summary.units) : euros(summary.cost) : '—';
     const label = quantity ? 'Consommation' : 'Dépenses';
-    return `<article class="tl-simple-metric ${quantity ? 'tl-simple-consumption' : 'tl-simple-spending'}"><div class="tl-simple-metric-title"><span class="tl-simple-icon">${quantity ? glassIcon : walletIcon}</span><h3>${label}</h3></div><strong>${value}</strong><span class="tl-simple-unit">${quantity ? `verre${summary.units === 1 ? '' : 's'} sur la période` : 'd’alcool sur la période'}</span><span class="tl-simple-source">${info.partial && info.known ? 'Partiel · ' : ''}${info.sources}</span></article>`;
+    const explanation = info.known
+      ? `${info.actualDays} jour${info.actualDays === 1 ? '' : 's'} avec une saisie et ${info.estimatedDays} jour${info.estimatedDays === 1 ? '' : 's'} estimé${info.estimatedDays === 1 ? '' : 's'} à partir de tes périodes. Les jours inconnus restent exclus.`
+      : 'Ajoute une consommation ou une période pour retrouver ton total ici. Une journée non renseignée ne vaut pas zéro.';
+    return `<details class="tl-simple-metric ${quantity ? 'tl-simple-consumption' : 'tl-simple-spending'}"><summary class="tl-simple-metric-trigger"><span class="tl-simple-metric-title"><span class="tl-simple-icon">${quantity ? glassIcon : walletIcon}</span><span>${label}</span></span><strong>${value}</strong><span class="tl-simple-unit">${quantity ? `verre${summary.units === 1 ? '' : 's'} sur la période` : 'd’alcool sur la période'}</span><span class="tl-simple-source">${info.partial && info.known ? 'Partiel · ' : ''}${info.sources}</span><span class="tl-simple-open">Comprendre ce chiffre <span aria-hidden="true">↗</span></span></summary><div class="tl-simple-explanation"><p>${explanation}</p></div></details>`;
   }
 
   function view({title = 'Ma consommation et mes dépenses'} = {}) {
