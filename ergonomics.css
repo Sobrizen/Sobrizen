@@ -224,6 +224,16 @@ body.dark.ux-ready .hz-rating-options input:checked+span,body.dark.ux-ready .hz-
 .ux-ready .sz-library .sz-card-label{font-size:10px;color:var(--muted)}
 .ux-ready .sz-library .sz-card-play{color:var(--green);font-size:12px}
 .ux-ready .sz-library-meta{padding-bottom:8px}
+/* Current game catalog. The full-screen game players retain their own styles. */
+.ux-ready .ga-library .ga-catalog{grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.ux-ready .ga-library .ga-card{min-height:238px;padding:22px!important;border:1px solid var(--line)!important;border-radius:14px!important;background:var(--card)!important;color:var(--text)!important;box-shadow:none;gap:10px}
+.ux-ready .ga-library .ga-card-icon{display:grid;place-items:center;width:52px;height:52px;border-radius:11px;background:var(--soft);font-size:29px}
+.ux-ready .ga-library .ga-card>b{color:var(--text);font-size:22px}
+.ux-ready .ga-library .ga-card>span:not(.ga-card-icon){color:var(--muted);font-size:13px}
+.ux-ready .ga-library .ga-card small{color:var(--muted);font-size:10px}
+.ux-ready .ga-library .ga-card strong{color:var(--green);font-size:13px;padding-top:8px}
+@media(hover:hover){.ux-ready .ga-library .ga-card:hover{border-color:var(--green)!important;background:var(--soft)!important;transform:none;box-shadow:none}}
+@media(max-width:1100px){.ux-ready .ga-library .ga-catalog{grid-template-columns:repeat(2,minmax(0,1fr))}}
 /* Forms and feedback. All existing fields and disclosures remain available. */
 .ux-character-count{display:block;font-size:11px;text-align:right;color:var(--muted);font-weight:400;margin-top:5px}
 .ux-unsaved{font-size:12px;color:var(--warn);margin:12px 0 0}
@@ -357,6 +367,12 @@ body.ux-large-text #modalContent :is(small,.tl-caption){font-size:14px}
  .ux-ready .sz-library .sz-card-play{padding-top:0;line-height:1.4}
  .ux-ready .sz-library .sz-card-detail{font-size:12px}
  .ux-ready .sz-library .sz-card-play>span{font-size:18px}
+ .ux-ready .ga-library .ga-catalog{grid-template-columns:1fr;gap:11px}
+ .ux-ready .ga-library .ga-card{display:grid;grid-template-columns:52px minmax(0,1fr);gap:5px 14px;min-height:138px;padding:18px!important;align-items:start;border-radius:12px!important}
+ .ux-ready .ga-library .ga-card-icon{grid-column:1;grid-row:1/5}
+ .ux-ready .ga-library .ga-card>small,.ux-ready .ga-library .ga-card>b,.ux-ready .ga-library .ga-card>span:not(.ga-card-icon),.ux-ready .ga-library .ga-card>strong{grid-column:2;max-width:100%;margin:0}
+ .ux-ready .ga-library .ga-card>b{font-size:21px}
+ .ux-ready .ga-library .ga-card strong{padding-top:0;line-height:1.4}
  .ux-ready .mv-intro{padding:20px}
  .ux-ready .mv-intro h2{font-size:24px}
  .ux-ready .mv-intro-art{display:none}

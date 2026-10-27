@@ -1,12 +1,12 @@
 # Audit fonctionnel et éditorial de Sobrizen
 
-Date : **27 octobre 2026**. Base de travail : commit `df56351a42b30f30d36a6517dd119237386a614f`, puis modifications de la refonte présentes dans le répertoire de travail. Les résultats portent sur cet état local, avant publication.
+Date : **27 octobre 2026**. Base de travail : commit `df56351a42b30f30d36a6517dd119237386a614f`, puis modifications de la refonte présentes dans le répertoire de travail. Les résultats automatiques portent sur l’état local final ; les observations de production sont décrites séparément.
 
 ## Résultat et portée
 
-La suite ajoutée exerce les vrais modules de l’application dans un DOM simulé : navigation, sauvegardes de démonstration, formulaires avec service simulé, accès gratuit et Premium, consentement, changement de compte, aide, jeux et intégration du mouvement. Elle contient **45 scénarios fonctionnels**, répartis en cinq processus indépendants, et **3 contrôles de cohérence du contenu**. La suite dédiée au mouvement, ajoutée séparément, contient **10 scénarios**.
+La suite ajoutée exerce les vrais modules de l’application dans un DOM simulé : navigation, sauvegardes de démonstration, formulaires avec service simulé, accès gratuit et Premium, consentement, changement de compte, aide, jeux et intégration du mouvement. Elle contient **45 scénarios fonctionnels**, répartis en cinq processus indépendants, et **3 contrôles de cohérence du contenu**. La suite dédiée au mouvement contient **10 scénarios**. La passe complémentaire sur Abonnement ajoute **15 scénarios**, soit **70 scénarios ciblés** au total, en plus des trois contrôles de contenu et des suites de calcul déjà présentes.
 
-La dernière exécution globale, effectuée par le responsable de l’intégration après correction des anomalies ci-dessous et ajout du dixième scénario mouvement, a terminé avec **14 fichiers de tests réussis, 0 échec, 0 scénario ignoré**. Ce nombre de fichiers ne doit pas être confondu avec le nombre de scénarios internes : les 45 scénarios UX sont rapportés à l’intérieur d’un seul fichier. Les anciennes suites de calcul, de chronologie et de jeux restent comprises dans l’exécution globale.
+La dernière exécution globale, effectuée par le responsable de l’intégration après toutes les corrections ci-dessous, y compris la page Abonnement, a terminé avec **15 fichiers de tests réussis, 0 échec, 0 scénario ignoré**. Ce nombre de fichiers ne doit pas être confondu avec le nombre de scénarios internes : les 45 scénarios UX sont rapportés à l’intérieur d’un seul fichier. Les anciennes suites de calcul, de chronologie et de jeux restent comprises dans l’exécution globale.
 
 Aucun compte réel, dossier de santé, publication communautaire réelle, appel téléphonique, paiement ou message à un utilisateur n’a été utilisé. Les utilisateurs, notes, ressentis et publications du service simulé sont fictifs. Le réseau applicatif est désactivé pendant les tests.
 
@@ -25,6 +25,7 @@ Depuis la racine du dépôt :
 ```sh
 node tests/ux-dom.test.mjs
 node tests/health-content.test.mjs
+node tests/subscription-dom.test.mjs
 SOBRIZEN_JSDOM_PATH=/tmp/sobrizen-audit-qa/node_modules/jsdom node tests/movement-dom.test.mjs
 ```
 
@@ -67,6 +68,7 @@ Le service simulé sert à vérifier les demandes et le comportement du client. 
 | Courses entre requêtes et sessions | 4 | Réussite | Réponse de profil après déconnexion, export paginé interrompu, réponse de ressenti après changement de compte, erreurs JavaScript |
 | Cohérence éditoriale | 3 | Réussite | Références des constats de santé, ordre des fenêtres temporelles et aide urgente, intégrité des 30 étapes du programme |
 | Mouvement, suite dédiée | 10 | Réussite | Onglets, clavier, accès, minuteur, séance guidée, fermeture, visibilité, événements retardés, stabilité du DOM et perte d’accès |
+| Abonnement, suite complémentaire | 15 | Réussite | Purge à la déconnexion ou au changement de compte, réponses et redirections tardives, reçus, renouvellement du jeton, refus, erreurs et cohérence de l’offre |
 
 Chaque groupe UX comprend son contrôle final d’absence d’erreur JavaScript non traitée ; ces cinq contrôles sont déjà inclus dans les 45 scénarios.
 
@@ -167,3 +169,31 @@ Les liens ci-dessous permettent de retrouver les sources primaires ou officielle
 - **Science :** aucun état médical individuel n’est déduit des fixtures. La présence d’une source ou le passage d’un test de structure n’équivaut pas à une validation scientifique indépendante de chaque phrase.
 
 Les éléments à vérifier dans un navigateur réel doivent être rapportés avec leurs propres observations après publication ; ils ne sont pas inclus par anticipation dans les résultats ci-dessus.
+
+## Contrôle réel après la première publication
+
+Le déploiement Vercel du commit `1a9e52fd17f838d836923d586038ddf8320a920b` a été confirmé terminé. Le site public a ensuite été rechargé et contrôlé dans Chrome, en mode démonstration, avec des données fictives.
+
+- Les neuf rubriques sont accessibles. Les titres, icônes et descriptions du menu sont présents. Aux largeurs de bureau observées (1 348 à 1 363 pixels CSS selon la présence de la barre de défilement), la largeur du document ne dépasse pas celle de la fenêtre.
+- Les cartes Consommation et Dépenses se déplient et expliquent les jours saisis, estimés ou inconnus. La valeur n’est pas transformée en indicateur médical.
+- Santé affiche le compteur précis, les étapes et les ressentis. La fenêtre des quinze sources s’ouvre. Le formulaire de ressenti a été inspecté en thème sombre : ses choix sélectionnés restent lisibles.
+- Depuis Santé, Bouger ouvre correctement son catalogue. Le niveau Moyen mène à la page d’abonnement dans la démo gratuite. La séance Doux démarre ; le minuteur passe de 1 minute à 54 secondes, se met en pause, avance au deuxième mouvement, revient au premier et se remet à zéro. Sa fermeture rend le focus à l’interface.
+- Les jeux restent accessibles par leurs commandes existantes. Le contrôle visuel a montré que le module courant utilise `snake`, `blocks` et `ground` comme jeux gratuits : Snake Zen, Blocs Zen et 5 choses. Les cartes du catalogue courant portent la classe `ga-card`, distincte de l’ancien catalogue ; leurs styles ont été harmonisés dans la passe complémentaire, sans changer les lecteurs de jeux.
+
+La relecture de la cascade CSS a également corrigé un risque de débordement entre 421 et 520 pixels : le titre et son bouton pleine largeur peuvent désormais revenir à la ligne. Ce point relève d’une inspection de code ; aucun téléphone physique ni Safari n’a été utilisé.
+
+La visite de la page Abonnement a révélé des textes anciens sur le nombre de jeux gratuits. Les descriptions de l’offre dans Abonnement, le profil et les informations légales ont été alignées sur le catalogue courant. Les messages techniques ont été reformulés ; le tarif, les conditions et la fermeture des nouvelles souscriptions ont été conservés. La description du consentement a été alignée sur les commandes réellement présentes dans Mon profil. Le script de la page Abonnement a ensuite fait l’objet de la vérification complémentaire ci-dessous.
+
+### Page Abonnement : isolation des sessions
+
+Deux défauts ont été reproduits puis corrigés dans le vrai module intégré à `abonnement.html` : un changement de compte laissait le statut ou le reçu de l’ancien compte en mémoire et dans le DOM ; une réponse tardive pouvait réafficher ce contenu ou déclencher une redirection issue de l’ancienne session.
+
+La page capture désormais l’identité et sa révision avant chaque action, les vérifie avant l’envoi et après les réponses, et purge immédiatement les reçus, liens email, cases cochées et statuts lors d’un changement d’identité. Le renouvellement du jeton pour le même utilisateur conserve l’état. Les routes serveur, les corps métier, l’autorisation des seuls domaines Stripe prévus et les règles de paiement sont conservés.
+
+`tests/subscription-dom.test.mjs` vérifie **15 scénarios** : déconnexion, passage A→B, statuts et accès temporaires tardifs, demandes anciennes après création du reçu B, résolution tardive de session sans nouveau POST, absence de redirection checkout/portail périmée, retour de paiement tardif, renouvellement du jeton, refus et erreurs, souscriptions fermées et cohérence des trois jeux gratuits. Les 15 réussissent. Le SDK, le service, les comptes, les téléchargements et les navigations sont simulés ; aucun paiement, email ou traitement de demande réel n’a été effectué.
+
+### Vérifications de métadonnées du service
+
+Une requête en lecture seule sur `information_schema.columns` a confirmé la présence des champs explicitement sélectionnés dans `user_settings`. Aucune ligne de suivi personnel n’a été lue ni écrite pour ce contrôle.
+
+Le conseiller de sécurité Supabase signale quatre tables internes de facturation avec RLS activé sans politique publique (`billing_checkout_locks`, `billing_config`, `billing_customers`, `billing_events`) : leur accès client reste fermé et aucune politique n’a été ajoutée. Il signale aussi que la vérification des mots de passe compromis n’est pas activée dans la configuration d’authentification. Ce dernier réglage de service n’a pas été modifié : le connecteur disponible n’expose pas sa configuration. Il reste un point distinct de l’audit du code et des interactions, à traiter depuis les réglages d’authentification du projet. Voir la [documentation Supabase](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection).
