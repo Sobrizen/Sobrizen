@@ -379,5 +379,5 @@ export function createHealth(api) {
     } finally {if (button) button.disabled = false;}
   }, true);
 
-  return {view, load, reset, seedDemo, exportRows: () => H.rows.map(row => ({...row}))};
+  return {view, load, reset, seedDemo, ready: () => H.ready && H.uid === S.user?.id, exportRows: () => H.rows.map(row => ({...row}))};
 }

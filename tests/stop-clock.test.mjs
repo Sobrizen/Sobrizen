@@ -159,7 +159,7 @@ test('a drinking range ending on the stop date can coexist with a clock, a later
   assert.equal(ranged.schema_version, 3);
 });
 
-test('the confirmation basis includes alcohol provenance and versions, not mood or notes', () => {
+test('the stored basis retains its v3 shape while feelings, purchases and timestamps preserve the clock', () => {
   const doc = document();
   const checks = [{id: id(3), checkin_date: today, sober_today: false, alcohol_units: 2, alcohol_cost_eur: 5, updated_at: '2026-10-25T12:00:00Z', mood: 2, note: 'initial'}];
   confirm(doc, checks);
@@ -169,8 +169,111 @@ test('the confirmation basis includes alcohol provenance and versions, not mood 
   assert.equal(timelineStopBasis(doc, checks, today), original);
   assert.equal(timelineSnapshot(doc, checks, today, now).stopClock.valid, true);
   checks[0].updated_at = '2026-10-25T12:15:00Z';
-  assert.equal(timelineSnapshot(doc, checks, today, now).stopClock.reason, 'consumption-changed');
+  checks[0].alcohol_cost_eur = 25; checks[0].craving = 0;
+  assert.notEqual(timelineStopBasis(doc, checks, today), original);
+  assert.equal(timelineSnapshot(doc, checks, today, now).stopClock.valid, true);
+  assert.equal(healthJourney(timelineSnapshot(doc, checks, today, now), today, now).elapsedMinutes, 20);
+  assert.equal(doc.events[0].stop_basis, original, 'Reading must not rewrite the persisted confirmation');
   assert.equal(JSON.parse(timelineStopBasis(doc, [{checkin_date: today, mood: 4}], today)).legacy, null);
+});
+
+test('a first sober daily answer on the stop date preserves the declared minute, including purchases', () => {
+  for (const start of [today, moveDay(today, -1)]) {
+    const doc = document(start), original = doc.events[0].stop_basis;
+    const expected = healthJourney(timelineSnapshot(doc, [], today, now), today, now).elapsedMinutes;
+    const checks = [{id: id(3), checkin_date: start, sober_today: true, alcohol_units: 0, alcohol_cost_eur: 12, craving: 0}];
+    const snapshot = timelineSnapshot(doc, checks, today, now);
+    assert.equal(snapshot.stopClock.valid, true);
+    assert.equal(healthJourney(snapshot, today, now).precision, 'minute');
+    assert.equal(healthJourney(snapshot, today, now).elapsedMinutes, expected);
+    assert.equal(doc.events[0].stop_basis, original);
+    if (start === today) {assert.equal(snapshot.totalSoberDays, 0); assert.equal(snapshot.todayActual.sober_today, true);}
+  }
+});
+
+test('a craving-only legacy marker under an unchanged canonical occasion preserves time and the alcohol ledger', () => {
+  const doc = document(); doc.occasions.push(occasion(2, today)); confirm(doc);
+  const original = doc.events[0].stop_basis;
+  const checks = [{id: id(3), checkin_date: today, sober_today: false, alcohol_units: null, alcohol_cost_eur: null, craving: 3}];
+  const snapshot = timelineSnapshot(doc, checks, today, now), journey = healthJourney(snapshot, today, now);
+  assert.equal(snapshot.stopClock.valid, true); assert.equal(journey.precision, 'minute');
+  assert.equal(journey.elapsedMinutes, 20); assert.equal(snapshot.totalSoberDays, 0);
+  assert.equal(snapshot.todayActual.sober_today, false); assert.equal(snapshot.todayActual.alcohol_units, 2);
+  assert.equal(snapshot.todayActual.alcohol_cost_eur, 10); assert.equal(doc.events[0].stop_basis, original);
+  checks[0].craving = 0; checks[0].mood = 5;
+  assert.equal(timelineSnapshot(doc, checks, today, now).stopClock.valid, true);
+  checks[0].alcohol_units = 2;
+  assert.equal(timelineSnapshot(doc, checks, today, now).stopClock.reason, 'consumption-changed');
+});
+
+test('new drinking without a canonical occasion still invalidates, even when its quantity is unknown', () => {
+  for (const alcohol_units of [null, 2]) {
+    const doc = document();
+    const checks = [{id: id(3), checkin_date: today, sober_today: false, alcohol_units, alcohol_cost_eur: null, craving: 3}];
+    assert.equal(timelineSnapshot(doc, checks, today, now).stopClock.reason, 'consumption-changed');
+  }
+});
+
+test('drinking legacy identities, statuses and quantities remain protected after confirmation', () => {
+  for (const alcohol_units of [null, 2]) {
+    const initial = {id: id(3), checkin_date: today, sober_today: false, alcohol_units, alcohol_cost_eur: 5};
+    const doc = document(today, '13:10', [initial]);
+    for (const changed of [
+      {...initial, id: id(4)}, {...initial, alcohol_units: alcohol_units === null ? 2 : 3},
+      {...initial, sober_today: true, alcohol_units: 0},
+    ]) assert.equal(timelineSnapshot(doc, [changed], today, now).stopClock.reason, 'consumption-changed');
+    assert.equal(timelineSnapshot(doc, [{...initial, alcohol_cost_eur: 20, craving: 8}], today, now).stopClock.valid, true);
+  }
+});
+
+test('canonical purchase corrections preserve time but occasion identity and quantity changes do not', () => {
+  const doc = document(); doc.occasions.push(occasion(2, today)); confirm(doc);
+  doc.occasions[0].cost = 0;
+  assert.equal(timelineSnapshot(doc, [], today, now).stopClock.valid, true);
+  doc.occasions[0].id = id(4);
+  assert.equal(timelineSnapshot(doc, [], today, now).stopClock.reason, 'consumption-changed');
+  doc.occasions[0].id = id(2); doc.occasions[0].units = 3;
+  assert.equal(timelineSnapshot(doc, [], today, now).stopClock.reason, 'consumption-changed');
+});
+
+test('a drinking range budget is independent of its identity, boundaries and quantity', () => {
+  const doc = document();
+  doc.ranges.push({...event(2, moveDay(today, -3), 'drinking', 14), ended_on: today, cost_week: 35}); confirm(doc);
+  doc.ranges[0].cost_week = 70;
+  assert.equal(timelineSnapshot(doc, [], today, now).stopClock.valid, true);
+  doc.ranges[0].units_week = 21;
+  assert.equal(timelineSnapshot(doc, [], today, now).stopClock.reason, 'consumption-changed');
+  doc.ranges[0].units_week = 14; doc.ranges[0].id = id(4);
+  assert.equal(timelineSnapshot(doc, [], today, now).stopClock.reason, 'consumption-changed');
+});
+
+test('a sparse purchase-only record is not a drinking declaration', () => {
+  const doc = document();
+  const checks = [{id: id(3), checkin_date: today, sober_today: null, alcohol_units: null, alcohol_cost_eur: 12}];
+  assert.equal(timelineSnapshot(doc, checks, today, now).stopClock.valid, true);
+  assert.equal(healthJourney(timelineSnapshot(doc, checks, today, now), today, now).elapsedMinutes, 20);
+});
+
+test('later legacy consumption still interrupts the earlier clock', () => {
+  const doc = document(moveDay(today, -2));
+  const checks = [{id: id(3), checkin_date: moveDay(today, -1), sober_today: false, alcohol_units: null, alcohol_cost_eur: null}];
+  const snapshot = timelineSnapshot(doc, checks, today, now);
+  assert.equal(snapshot.stopClock.reason, 'later-consumption');
+  assert.equal(healthJourney(snapshot, today, now).elapsedMinutes, null);
+});
+
+test('semantic comparison accepts key ordering but rejects incomplete or malformed stored provenance', () => {
+  const doc = document();
+  doc.events[0].stop_basis = JSON.stringify({legacy: null, range: null, occasion: null});
+  assert.equal(timelineSnapshot(doc, [], today, now).stopClock.valid, true);
+  for (const basis of [
+    {}, {occasion: null, range: null}, {occasion: null, range: null, legacy: null, unknown: true},
+    {occasion: null, range: null, legacy: {sober_today: true}},
+    {occasion: null, range: null, legacy: {id: id(3), checkin_date: today, sober_today: 'false', alcohol_units: 0, alcohol_cost_eur: null, updated_at: null}},
+  ]) {
+    doc.events[0].stop_basis = JSON.stringify(basis);
+    assert.equal(timelineSnapshot(doc, [], today, now).stopClock.reason, 'consumption-changed');
+  }
 });
 
 test('changing a historical stop date requires a matching instant and recomputes elapsed duration', () => {

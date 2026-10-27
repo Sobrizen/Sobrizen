@@ -119,6 +119,7 @@ export function initErgonomics(){
   const selected=$('.hz-stage.selected',content);if(selected){const rail=selected.parentElement;rail.scrollLeft=Math.max(0,selected.offsetLeft-rail.offsetLeft-rail.clientWidth/2+selected.clientWidth/2);}
  }
  function enhanceHome(){
+  if($('.dy-page',content))return;
   const hero=$('.tl-current',content);if(!hero)return;
   const hint=element('p','ux-home-hint','Ton historique reste intact, même après une reprise.');hero.after(hint);
   const pause=element('section','card ux-pause-card');pause.append(element('span','eyebrow','UNE PAUSE POUR TOI'),element('h2','','De quoi as-tu besoin ?'));

@@ -43,7 +43,7 @@ if(!group){
       await key(document.activeElement,'Escape');assert.equal(document.body.classList.contains('menu-open'),false);assert.equal(document.activeElement,opener);
     });
     await check('consumption and expenditure disclosures open natively and explain the numbers',async()=>{
-      await route('home');assert.equal($$('.tl-simple-metric').length,2);
+      await route('home');assert.ok($('.dy-page'));assert.ok($('.dy-main-action'));await route('progress');assert.equal($$('.tl-simple-metric').length,2);
       for(const details of $$('.tl-simple-metric')){assert.equal(details.tagName,'DETAILS');assert.match(details.textContent,/Comprendre ce chiffre/);await click(details.querySelector('summary'));assert.equal(details.open,true);assert.match(details.querySelector('.tl-simple-explanation').textContent,/estimé|renseign|inconnus/);}
       await click('[data-tl-summary-period="month"]');assert.equal($('[data-tl-summary-period="month"]').getAttribute('aria-pressed'),'true');assert.equal(document.activeElement,$('[data-tl-summary-period="month"]'));
       await route('progress');assert.ok($('.tl-simple-summary'));assert.equal($('.tl-chart'),null,'Detailed chart is Premium');
@@ -117,7 +117,7 @@ if(!group){
       finally{setNow(before);await route('health');}
     });
     await check('the three-step alcohol form saves a versioned timeline and invalidates an earlier health clock',async()=>{
-      await route('home');await click('[data-tl-action="occasion"]');const form=$('#tlOccasionForm');await submit(form);await value(form,'units','2');await value(form,'cost','5');await submit(form);await submit(form);assert.equal($('#modal').open,false,txt('[data-tl-error]'));
+      await route('progress');await click('[data-tl-action="occasion"]');const form=$('#tlOccasionForm');await submit(form);await value(form,'units','2');await value(form,'cost','5');await submit(form);await submit(form);assert.equal($('#modal').open,false,txt('[data-tl-error]'));
       const call=mock.calls.findLast(call=>call.rpc==='save_journey_timeline');assert.ok(call);assert.equal(call.args.p_expected_revision,1);const saved=mock.tables.journey_timelines[0];assert.equal(saved.revision,2);assert.equal(saved.document.occasions[0].units,2);assert.equal(saved.document.occasions[0].cost,5);await route('health');assert.equal($$('.hz-stage.is-current').length,0);assert.match(txt('.hz-context'),/conserv/);assert.ok($$('.hz-history-row').length>0);
     });
     await check('journal save uses the authenticated owner and returns the saved private record',async()=>{await route('journal');await click('[data-action="journal-new"]');await value($('#journalForm'),'title','Note authentifiée QA');await value($('#journalForm'),'body','Texte sauvegardé QA');await submit($('#journalForm'));assert.equal($('#modal').open,false,txt('#notice'));assert.match(txt('#journalList'),/Note authentifiée QA/);const call=mock.calls.findLast(call=>call.table==='journal_entries'&&call.op==='upsert');assert.equal(call.payload.user_id,UID);});

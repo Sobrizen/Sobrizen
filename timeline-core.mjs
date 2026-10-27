@@ -470,6 +470,59 @@ export function timelineStopBasis(doc, checks = [], date) {
   });
 }
 
+/**
+ * Keep the persisted v3 basis unchanged, but compare facts about drinking.
+ * Purchases and record timestamps do not locate a new last drink; a new sober
+ * daily answer likewise cannot remove the previously confirmed minute clock.
+ */
+function sameStopConsumptionBasis(expectedText, actualText, date) {
+  if (expectedText === actualText) return true;
+  const keys = (value, fields) => value && typeof value === 'object' && !Array.isArray(value)
+    && Object.keys(value).length === fields.length && fields.every(field => Object.hasOwn(value, field));
+  const identifier = value => value === null || typeof value === 'string';
+  const quantity = (value, maximum, positive = false) => value === null
+    || typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= maximum && (!positive || value > 0);
+  const day = value => {
+    if (typeof value !== 'string' || value < FIRST_DAY) return false;
+    try { parseDay(value); return true; } catch { return false; }
+  };
+  function valid(basis) {
+    if (!keys(basis, ['occasion', 'range', 'legacy'])) return false;
+    const occasion = basis.occasion, range = basis.range, legacy = basis.legacy;
+    if (occasion !== null && (!keys(occasion, ['id', 'date', 'units', 'cost'])
+      || !identifier(occasion.id) || occasion.date !== date || !quantity(occasion.units, 1000, true)
+      || !quantity(occasion.cost, 1000000))) return false;
+    if (range !== null && (!keys(range, ['id', 'started_on', 'ended_on', 'state', 'units_week', 'cost_week'])
+      || !identifier(range.id) || !day(range.started_on) || !day(range.ended_on)
+      || range.started_on > date || range.ended_on < date || range.state !== 'drinking'
+      || !quantity(range.units_week, 7000, true) || !quantity(range.cost_week, 7000000))) return false;
+    if (legacy !== null && (!keys(legacy, ['id', 'checkin_date', 'sober_today', 'alcohol_units', 'alcohol_cost_eur', 'updated_at'])
+      || !identifier(legacy.id) || legacy.checkin_date !== date
+      || ![null, true, false].includes(legacy.sober_today) || !quantity(legacy.alcohol_units, 1000)
+      || !quantity(legacy.alcohol_cost_eur, 1000000)
+      || !(legacy.updated_at === null || typeof legacy.updated_at === 'string'))) return false;
+    return true;
+  }
+  try {
+    const expected = JSON.parse(expectedText), actual = JSON.parse(actualText);
+    if (!valid(expected) || !valid(actual)) return false;
+    const occasion = row => row && [row.id, row.date, row.units];
+    const range = row => row && [row.id, row.started_on, row.ended_on, row.state, row.units_week];
+    const same = (left, right) => JSON.stringify(left) === JSON.stringify(right);
+    if (!same(occasion(expected.occasion), occasion(actual.occasion))
+      || !same(range(expected.range), range(actual.range))) return false;
+    const drinking = row => row && (row.sober_today === false || row.alcohol_units > 0)
+      ? [row.id, row.checkin_date, row.sober_today, row.alcohol_units] : null;
+    if (same(drinking(expected.legacy), drinking(actual.legacy))) return true;
+    // A craving-only daily record must carry sober_today=false (NOT NULL) when
+    // its day already has a canonical occasion. No extra quantity is asserted.
+    // The occasion's identity and quantity were checked above; a new positive
+    // legacy quantity or a changed existing drinking record still invalidates.
+    return expected.legacy === null && actual.occasion !== null
+      && actual.legacy?.sober_today === false && actual.legacy.alcohol_units === null;
+  } catch { return false; }
+}
+
 function stopClock(ctx, history, todayRow) {
   const event = ctx.doc.events.at(-1);
   const clock = {startedAt: event.state === 'abstinent' ? event.stopped_at || null : null,
@@ -483,7 +536,7 @@ function stopClock(ctx, history, todayRow) {
     return {...clock, reason: 'later-consumption'};
   }
   const basis = timelineStopBasis(ctx.doc, [...ctx.legacy.values()], event.started_on);
-  if (basis !== event.stop_basis) return {...clock, reason: 'consumption-changed'};
+  if (!sameStopConsumptionBasis(event.stop_basis, basis, event.started_on)) return {...clock, reason: 'consumption-changed'};
   if (todayRow.sober_today !== true) {
     const declared = JSON.parse(basis);
     const sameDay = ctx.today === event.started_on && (

@@ -4,6 +4,7 @@ import {readFile} from 'node:fs/promises';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 import {registerHooks} from 'node:module';
 import {webcrypto} from 'node:crypto';
+import {isDeepStrictEqual} from 'node:util';
 
 export const REPO = fileURLToPath(new URL('../', import.meta.url));
 const NativeDate=Date, nativeTimeout=setTimeout, nativeClearTimeout=clearTimeout;
@@ -107,17 +108,30 @@ export async function mockService({consent=true,premium=false}={}){
   async function pause(call,result){const gate=gates.find(g=>!g.used&&g.match(call));if(gate){gate.used=true;gate.call=call;await gate.promise;}return result;}
   class Query{
     constructor(table){assert.ok(Object.hasOwn(tables,table),`Unexpected table ${table}`);Object.assign(this,{table,op:'select',columns:'*',filters:[],orders:[],singleMode:false,limitCount:null,rangeBounds:null,payload:null,conflict:null});}
-    select(columns='*'){this.columns=columns;return this;}eq(key,val){this.filters.push([key,val]);return this;}order(key,options={}){this.orders.push([key,options]);return this;}limit(n){this.limitCount=n;return this;}range(a,b){this.rangeBounds=[a,b];return this;}maybeSingle(){this.singleMode=true;return this;}single(){this.singleMode=true;return this;}in(key,values){this.filters.push([key,{in:values}]);return this;}ilike(key,pattern){this.filters.push([key,{ilike:pattern.replaceAll('%','').toLocaleLowerCase()}]);return this;}
+    select(columns='*'){this.columns=columns;return this;}eq(key,val){this.filters.push([key,val]);return this;}is(key,val){this.filters.push([key,{is:val}]);return this;}order(key,options={}){this.orders.push([key,options]);return this;}limit(n){this.limitCount=n;return this;}range(a,b){this.rangeBounds=[a,b];return this;}maybeSingle(){this.singleMode=true;return this;}single(){this.singleMode=true;return this;}in(key,values){this.filters.push([key,{in:values}]);return this;}ilike(key,pattern){this.filters.push([key,{ilike:pattern.replaceAll('%','').toLocaleLowerCase()}]);return this;}
     upsert(payload,options={}){this.op='upsert';this.payload=clone(payload);this.conflict=options.onConflict;return this;}insert(payload){this.op='insert';this.payload=clone(payload);return this;}update(payload){this.op='update';this.payload=clone(payload);return this;}delete(){this.op='delete';return this;}
     then(resolve,reject){return this.run().then(resolve,reject);}
     async run(){
       const call={table:this.table,op:this.op,columns:this.columns,filters:clone(this.filters),payload:clone(this.payload),range:clone(this.rangeBounds)};calls.push(call);
       if(ownerTables.has(this.table)){const owner=this.filters.some(([k,v])=>k==='user_id'&&typeof v==='string')||this.payload?.user_id;assert.ok(owner,`Private query lacks owner scope: ${this.table}/${this.op}`);}
-      const matches=row=>this.filters.every(([key,val])=>val?.in?val.in.includes(row[key]):val?.ilike!==undefined?String(row[key]||'').toLocaleLowerCase().includes(val.ilike):row[key]===val);
+      const matches=row=>this.filters.every(([key,val])=>{
+        if(val&&typeof val==='object'&&Object.hasOwn(val,'is'))return(row[key]??null)===val.is;
+        if(val?.in)return val.in.includes(row[key]);
+        if(val?.ilike!==undefined)return String(row[key]||'').toLocaleLowerCase().includes(val.ilike);
+        // PostgREST accepts serialized JSON equality filters for JSONB CAS values.
+        if(row[key]&&typeof row[key]==='object'&&typeof val==='string'){
+          try{return isDeepStrictEqual(row[key],JSON.parse(val));}catch{return false;}
+        }
+        return row[key]===val;
+      });
       let rows=tables[this.table].filter(matches);
       if(this.op==='update'){for(const row of rows)Object.assign(row,this.payload);}
       if(this.op==='delete'){tables[this.table]=tables[this.table].filter(row=>!matches(row));}
       if(['upsert','insert'].includes(this.op)){
+        // Model the unique daily constraint so a concurrent insert cannot silently win.
+        if(this.op==='insert'&&this.table==='daily_checkins'&&tables[this.table].some(row=>row.user_id===this.payload.user_id&&row.checkin_date===this.payload.checkin_date)){
+          return pause(call,{data:null,error:{code:'23505',message:'Duplicate daily declaration in QA'}});
+        }
         const keys=(this.conflict||'id').split(','),existing=this.op==='upsert'&&tables[this.table].find(row=>keys.every(key=>this.payload[key]!==undefined&&row[key]===this.payload[key]));
         const saved={...existing,...this.payload,id:existing?.id||this.payload.id||id(++serial),created_at:existing?.created_at||new Date().toISOString(),updated_at:new NativeDate(clock+serial).toISOString()};
         if(existing)Object.assign(existing,saved);else tables[this.table].push(saved);rows=[saved];
