@@ -1,0 +1,178 @@
+/* Sobrizen — repères colorés, sans changement de navigation ni de données.
+   Couleur de rubrique = orientation. Vert / ambre / rouge = état explicite.
+   Les textes, icônes, attributs de sélection et contrôles existants sont conservés. */
+body.ux-ready{
+  --sz-bg:#f5f8fb;--sz-surface:#ffffff;--sz-ink:#19313e;--sz-muted:#526773;--sz-line:#d3e0e7;
+  --sz-home:#12666b;--sz-home-soft:#e7f4f3;--sz-home-edge:#a9d1ce;
+  --sz-progress:#255b9f;--sz-progress-soft:#eaf2fc;--sz-progress-edge:#b3cbe7;
+  --sz-health:#206744;--sz-health-soft:#eaf6ee;--sz-health-edge:#acd1b9;
+  --sz-journey:#23657b;--sz-journey-soft:#eaf4f8;--sz-journey-edge:#b1cfdd;
+  --sz-journal:#69478b;--sz-journal-soft:#f2edf8;--sz-journal-edge:#cdbbdf;
+  --sz-movement:#236855;--sz-movement-soft:#eaf5f1;--sz-movement-edge:#acd1c2;
+  --sz-games:#5056a0;--sz-games-soft:#eef0fb;--sz-games-edge:#bfc4e5;
+  --sz-community:#804c73;--sz-community-soft:#f7eef5;--sz-community-edge:#d9bfd2;
+  --sz-profile:#4e6177;--sz-profile-soft:#eff3f7;--sz-profile-edge:#bdcbd8;
+  --sz-success:#206744;--sz-success-soft:#eaf6ee;--sz-warning:#854d16;--sz-warning-soft:#fff4e6;
+  --sz-danger:#a33143;--sz-danger-soft:#fff0f2;--sz-on-action:#ffffff;
+  --sz-section:var(--sz-home);--sz-section-soft:var(--sz-home-soft);--sz-section-edge:var(--sz-home-edge);
+}
+body.ux-ready.dark{
+  --sz-bg:#101d29;--sz-surface:#172938;--sz-ink:#edf4f8;--sz-muted:#b2c5d1;--sz-line:#38505f;
+  --sz-home:#86d8d0;--sz-home-soft:#193d3e;--sz-home-edge:#477d78;
+  --sz-progress:#9ac5ff;--sz-progress-soft:#20374f;--sz-progress-edge:#526f96;
+  --sz-health:#95d6ae;--sz-health-soft:#203d31;--sz-health-edge:#4e7c61;
+  --sz-journey:#94d0e4;--sz-journey-soft:#203a48;--sz-journey-edge:#51788a;
+  --sz-journal:#cfb1ee;--sz-journal-soft:#342f48;--sz-journal-edge:#78658e;
+  --sz-movement:#8ed7bd;--sz-movement-soft:#1b3e36;--sz-movement-edge:#477d6d;
+  --sz-games:#b6bdf5;--sz-games-soft:#2b3250;--sz-games-edge:#68739f;
+  --sz-community:#e3b0d3;--sz-community-soft:#423044;--sz-community-edge:#88627d;
+  --sz-profile:#bbcbdc;--sz-profile-soft:#293b4b;--sz-profile-edge:#647b90;
+  --sz-success:#95d6ae;--sz-success-soft:#203d31;--sz-warning:#edc18e;--sz-warning-soft:#42352a;
+  --sz-danger:#ffb2be;--sz-danger-soft:#472c39;--sz-on-action:#10232e;
+}
+body.ux-ready[data-page=home]{--sz-section:var(--sz-home);--sz-section-soft:var(--sz-home-soft);--sz-section-edge:var(--sz-home-edge)}
+body.ux-ready[data-page=progress]{--sz-section:var(--sz-progress);--sz-section-soft:var(--sz-progress-soft);--sz-section-edge:var(--sz-progress-edge)}
+body.ux-ready[data-page=health]{--sz-section:var(--sz-health);--sz-section-soft:var(--sz-health-soft);--sz-section-edge:var(--sz-health-edge)}
+body.ux-ready[data-page=journey]{--sz-section:var(--sz-journey);--sz-section-soft:var(--sz-journey-soft);--sz-section-edge:var(--sz-journey-edge)}
+body.ux-ready[data-page=journal]{--sz-section:var(--sz-journal);--sz-section-soft:var(--sz-journal-soft);--sz-section-edge:var(--sz-journal-edge)}
+body.ux-ready[data-page=movement]{--sz-section:var(--sz-movement);--sz-section-soft:var(--sz-movement-soft);--sz-section-edge:var(--sz-movement-edge)}
+body.ux-ready[data-page=games]{--sz-section:var(--sz-games);--sz-section-soft:var(--sz-games-soft);--sz-section-edge:var(--sz-games-edge)}
+body.ux-ready[data-page=community]{--sz-section:var(--sz-community);--sz-section-soft:var(--sz-community-soft);--sz-section-edge:var(--sz-community-edge)}
+body.ux-ready[data-page=profile]{--sz-section:var(--sz-profile);--sz-section-soft:var(--sz-profile-soft);--sz-section-edge:var(--sz-profile-edge)}
+
+/* Les variables des contrôleurs visuels existants restent compatibles. */
+body.ux-ready,body.ux-ready.dark{
+  --bg:var(--sz-bg);--card:var(--sz-surface);--text:var(--sz-ink);--muted:var(--sz-muted);--line:var(--sz-line);
+  --green:var(--sz-section);--soft:var(--sz-section-soft);--ux-accent:var(--sz-section);--axis-current:var(--sz-section);
+  --axis-home:var(--sz-home);--axis-progress:var(--sz-progress);--axis-health:var(--sz-health);--axis-journey:var(--sz-journey);
+  --axis-journal:var(--sz-journal);--axis-movement:var(--sz-movement);--axis-games:var(--sz-games);--axis-community:var(--sz-community);--axis-profile:var(--sz-profile);
+  --warn:var(--sz-warning);--peach:var(--sz-warning-soft);--lavender:var(--sz-journal-soft);
+  color:var(--sz-ink)!important;background:var(--sz-bg)!important;
+}
+body.ux-ready #workspace #appNav,body.ux-ready #workspace header{
+  background:var(--sz-surface)!important;border-color:var(--sz-line)!important;
+}
+body.ux-ready #workspace .ux-page-title{color:var(--sz-section);font-weight:700}
+body.ux-ready #workspace :is(.menu-toggle,.drawer-close,.avatar){color:var(--sz-section)!important;background:var(--sz-section-soft)!important;border-color:var(--sz-section-edge)!important}
+
+/* Repère visible dans le menu, sans dépendre uniquement de la couleur. */
+body.ux-ready #nav button{--nav-accent:var(--sz-section);--nav-soft:var(--sz-section-soft);--nav-edge:var(--sz-section-edge)}
+body.ux-ready #nav button[data-page=home],body.ux-ready .ux-bottom-nav button[data-ux-value=home]{--nav-accent:var(--sz-home);--nav-soft:var(--sz-home-soft);--nav-edge:var(--sz-home-edge)}
+body.ux-ready #nav button[data-page=progress],body.ux-ready .ux-bottom-nav button[data-ux-value=progress]{--nav-accent:var(--sz-progress);--nav-soft:var(--sz-progress-soft);--nav-edge:var(--sz-progress-edge)}
+body.ux-ready #nav button[data-page=health],body.ux-ready .ux-bottom-nav button[data-ux-value=health]{--nav-accent:var(--sz-health);--nav-soft:var(--sz-health-soft);--nav-edge:var(--sz-health-edge)}
+body.ux-ready #nav button[data-page=journey]{--nav-accent:var(--sz-journey);--nav-soft:var(--sz-journey-soft);--nav-edge:var(--sz-journey-edge)}
+body.ux-ready #nav button[data-page=journal]{--nav-accent:var(--sz-journal);--nav-soft:var(--sz-journal-soft);--nav-edge:var(--sz-journal-edge)}
+body.ux-ready #nav button[data-move=open]{--nav-accent:var(--sz-movement);--nav-soft:var(--sz-movement-soft);--nav-edge:var(--sz-movement-edge)}
+body.ux-ready #nav button[data-page=games]{--nav-accent:var(--sz-games);--nav-soft:var(--sz-games-soft);--nav-edge:var(--sz-games-edge)}
+body.ux-ready #nav button[data-page=community]{--nav-accent:var(--sz-community);--nav-soft:var(--sz-community-soft);--nav-edge:var(--sz-community-edge)}
+body.ux-ready #nav button[data-page=profile]{--nav-accent:var(--sz-profile);--nav-soft:var(--sz-profile-soft);--nav-edge:var(--sz-profile-edge)}
+body.ux-ready #nav button>.ux-nav-copy .ux-nav-label{color:var(--sz-ink)!important}
+body.ux-ready #nav button .ux-nav-hint{color:var(--sz-muted)!important}
+body.ux-ready #nav button>svg{color:var(--nav-accent)!important;background:var(--nav-soft);border-radius:6px}
+body.ux-ready #nav button.selected{background:var(--nav-soft)!important;border-color:var(--nav-edge)!important;box-shadow:inset 4px 0 var(--nav-accent)!important;color:var(--nav-accent)!important}
+body.ux-ready #nav button.selected .ux-nav-label{color:var(--nav-accent)!important;font-weight:750}
+body.ux-ready #workspace .ux-bottom-nav{background:var(--sz-surface)!important;border-color:var(--sz-line)!important}
+body.ux-ready .ux-bottom-nav button{--nav-accent:var(--sz-section);--nav-soft:var(--sz-section-soft);--nav-edge:var(--sz-section-edge);color:var(--sz-muted)}
+body.ux-ready .ux-bottom-nav button.selected{background:var(--nav-soft)!important;color:var(--nav-accent)!important;box-shadow:inset 0 -3px var(--nav-accent)}
+
+/* Fonds calmes, titres foncés, action principale de la couleur de la rubrique. */
+body.ux-ready #content :is(.card,.stat,.tl-action-card,.mv-card,.hz-evidence,.dy-week,.dy-calendar,.hz-wins,.hz-addiction,.hz-outlook){background:var(--sz-surface)!important;border-color:var(--sz-line)!important;box-shadow:none!important}
+body.ux-ready #content :is(h1,h2,h3){color:var(--sz-ink)}
+body.ux-ready #content :is(.greeting,.dy-heading) h1{color:var(--sz-section)}
+body.ux-ready #content .eyebrow{color:var(--sz-section)}
+body.ux-ready #content :is(.muted,.small,.tl-caption,.hz-caption,.dy-clock-detail){color:var(--sz-muted)}
+body.ux-ready #workspace .primary,body.ux-ready #modal .primary,body.ux-ready #movement-player .primary{
+  background:var(--sz-section)!important;color:var(--sz-on-action)!important;border-color:var(--sz-section)!important;box-shadow:none!important;
+}
+body.ux-ready #workspace .secondary,body.ux-ready #modal .secondary,body.ux-ready #movement-player .secondary{
+  background:var(--sz-section-soft)!important;color:var(--sz-section)!important;border-color:var(--sz-section-edge)!important;
+}
+body.ux-ready #workspace :is(.tag,.badge),body.ux-ready #modal :is(.tag,.badge){background:var(--sz-section-soft)!important;color:var(--sz-section)!important;border-color:var(--sz-section-edge)!important}
+body.ux-ready #workspace :is(.tabs,.filters,.tl-chart-periods,.tl-simple-periods,.hz-range,.mv-tabs){background:var(--sz-section-soft)!important;border-color:var(--sz-line)!important}
+body.ux-ready #workspace :is(.tabs,.filters,.tl-chart-periods,.tl-simple-periods,.hz-range,.mv-tabs) button:is(.selected,.is-selected,[aria-pressed=true],[aria-selected=true]){
+  background:var(--sz-section)!important;color:var(--sz-on-action)!important;border-color:var(--sz-section)!important;
+}
+body.ux-ready #workspace :is(button,a,input,textarea,select,summary):focus-visible,body.ux-ready #modal :is(button,a,input,select,textarea,summary):focus-visible{outline-color:var(--sz-section)!important}
+body.ux-ready #workspace :is(input,select,textarea),body.ux-ready #modal :is(input,select,textarea){color:var(--sz-ink)!important;background:var(--sz-surface)!important;border-color:var(--sz-section-edge)!important}
+body.ux-ready #modal{color:var(--sz-ink)!important;background:var(--sz-surface)!important;border-color:var(--sz-line)!important}
+
+/* Accueil : le compteur domine ; les bienfaits restent une carte distincte. */
+body.ux-ready #content :is(.dy-page,.dy-calendar){--dy-paper:var(--sz-surface);--dy-ink:var(--sz-ink);--dy-muted:var(--sz-muted);--dy-line:var(--sz-line);--dy-accent:var(--sz-section);--dy-button:var(--sz-section);--dy-sage:var(--sz-success-soft);--dy-sage-border:var(--sz-health-edge);--dy-consumed:var(--sz-profile-soft);--dy-consumed-ink:var(--sz-profile);--dy-focus-ring:var(--sz-section)}
+body.ux-ready #content .dy-primary-grid>.dy-focus{background:var(--sz-home-soft)!important;border-color:var(--sz-home-edge)!important;box-shadow:inset 4px 0 var(--sz-home)!important}
+body.ux-ready #content .dy-counter strong{color:var(--sz-home)}
+body.ux-ready #content .dy-primary-grid>.dy-benefit{background:var(--sz-health-soft)!important;border-color:var(--sz-health-edge)!important;box-shadow:none!important}
+body.ux-ready #content .dy-benefit :is(h2,.eyebrow,.dy-benefit-list svg){color:var(--sz-health)}
+body.ux-ready #content .dy-benefit .primary{background:var(--sz-health)!important;color:var(--sz-on-action)!important;border-color:var(--sz-health)!important}
+body.ux-ready #content .dy-earned{background:var(--sz-success-soft);color:var(--sz-success);border-color:var(--sz-health-edge)!important}
+body.ux-ready #content :is(.progress-track,.tl-progress-track,.dy-cap-track){background:var(--sz-section-edge)!important}
+body.ux-ready #content :is(.progress-track>div,.tl-progress-track>div,.dy-cap-fill){background:var(--sz-section)!important}
+
+/* Les totaux ont un code propre ; aucune estimation n'est transformée en réussite. */
+body.ux-ready #content .tl-simple-consumption{background:var(--sz-progress-soft)!important;border-color:var(--sz-progress-edge)!important}
+body.ux-ready #content .tl-simple-spending{background:var(--sz-journal-soft)!important;border-color:var(--sz-journal-edge)!important}
+body.ux-ready #content .tl-simple-consumption :is(strong,.tl-simple-icon,.tl-simple-open){color:var(--sz-progress)}
+body.ux-ready #content .tl-simple-spending :is(strong,.tl-simple-icon,.tl-simple-open){color:var(--sz-journal)}
+body.ux-ready #content .tl-simple-metric-title{color:var(--sz-ink)}
+body.ux-ready #content .tl-simple-source{background:var(--sz-surface);color:var(--sz-muted);border-color:var(--sz-line)}
+body.ux-ready #content .tl-simple-metric[open]{border-color:var(--sz-section)!important;box-shadow:inset 0 0 0 1px var(--sz-section)!important}
+body.ux-ready #content .tl-simple-savings{color:var(--sz-success);border-color:var(--sz-line)}
+body.ux-ready #content .tl-simple-savings.is-extra{color:var(--sz-warning)}
+body.ux-ready #content .tl-chart-stat{background:var(--sz-section-soft)!important;border-color:var(--sz-section-edge)!important}
+body.ux-ready #content .tl-chart-stat strong{color:var(--sz-section)}
+body.ux-ready #content .tl-chart-stat[aria-pressed=true]{border-color:var(--sz-section)!important;box-shadow:inset 0 0 0 1px var(--sz-section)!important}
+body.ux-ready #content .tl-chart-readout{background:var(--sz-section-soft)!important;color:var(--sz-ink);border-color:var(--sz-section-edge)!important}
+
+/* Santé : corps vert, esprit lavande. Le compteur reste une durée, pas un score. */
+body.ux-ready #content .hz-hero.hz-encouraging{background:var(--sz-health-soft)!important;border-color:var(--sz-health-edge)!important;border-left-color:var(--sz-health)!important}
+body.ux-ready #content .hz-hero :is(h2,p,.hz-kicker,.hz-hero-bottom,.hz-counter span,.hz-counter small){color:var(--sz-ink)!important}
+body.ux-ready #content .hz-hero .hz-hero-origin{color:var(--sz-muted)!important}
+body.ux-ready #content .hz-hero :is(.hz-hero-link,.hz-celebrate-button){color:var(--sz-health)!important}
+body.ux-ready #content .hz-hero .hz-counter{background:var(--sz-surface)!important;border-color:var(--sz-health-edge)!important;color:var(--sz-health)!important}
+body.ux-ready #content .hz-hero [data-health-clock-value]{color:var(--sz-health)!important}
+body.ux-ready #content .hz-hero .light{background:var(--sz-health)!important;color:var(--sz-on-action)!important}
+body.ux-ready #content .hz-evidence.hz-physical{background:var(--sz-health-soft)!important;border-color:var(--sz-health-edge)!important;border-top-color:var(--sz-health)!important}
+body.ux-ready #content .hz-evidence.hz-mental{background:var(--sz-journal-soft)!important;border-color:var(--sz-journal-edge)!important;border-top-color:var(--sz-journal)!important}
+body.ux-ready #content .hz-physical :is(h3,.hz-icon){color:var(--sz-health)!important}
+body.ux-ready #content .hz-mental :is(h3,.hz-icon){color:var(--sz-journal)!important}
+body.ux-ready #content .hz-evidence .hz-icon{background:var(--sz-surface)!important}
+body.ux-ready #content :is(.hz-metric,.hz-stage){background:var(--sz-surface)!important;border-color:var(--sz-line)!important;color:var(--sz-ink)}
+body.ux-ready #content :is(.hz-metric.selected,.hz-stage.selected){background:var(--sz-health-soft)!important;border-color:var(--sz-health)!important;box-shadow:inset 0 0 0 1px var(--sz-health)!important}
+body.ux-ready #content .hz-metric strong{color:var(--sz-health)}
+body.ux-ready #content .hz-stage.selected .hz-stage-dot,body.ux-ready #modal .hz-rating-options input:checked+span{background:var(--sz-health)!important;color:var(--sz-on-action)!important;border-color:var(--sz-health)!important}
+body.ux-ready #content .hz-win{background:var(--sz-success-soft)!important;border-color:var(--sz-health-edge)!important}
+body.ux-ready #content .hz-win-values>b,body.ux-ready #content .hz-trend-better{color:var(--sz-success)!important}
+body.ux-ready #content .hz-trend-worse{color:var(--sz-warning)!important}
+body.ux-ready #content :is(.hz-addiction-practice,.hz-wins-empty,.hz-craving-observed,.hz-personal-prompt,.hz-context,.hz-empty-chart){background:var(--sz-section-soft)!important;color:var(--sz-ink);border-color:var(--sz-section-edge)!important}
+body.ux-ready #content .hz-next{background:var(--sz-surface);border-color:var(--sz-health-edge)}
+
+/* Autres rubriques : encadrés de repère, pas de nouveau parcours. */
+body.ux-ready #content :is(.mv-intro,.mv-guided){background:var(--sz-movement-soft)!important;border-color:var(--sz-movement-edge)!important}
+body.ux-ready #content .mv-dose{background:var(--sz-movement-soft)!important;color:var(--sz-movement)!important}
+body.ux-ready #content .mv-tabs [data-level=doux]{--sz-level:var(--sz-movement)}
+body.ux-ready #content .mv-tabs [data-level=moyen]{--sz-level:var(--sz-progress)}
+body.ux-ready #content .mv-tabs [data-level=intense]{--sz-level:var(--sz-journal)}
+body.ux-ready #content .mv-tabs button[aria-selected=true]{background:var(--sz-level)!important;border-color:var(--sz-level)!important;color:var(--sz-on-action)!important}
+body.ux-ready #content .mv-tabs button[aria-selected=true] .tag{background:var(--sz-surface)!important;color:var(--sz-ink)!important}
+body.ux-ready #content .ga-library .ga-card,body.ux-ready #content .pz-card{background:var(--sz-surface)!important;color:var(--sz-ink)!important;border-color:var(--sz-games-edge)!important;box-shadow:none!important}
+body.ux-ready #content .ga-card .ga-card-icon{background:var(--sz-games-soft);color:var(--sz-games)}
+body.ux-ready #content .ga-card :is(strong,small){color:var(--sz-games)!important}
+body.ux-ready #content .ga-card>span:not(.ga-card-icon){color:var(--sz-muted)!important}
+body.ux-ready #content .step-grid button.current{background:var(--sz-journey)!important;color:var(--sz-on-action)!important;border-color:var(--sz-journey)!important}
+body.ux-ready #content .step-grid button.done:not(.current){background:var(--sz-success-soft);color:var(--sz-success)}
+body.ux-ready[data-page=journal] #journalList .card{border-left-color:var(--sz-journal)!important}
+body.ux-ready[data-page=community] #content .posts>.card{border-left-color:var(--sz-community)!important}
+body.ux-ready #content .ux-settings-group{background:var(--sz-surface);border-color:var(--sz-line)}
+body.ux-ready #content .ux-settings-group>summary{color:var(--sz-profile)}
+
+body.ux-ready #content :is(.card.green,.tl-hero){background:var(--sz-section)!important;color:var(--sz-on-action)!important}
+body.ux-ready #content :is(.card.green,.tl-hero) :is(h1,h2,h3,p,.eyebrow,.small){color:var(--sz-on-action)!important}
+/* Avertissements distincts, dans tous les thèmes. Aucune alerte masquée. */
+body.ux-ready #workspace :is(.hz-safety,.hz-early-help,.hz-balance,.mv-warning,.mv-safety),body.ux-ready #modal .safety{background:var(--sz-warning-soft)!important;color:var(--sz-warning)!important;border-color:var(--sz-warning)!important}
+body.ux-ready #workspace :is(.hz-safety,.hz-early-help,.hz-balance,.mv-warning,.mv-safety) :is(h2,strong,p){color:var(--sz-warning)!important}
+body.ux-ready #workspace .error-box,body.ux-ready #modal .error-box{background:var(--sz-danger-soft)!important;color:var(--sz-danger)!important;border-color:var(--sz-danger)!important}
+body.ux-ready #workspace :is(.danger,.hz-delete,[data-danger=true]),body.ux-ready #modal :is(.danger,.hz-delete,[data-danger=true]){color:var(--sz-danger)!important}
+body.ux-ready #workspace .demo-banner{background:var(--sz-profile-soft)!important;color:var(--sz-profile)!important;border-color:var(--sz-profile-edge)!important}
+@media(hover:hover){
+  body.ux-ready #nav button:hover{background:var(--nav-soft)!important;border-color:var(--nav-edge)!important}
+  body.ux-ready #content :is(.tl-simple-metric-trigger,.ga-card,.hz-win,.mv-card):hover{border-color:var(--sz-section)!important}
+}
