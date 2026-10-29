@@ -32,7 +32,7 @@
 .jn-status{font-size:.85rem;line-height:1.65;margin:10px 0;color:var(--jn-muted);overflow-wrap:anywhere}
 .jn-status:empty{display:none}
 .jn-status.jn-error{color:#913d3b;background:#fff2ef;border:1px solid #edcac4;border-radius:12px;padding:12px}
-.jn-submit{position:sticky;bottom:-28px;margin:16px -28px -28px;padding:14px 28px 22px;background:var(--sz-surface,#fff);border-top:1px solid var(--jn-line);z-index:2}
+.jn-submit{position:sticky;bottom:0;margin:16px -28px -28px;padding:14px 28px 22px;background:var(--sz-surface,#fff);border-top:1px solid var(--jn-line);z-index:2}
 .jn-submit>button{min-height:48px;white-space:normal;line-height:1.5}
 .jn-journal-hint{font-size:.85rem;line-height:1.65;color:var(--jm-muted,#536e7b);margin:-4px 0 16px}
 .jn-photo-button{display:block;position:relative;padding:0;border:1px solid var(--jm-line,#d8e6ec);border-radius:15px;overflow:hidden;width:100%;max-width:620px;min-height:120px;margin:16px 0 20px;background:var(--jm-tint,#edf7f8);color:var(--jm-muted,#536e7b);cursor:pointer;text-align:center}
@@ -61,7 +61,7 @@ body.ux-large-text .jn-visibility strong,body.ux-large-text .jn-visibility small
   .jn-visibility small{font-size:.78rem;margin-top:3px}
   .jn-visibility strong{font-size:.87rem}
   .jn-image-panel{padding:14px;border-radius:15px}
-  .jn-submit{bottom:-23px;margin:14px -20px -23px;padding:12px 20px 18px}
+  .jn-submit{bottom:0;margin:14px -20px -23px;padding:12px 20px 18px}
   .jn-note-actions .jn-share-button{flex-basis:100%;margin:0 0 3px}
   .jn-photo-button img{max-height:260px}
 }
