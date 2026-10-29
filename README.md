@@ -5,7 +5,7 @@ Frontend statique en français, sans build, hébergé sur Vercel. Backend Supaba
 ## Fonctions
 - Interface clinique moderne partagée par toutes les rubriques : blanc, bleu glacier, turquoise et sauge, navigation mobile, thèmes clair/sombre et texte agrandi.
 - Onglets internes dans le suivi, la santé, le parcours et le profil : accès direct aux informations, formulaires et brouillons conservés lors d’un changement d’onglet.
-- Journal de motivation : 40 pensées originales proposées à l’entrée du journal, fermeture libre et enregistrement facultatif dans le journal privé existant, sans doublons ni migration de base.
+- Journal de motivation : 150 citations sourcées d’auteurs, avec œuvre, repère et lien primaire, traductions signalées, rotation sans répétition avant épuisement et variété d’auteurs. Fermeture libre et enregistrement facultatif avec attribution dans le journal privé existant, sans doublons ni migration de base. Les anciennes pensées déjà gardées restent lisibles. Voir [la sélection et les sources](docs/motivation-sources.md).
 - Onglet « Santé & bienfaits » : onze repères scientifiques des premières minutes aux premiers mois, datés selon l’arrêt effectif, sources et limites consultables, six ressentis privés facultatifs et évolution des observations réellement saisies.
 - Bilan lisible : consommation, dépenses et économies sur 7 jours, 30 jours ou 12 mois, avec estimations identifiées.
 - Formulaires en trois étapes, boutons + / −, raccourci zéro euro, récapitulatif avant sauvegarde et valeurs conservées au retour.

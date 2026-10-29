@@ -1,6 +1,6 @@
 /** Real app controllers, no live services. Covers optional saving and account isolation. */
 import assert from 'node:assert/strict';
-import {MOTIVATION_QUOTES,MOTIVATION_TITLE,isMotivationEntry,motivationEntryId} from '../journal-motivation.mjs';
+import {MOTIVATION_QUOTES,MOTIVATION_TITLE,isMotivationEntry,motivationEntryId,motivationEntryBody,motivationQuoteForEntry} from '../journal-motivation.mjs';
 import {environment,boot,mockService,UID,UID2,$,$$,txt,click,value,submit,closeModal,route,settle,key} from './ux-dom-support.mjs';
 
 const env=await environment({online:true,mobile:true});
@@ -18,6 +18,9 @@ try{
   await check('entry opens an accessible quote exactly once; search, notes and tab changes do not reopen it',async()=>{
     const count=writes().length;await route('journal');
     assert.ok($('#modal').open);assert.ok(quote());assert.equal($('#modal').getAttribute('aria-describedby'),'jmQuoteText');
+    assert.equal(txt('#modal .jm-quote-author'),quote().author);assert.equal($('#modal .jm-source-link').href,quote().url);
+    assert.equal($('#modal .jm-source-link').target,'_blank');assert.match($('#modal .jm-source-link').rel,/noopener/);assert.match($('#modal .jm-source-link').rel,/noreferrer/);
+    assert.equal(!!$('#modal .jm-translation-label'),!!(quote().translation||quote().translationCredit));
     assert.equal(document.activeElement,$('#jmQuoteText'));
     await click('#modal [data-action="close"]');assert.equal($('#modal').open,false);assert.equal(writes().length,count);
     assert.equal(document.activeElement,$('#content h1'),'Closing with the cross returns to the visible journal');
@@ -41,28 +44,34 @@ try{
     await route('home');await route('journal');const selected=quote(),count=writes().length;
     const gate=mock.defer(call=>call.table==='journal_entries'&&call.op==='insert');
     const button=$('[data-action="journal-quote-save"]');button.click();button.click();await settle(30);
-    assert.equal(button.disabled,true);assert.equal(writes().length,count+1);assert.equal(gate.call.payload.user_id,UID);assert.equal(gate.call.payload.kind,'reflection');assert.equal(gate.call.payload.body,selected.text);
+    assert.equal(button.disabled,true);assert.equal(writes().length,count+1);assert.equal(gate.call.payload.user_id,UID);assert.equal(gate.call.payload.kind,'reflection');assert.equal(gate.call.payload.body,motivationEntryBody(selected));
     gate.release();await settle(40);
-    stored=mock.tables.journal_entries.find(item=>item.body===selected.text);
+    stored=mock.tables.journal_entries.find(item=>item.body===motivationEntryBody(selected));
     assert.ok(stored);assert.equal(stored.id,await motivationEntryId(UID,selected.id));assert.equal($('#modal').open,false);
     assert.equal($('#jmMotivationTab').getAttribute('aria-selected'),'true');assert.match(txt('#journalMotivationList'),new RegExp(selected.text.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
+    assert.equal(txt('#journalMotivationList .jm-quote-author'),selected.author);assert.equal($('#journalMotivationList .jm-source-link').href,selected.url);
     assert.equal($$('#journalList article').some(item=>item.textContent.includes(selected.text)),false);
     assert.equal(document.activeElement,$('#jmMotivationTab'));
   });
 
   await check('a stored quote survives a fresh account load and is read independently of the newest 50 notes',async()=>{
     for(let i=0;i<55;i++)mock.tables.journal_entries.push({id:crypto.randomUUID(),user_id:UID,entry_date:'2026-10-27',title:`Plus récente ${i}`,body:'Note normale.',kind:'reflection',created_at:'2026-10-27T15:00:00Z'});
+    const legacy='Une journée difficile n’efface pas le chemin parcouru.';
+    mock.tables.journal_entries.push({id:crypto.randomUUID(),user_id:UID,entry_date:'2025-01-01',title:MOTIVATION_TITLE,body:legacy,kind:'reflection',created_at:'2025-01-01T12:00:00Z'});
     stored.entry_date='2026-01-01';
     await mock.signOut();await mock.signIn({id:UID});await route('journal');await closeModal();
     await click('#jmMotivationTab');await settle(30);
-    assert.match(txt('#journalMotivationList'),new RegExp(stored.body.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
+    const selected=motivationQuoteForEntry(stored);assert.ok(selected);
+    assert.match(txt('#journalMotivationList'),new RegExp(selected.text.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));assert.match(txt('#journalMotivationList'),new RegExp(selected.author.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
+    const legacyCard=$$('#journalMotivationList .jm-saved-quote').find(card=>card.querySelector('blockquote')?.textContent===legacy);
+    assert.ok(legacyCard,'Earlier saved encouragements must remain readable');assert.equal(legacyCard.querySelector('.jm-quote-author'),null);assert.equal(legacyCard.querySelector('.jm-source-link'),null);
     assert.ok(mock.calls.some(call=>call.table==='journal_entries'&&call.op==='select'&&call.filters.some(([name,value])=>name==='title'&&value===MOTIVATION_TITLE)));
   });
 
   await check('an existing remote quote is recovered without inserting or changing its original date',async()=>{
     await click('[data-action="journal-quote-open"]');const selected=quote(),id=await motivationEntryId(UID,selected.id),count=writes().length;
     const existing=mock.tables.journal_entries.find(item=>item.id===id);
-    if(existing)existing.entry_date='2025-05-14';else mock.tables.journal_entries.push({id,user_id:UID,entry_date:'2025-05-14',title:MOTIVATION_TITLE,body:selected.text,kind:'reflection',created_at:'2025-05-14T12:00:00Z'});
+    if(existing)existing.entry_date='2025-05-14';else mock.tables.journal_entries.push({id,user_id:UID,entry_date:'2025-05-14',title:MOTIVATION_TITLE,body:motivationEntryBody(selected),kind:'reflection',created_at:'2025-05-14T12:00:00Z'});
     await click('[data-action="journal-quote-save"]');await settle(30);
     assert.equal(writes().length,count);assert.equal(mock.tables.journal_entries.find(item=>item.id===id).entry_date,'2025-05-14');assert.equal(mock.tables.journal_entries.filter(item=>item.id===id).length,1);
     assert.match(txt('#notice'),/déjà/);assert.equal($('#modal').open,false);
