@@ -9,6 +9,7 @@ Frontend statique en français, sans build, hébergé sur Vercel. Backend Supaba
 - Onglet « Santé & bienfaits » : onze repères scientifiques des premières minutes aux premiers mois, datés selon l’arrêt effectif, sources et limites consultables, six ressentis privés facultatifs et évolution des observations réellement saisies.
 - Bilan lisible : consommation, dépenses et économies sur 7 jours, 30 jours ou 12 mois, avec estimations identifiées.
 - Formulaires en trois étapes, boutons + / −, raccourci zéro euro, récapitulatif avant sauvegarde et valeurs conservées au retour.
+- Explications courtes près des champs en erreur, correction accessible et messages de service conservés dans le formulaire. Pseudo simplifié : majuscules, accents et espaces adaptés automatiquement avec aperçu, unicité vérifiée à l’enregistrement. Voir [les formulaires et leurs règles](docs/form-feedback.md).
 - Questionnaire initial : situation, date et heure facultative du dernier verre, anciennes habitudes, dépenses et objectifs.
 - Saisie « Un jour » ou « Une période », du / au inclus, même dans le passé ; arrêts et reprises sans calendrier quotidien.
 - Cumuls, séries, records datés et économies recalculés après correction, y compris avant l’inscription.

@@ -1,6 +1,7 @@
 /** A quick, explicit daily declaration. Unanswered fields never become scores. */
 import {esc, parseDay, dateLabel} from './core.mjs';
 import {timelineRows} from './timeline-core.mjs';
+import {showFieldError, clearFieldError} from './form-validation.mjs';
 
 const FIRST_DAY = '1900-01-01';
 const QUANTITY_FIELDS = ['sober_today', 'alcohol_units', 'quantity_method', 'drink_details'];
@@ -141,8 +142,33 @@ export function createDailyEntry(api) {
     const context = forms.get(form);
     if (!current(context) || !document.contains(form)) return;
     const box = form.querySelector('#dailyEntryError');
-    box.textContent = ['23505', 'PGRST116', 'DAILY_CONFLICT'].includes(error?.code) ? CONFLICT_TEXT : api.message(error);
-    box.hidden = false; box.scrollIntoView?.({block: 'nearest'});
+    const raw = String(error?.message || ''), conflicting = ['23505', 'PGRST116', 'DAILY_CONFLICT'].includes(error?.code);
+    const field = conflicting ? '' : (['checkin_date', 'sober_today', 'craving', 'alcohol_units', 'alcohol_cost_eur'].includes(error?.field) ? error.field : '') || (/^(Choisis une date|La date|Cette date|Date invalide)/.test(raw) ? 'checkin_date'
+      : /^Choisis « Sans alcool »/.test(raw) ? 'sober_today'
+      : /^(Envie\s*:|Note ton envie)/.test(raw) ? 'craving'
+      : /^Quantité\s*:/.test(raw) ? 'alcohol_units'
+      : /^Dépense\s*:/.test(raw) ? 'alcohol_cost_eur' : '');
+    // Known local validation stays useful even when a generic API formatter
+    // would otherwise replace every error with an offline notice.
+    const text = box.textContent = conflicting ? CONFLICT_TEXT : field ? raw : api.message(error);
+    const input = field && form.querySelector(`[name="${field}"]`);
+    box.dataset.field = field;
+    box.hidden = false;
+    if (input && !input.disabled) {
+      const brief = text.startsWith('Cette date précède') ? `Choisis une date à partir du ${dateLabel(context.model.baseline)}.`
+        : text === 'Date invalide.' ? 'Choisis une date valide.' : text;
+      showFieldError(input, brief);
+    } else box.scrollIntoView?.({block: 'nearest'});
+  }
+  function clearCorrectedField(event) {
+    const input = event.target, form = input.form;
+    if (form?.id !== 'dailyEntryForm' || !input.name) return;
+    const context = forms.get(form);
+    if (!current(context) || context.pending) return;
+    // Shared feedback revalidates this field (including radio groups) after
+    // the edit. Keep its native errors until the new value is valid.
+    const box = form.querySelector('#dailyEntryError');
+    if (box.dataset.field === input.name) {box.hidden = true; box.textContent = ''; delete box.dataset.field;}
   }
   const initial = model => ({
     checkin_date: model.date,
@@ -191,6 +217,12 @@ export function createDailyEntry(api) {
     ready(context);
     if (!context || context.pending) return;
     if (context.staleDraft) throw conflict();
+    // A number input can expose an empty value while the user is still typing
+    // an invalid number. Keep that distinct from an intentionally empty amount.
+    for (const field of ['alcohol_units', 'alcohol_cost_eur']) {
+      const control = form.elements.namedItem(field);
+      if (control && !control.disabled && control.validity.badInput) throw Object.assign(Error('Indique un nombre valide, ou laisse ce champ vide.'), {field});
+    }
     const input = Object.fromEntries(new FormData(form));
     const change = dailyEntryChange({...context.model, today: progression.today()}, input);
     assertSource(context, change);
@@ -247,6 +279,8 @@ export function createDailyEntry(api) {
     form.querySelector('#dailyEntryError').hidden = true;
     try {await save(form);} catch (error) {showError(form, error);}
   }, true);
+  document.addEventListener('input', clearCorrectedField, true);
+  document.addEventListener('change', clearCorrectedField, true);
   document.addEventListener('change', event => {
     const form = event.target.form;
     if (form?.id !== 'dailyEntryForm') return;
@@ -266,7 +300,11 @@ export function createDailyEntry(api) {
         amounts.hidden = !drinking;
         for (const input of amounts.querySelectorAll('input')) {
           input.disabled = !drinking;
+          if (!drinking) clearFieldError(input);
           if (drinking && context.model.existing?.sober_today === true && input.value === '0') input.value = '';
+        }
+        if (!drinking && form.querySelector('#dailyEntryError').dataset.field === 'alcohol_units') {
+          const box = form.querySelector('#dailyEntryError'); box.hidden = true; box.textContent = ''; delete box.dataset.field;
         }
       }
     } catch (error) {showError(form, error);}

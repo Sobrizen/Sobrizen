@@ -26,8 +26,8 @@ export function integrateWorker(source){
 function build(){
   const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
   // No network dependencies or secrets are used by this build.
-  for(const file of ['community-core.mjs','community.mjs','community-tracking.mjs','community-duration-ui.mjs'])execFileSync(process.execPath,['--check',resolve(root,file)],{stdio:'inherit'});
-  execFileSync(process.execPath,['--test',...['community-core.test.mjs','tests/community-tracking.test.mjs','tests/community-duration-ui.test.mjs'].map(file=>resolve(root,file))],{stdio:'inherit'});
+  for(const file of ['community-core.mjs','community.mjs','community-tracking.mjs','community-duration-ui.mjs','username.mjs','form-validation.mjs','daily-entry.mjs','consumption-calculator.mjs'])execFileSync(process.execPath,['--check',resolve(root,file)],{stdio:'inherit'});
+  execFileSync(process.execPath,['--test',...['community-core.test.mjs','tests/community-tracking.test.mjs','tests/community-duration-ui.test.mjs','tests/username.test.mjs'].map(file=>resolve(root,file))],{stdio:'inherit'});
   const app=integrateApp(readFileSync(resolve(root,'app.mjs'),'utf8'));
   const worker=integrateWorker(readFileSync(resolve(root,'sw.js'),'utf8'));
   writeFileSync(resolve(root,'app.mjs'),app);writeFileSync(resolve(root,'sw.js'),worker);

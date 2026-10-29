@@ -28,7 +28,11 @@ async function page(t,{signedIn=true,salesOpen=false,premiumA=true,grantA=null,u
   assert.ok(source,'The real subscription module must remain present');
   const sdkImport=/import\((['"])https:\/\/esm\.sh\/@supabase\/supabase-js@[^'"]+\1\)/g;
   assert.equal([...source.matchAll(sdkImport)].length,1,'Replace only the external SDK import');
-  const script=source.replace(sdkImport,'Promise.resolve(window.__subscriptionQaSdk)');
+  const validationSource=await readFile(new URL('../form-validation.mjs',import.meta.url),'utf8');
+  assert.doesNotMatch(validationSource,/^import\s/m,'The DOM helper is evaluated unchanged apart from exports');
+  const localImport=/^import \{initFormValidation,showFieldError,showFormError,clearFormError\} from '\.\/form-validation\.mjs';\n/m;
+  assert.match(source,localImport,'The subscription form uses the same real validation helper');
+  const script=validationSource.replace(/^export\s+/gm,'')+'\n'+source.replace(localImport,'').replace(sdkImport,'Promise.resolve(window.__subscriptionQaSdk)');
   const errors=[],navigations=[],downloads=[],calls=[],gates=[],faults=new Map();
   const virtualConsole=new VirtualConsole();
   virtualConsole.on('jsdomError',error=>{
@@ -151,6 +155,20 @@ test('subscription: signed-out closed sales keep all purchase and request gates 
   assert.match(h.text('#launch'),/fermées/);
   assert.match(h.text('.grid .card'),/trois jeux.*Snake Zen, Blocs Zen et 5 choses/);
   assert.doesNotMatch(h.text('.grid .card'),/2048|deux jeux/);
+});
+
+test('subscription: missing confirmation explains the exact field without sending a request',async t=>{
+  const h=await page(t,{signedIn:true});h.start();await h.ready();
+  const checkbox=h.$('#confirmRequest'),before=h.calls.length;
+  await h.click('#sendRequest');
+  assert.equal(checkbox.getAttribute('aria-invalid'),'true');
+  const explanation=h.w.document.getElementById(checkbox.getAttribute('aria-errormessage'));
+  assert.ok(explanation&&!explanation.hidden);
+  assert.match(explanation.textContent,/Confirme l’envoi de ta demande/);
+  assert.equal(h.calls.slice(before).some(call=>call.kind==='http'&&call.method==='POST'),false);
+  await h.checked('#confirmRequest',true);
+  assert.notEqual(checkbox.getAttribute('aria-invalid'),'true');
+  assert.equal(h.$('[data-form-field-error]'),null);
 });
 
 test('subscription: closed sales retain account management and confirmed support requests',async t=>{

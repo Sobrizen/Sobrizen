@@ -1,0 +1,14 @@
+/* Feedback appears only after validation, with the explanation beside the field. */
+:root{--form-error-ink:#9b392f;--form-error-edge:#c06559;--form-error-bg:#fff4f1}
+.form-field-feedback{display:block;min-width:0;max-width:100%}
+.form-field-feedback:has(>[data-form-field-error])>label{margin-bottom:0}
+.form-hint{display:block;margin:-6px 0 8px;color:var(--sz-muted,var(--muted,#536e76));font-size:.8rem;font-weight:400;line-height:1.5;overflow-wrap:anywhere}
+label .form-hint{margin:4px 0 0}
+.form-field-error{display:block;grid-column:1/-1;max-width:100%;margin:6px 0 10px;color:var(--form-error-ink);font-size:.82rem;font-weight:550;line-height:1.5;overflow-wrap:anywhere}
+input[data-form-invalid="true"],textarea[data-form-invalid="true"],select[data-form-invalid="true"]{border-color:var(--form-error-edge)!important;box-shadow:0 0 0 1px var(--form-error-edge)}
+input[type="checkbox"][data-form-invalid="true"],input[type="radio"][data-form-invalid="true"]{outline:2px solid var(--form-error-edge);outline-offset:3px;box-shadow:none}
+.form-error-summary{grid-column:1/-1;margin:0 0 14px;padding:12px 14px;border:1px solid var(--form-error-edge);border-radius:12px;background:var(--form-error-bg);color:var(--form-error-ink);font-size:.88rem;line-height:1.55;overflow-wrap:anywhere}
+.form-error-summary:focus{outline:3px solid var(--form-error-edge);outline-offset:3px}
+.dark{--form-error-ink:#ffc6ba;--form-error-edge:#c98072;--form-error-bg:#3c2829}
+body.ux-large-text .form-field-error,body.ux-large-text .form-error-summary,body.ux-large-text .form-hint{font-size:1rem}
+@media(prefers-color-scheme:dark){.sz-document{--form-error-ink:#ffc6ba;--form-error-edge:#c98072;--form-error-bg:#3c2829}.sz-document .form-hint{color:#b8cfd0}}

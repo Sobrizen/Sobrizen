@@ -3,6 +3,7 @@
  * Existing form validation, consent checks, saves and timeline recomputation remain authoritative.
  */
 import {BEVERAGES, FORMATS, blankDrink, drinkPreset, calculateDrink, totalConsumption, inclusiveDays, normalizeConsumption, roundConsumption} from './consumption-core.mjs';
+import {showFieldError, clearFieldError} from './form-validation.mjs';
 
 const TARGETS = ['units', 'alcohol_units', 'baseline_units_week', 'current_units_week', 'range_units_week'];
 const SELECTOR = TARGETS.map(name => `form input[name="${name}"]`).join(',');
@@ -19,10 +20,46 @@ export function installConsumptionCalculators(root = document) {
   let active = null, dialog = null, scheduled = false;
   const visible = node => node.isConnected && !node.disabled && !node.closest('[hidden]');
   const targetTitle = input => input.name === 'baseline_units_week' ? 'Mes habitudes de départ' : input.name.endsWith('_week') ? 'Ma consommation par semaine' : 'Ma consommation de la journée';
+  const errorField = error => {
+    const text = String(error?.message || '');
+    return /^Choisis le type/.test(text) ? 'type' : /^Choisis un format/.test(text) ? 'format'
+      : /^Choisis ml/.test(text) ? 'volumeUnit' : /^(Volume\s*:|Le volume par contenant)/.test(text) ? 'volume'
+      : /^Degré/.test(text) ? 'strength' : /^Nombre de contenants/.test(text) ? 'count'
+      : /^Part consommée/.test(text) ? 'portionPercent' : /^Nombre de personnes/.test(text) ? 'people'
+      : /^Choisis la préparation/.test(text) ? 'preparation' : '';
+  };
+  function touched(entry = active.entries[active.index]) {
+    if (!active.touched.has(entry)) active.touched.set(entry, new Set());
+    return active.touched.get(entry);
+  }
+  function explainField(error, key, focus = false) {
+    const control = dialog.querySelector(`[data-sc-field="${key}"]`);
+    if (!control) return;
+    const text = key === 'portionPercent' ? 'Indique un pourcentage entre 0,01 et 100 %.'
+      : key === 'people' ? 'Indique un nombre entier entre 1 et 1 000.'
+      : error.message;
+    showFieldError(control, text, {focus});
+  }
+  function updateFieldFeedback() {
+    let issue = null;
+    try {calculateDrink(active.entries[active.index]);}
+    catch (error) {issue = error;}
+    const key = issue && errorField(issue), show = key && touched().has(key);
+    for (const control of dialog.querySelectorAll('[data-sc-field]')) if (!show || control.dataset.scField !== key) clearFieldError(control);
+    if (show) explainField(issue, key);
+  }
   function fail(error) {
     if (!dialog?.open) return;
     const box = dialog.querySelector('[data-sc-error]');
     box.textContent = error?.message || 'Vérifie les quantités indiquées.'; box.hidden = false;
+    const key = errorField(error);
+    if (key) {
+      const index = active.entries.findIndex(entry => {try {calculateDrink(entry); return false;} catch (issue) {return issue.message === error.message;}});
+      if (index >= 0) {
+        if (index !== active.index) {active.index = index; renderEditor();}
+        touched().add(key); explainField(error, key, true);
+      }
+    }
   }
   function hideError() {if (dialog) dialog.querySelector('[data-sc-error]').hidden = true;}
   function close() {if (dialog?.open) dialog.close(); active = null;}
@@ -84,6 +121,7 @@ export function installConsumptionCalculators(root = document) {
       apply.disabled = true;
     }
     try {calculateDrink(active.entries[active.index]); add.disabled = active.entries.length >= 30;} catch {add.disabled = true;}
+    updateFieldFeedback();
   }
   function ensureDialog() {
     if (dialog) return;
@@ -104,7 +142,13 @@ export function installConsumptionCalculators(root = document) {
       if (['type', 'format', 'volumeUnit', 'preparation'].includes(key)) return;
       const entry = active.entries[active.index];
       entry[key === 'portionPercent' ? 'portion' : key] = key === 'portionPercent' ? String(Number(control.value.trim().replace(',', '.')) / 100) : control.value;
+      touched().add(key);
       hideError(); updateTotal();
+    });
+    dialog.addEventListener('focusout', event => {
+      const control = event.target.closest?.('[data-sc-field]');
+      if (!active || !control?.isConnected || !dialog.contains(control)) return;
+      touched().add(control.dataset.scField); updateFieldFeedback();
     });
     dialog.addEventListener('change', event => {
       if (!active) return;
@@ -112,15 +156,16 @@ export function installConsumptionCalculators(root = document) {
       const control = event.target.closest('[data-sc-field]'); if (!control) return;
       const key = control.dataset.scField, entry = active.entries[active.index];
       if (key === 'type') {
-        active.entries[active.index] = control.value ? drinkPreset(control.value) : blankDrink(); renderEditor();
+        active.entries[active.index] = control.value ? drinkPreset(control.value) : blankDrink(); touched().add(key); renderEditor();
       } else if (key === 'format') {
         const preset = drinkPreset(entry.type, control.value);
-        Object.assign(entry, {format: preset.format, volume: preset.volume, volumeUnit: 'cl'}); renderEditor();
+        Object.assign(entry, {format: preset.format, volume: preset.volume, volumeUnit: 'cl'}); touched().add(key); renderEditor();
       } else if (key === 'volumeUnit') {
         const factor = {ml: 1, cl: 10, l: 1000}, n = Number(String(entry.volume).replace(',', '.'));
         if (entry.volume.trim() && Number.isFinite(n)) entry.volume = String(Number((n * factor[entry.volumeUnit] / factor[control.value]).toFixed(8)));
-        entry.volumeUnit = control.value; renderEditor();
-      } else if (key === 'preparation') {entry.preparation = control.value; renderEditor();}
+        entry.volumeUnit = control.value; touched().add(key); renderEditor();
+      } else if (key === 'preparation') {entry.preparation = control.value; touched().add(key); renderEditor();}
+      else {touched().add(key); updateTotal();}
       hideError();
     });
     dialog.addEventListener('click', event => {
@@ -150,7 +195,7 @@ export function installConsumptionCalculators(root = document) {
     if (input.name === 'range_units_week') {
       try {days = inclusiveDays(input.form.elements.started_on.value, input.form.elements.ended_on.value);} catch { /* Only offer whole-period conversion when dates are valid. */ }
     }
-    active = {input, form: input.form, originalValue: input.value, signature: contextSignature(input.form), weekly: input.name.endsWith('_week'), days, basis: reusable ? saved.basis : 'week', entries: reusable ? copy(saved.entries) : [blankDrink()], index: 0};
+    active = {input, form: input.form, originalValue: input.value, signature: contextSignature(input.form), weekly: input.name.endsWith('_week'), days, basis: reusable ? saved.basis : 'week', entries: reusable ? copy(saved.entries) : [blankDrink()], index: 0, touched: new WeakMap()};
     dialog.innerHTML = `<form class="sc-form" novalidate><header class="sc-header"><div><p class="sc-eyebrow">${escape(targetTitle(input))}</p><h2 id="sc-title">Calculer avec mes boissons</h2></div><button type="button" data-sc-close aria-label="Fermer le calculateur">×</button></header><div class="sc-body">
       ${active.weekly ? `<label>Les quantités ci-dessous correspondent à<select data-sc-basis>${option('week','Une semaine habituelle',active.basis)}${option('day','Un jour moyen, tous les jours compris',active.basis)}${days ? option('period',`Toute la période : ${days} jours`,active.basis) : ''}</select></label>` : '<p class="sc-intro">Ajoute ce que tu as réellement bu pendant cette journée.</p>'}
       ${input.value !== '' && !reusable ? `<p class="sc-existing">Le formulaire contient déjà ${escape(input.value)} verres standards${active.weekly ? ' / semaine' : ''}. Ce calcul remplacera ce total, il ne s’y ajoutera pas. Le détail antérieur n’est pas reconstitué.</p>` : ''}

@@ -207,7 +207,7 @@ export function createCommunity({S,getClient,checkResult,notify,message,modal,cl
     <img class="community-preview" data-community-preview alt="Aperçu de l’image jointe" hidden><button class="text" type="button" data-community-remove hidden>Retirer l’image</button>
     ${source?'<p class="error-box" data-community-image-error role="alert" hidden></p><button class="secondary" type="button" data-community-image-retry hidden>Réessayer de charger l’image</button>':''}
     <label hidden>Décrire l’image · facultatif<input name="image_alt" maxlength="180" value="${esc(p.image_alt||'')}" placeholder="Une courte description accessible"></label></div>
-    <label class="checklabel"><input name="share_consent" type="checkbox" required> Je choisis de partager avec les membres ce message, la durée affichée, ainsi que l’émotion et l’image que j’ai ajoutées.</label>
+    <label class="checklabel"><input name="share_consent" type="checkbox" required data-error-required="Confirme le partage avant de publier."> Je choisis de partager avec les membres ce message, la durée affichée, ainsi que l’émotion et l’image que j’ai ajoutées.</label>
     <p class="community-inline-status small" data-community-status role="status" aria-live="polite"></p>
     <button type="submit" class="primary full">${id?'Enregistrer les modifications':'Publier'}</button>${source?'<button type="button" class="text full" data-community-cancel>Annuler le partage</button>':''}</form>`);
     const form=document.getElementById('communityPostForm');
