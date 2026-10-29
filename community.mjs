@@ -33,7 +33,7 @@ export async function prepareImage(file){
   }finally{URL.revokeObjectURL(url);image.onload=null;image.onerror=null;}
 }
 
-/** Native app integration; no second auth client and no access to private tracking. */
+/** Native app integration; journal content is supplied only after an explicit share action. */
 export function createCommunity({S,getClient,checkResult,notify,message,modal,closeModal,render,greeting,sessionContext,sameSession,assertSession}){
   let filters=emptyFilters(),contextSeen=null,revision=0,loading=false,feedError='',draft=null,demoPool=[];
   const demoURLs=new Set();
@@ -111,47 +111,90 @@ export function createCommunity({S,getClient,checkResult,notify,message,modal,cl
     <p class="small community-hint">Échanges entre membres, sans suivi médical ni surveillance d’urgence. Les signalements concernent aussi les images et sont examinés manuellement.</p>`;
   }
   function draftCurrent(d){return draft===d&&document.contains(d.form)&&sameSession(d.context);}
+  function sourceAllowed(d){try{return !d.journal||d.journal.valid()===true;}catch{return false;}}
+  function assertDraftContext(d){assertSession(d.context);if(!sourceAllowed(d))throw Error('Ton journal n’est plus accessible. Rouvre la note avant de la partager.');}
   function status(d,text){if(draftCurrent(d))d.form.querySelector('[data-community-status]').textContent=text;}
+  function updateComposer(d){
+    if(!draftCurrent(d))return;
+    const body=d.form.elements.body,count=[...body.value.trim()].length,over=count>2000;
+    body.setCustomValidity(over?'Raccourcis la copie à 2 000 caractères maximum. Ta note privée reste complète.':'');
+    const counter=d.form.querySelector('[data-community-body-count]');
+    if(counter){counter.textContent=count.toLocaleString('fr-FR')+' / 2 000 caractères'+(over?' · Raccourcis cette copie pour la publier.':'');counter.classList.toggle('error-box',over);body.setAttribute('aria-invalid',String(over));}
+    const submit=d.form.querySelector('[type="submit"]');submit.disabled=d.busy||d.processing||d.imageUnresolved||over||!sourceAllowed(d);
+    submit.textContent=d.pendingWrite?'Vérifier la publication':d.editing?'Enregistrer les modifications':'Publier';
+    const retry=d.form.querySelector('[data-community-image-retry]');if(retry){retry.hidden=!d.imageError;retry.disabled=d.busy||d.processing;}
+    const imageError=d.form.querySelector('[data-community-image-error]');if(imageError){imageError.textContent=d.imageError;imageError.hidden=!d.imageError;}
+  }
   function updatePreview(d){
     if(!draftCurrent(d))return;
     const image=d.form.querySelector('[data-community-preview]'),url=d.previewURL||(!d.removeImage?d.original.image_url:'')||'';
     image.hidden=!url;if(url)image.src=url;else image.removeAttribute('src');
-    d.form.querySelector('[data-community-remove]').hidden=!(url||(!d.removeImage&&d.original.image_path));
-    d.form.querySelector('[name="image_alt"]').closest('label').hidden=!(url||(!d.removeImage&&d.original.image_path));
+    d.form.querySelector('[data-community-remove]').hidden=!(url||d.imageUnresolved||(!d.removeImage&&d.original.image_path));
+    d.form.querySelector('[name="image_alt"]').closest('label').hidden=!(url||d.imageUnresolved||(!d.removeImage&&d.original.image_path));
   }
   async function chooseImage(d,file){
-    if(!draftCurrent(d))return;
-    const token=++d.sequence;d.processing=true;d.form.querySelector('[type="submit"]').disabled=true;status(d,'Préparation de l’image…');
+    if(!draftCurrent(d)||d.busy||d.pendingWrite||!sourceAllowed(d))return;
+    const token=++d.sequence;d.processing=true;updateComposer(d);status(d,'Préparation de l’image…');
     try{
       const blob=await prepareImage(file);
-      if(!draftCurrent(d)||d.sequence!==token)return;
+      if(!draftCurrent(d)||d.sequence!==token||!sourceAllowed(d))return;
       if(d.previewURL)URL.revokeObjectURL(d.previewURL);
-      d.blob=blob;d.previewURL=URL.createObjectURL(blob);d.removeImage=false;updatePreview(d);status(d,'Image prête. Elle sera envoyée uniquement avec la publication.');
+      d.blob=blob;d.previewURL=URL.createObjectURL(blob);d.removeImage=false;d.imageUnresolved=false;d.imageError='';updatePreview(d);status(d,'Image prête. Elle sera envoyée uniquement avec la publication.');
     }catch(error){if(draftCurrent(d)&&d.sequence===token){d.form.querySelector('[name="image"]').value='';status(d,message(error));}}
-    finally{if(draftCurrent(d)&&d.sequence===token){d.processing=false;d.form.querySelector('[type="submit"]').disabled=false;}}
+    finally{if(draftCurrent(d)&&d.sequence===token){d.processing=false;updateComposer(d);}}
   }
-  function openPost(id){
+  async function loadJournalImage(d){
+    if(!draftCurrent(d)||d.busy||!d.journal||!sourceAllowed(d))return;
+    const token=++d.sequence;d.processing=true;d.imageUnresolved=true;d.imageError='';updateComposer(d);updatePreview(d);status(d,'Préparation de l’image de ta note…');
+    try{
+      const blob=d.journal.imageBlob||await d.journal.loadImage();
+      if(!draftCurrent(d)||d.sequence!==token||!sourceAllowed(d))return;
+      // Journal images have already been decoded and re-encoded locally. Check
+      // the transfer boundary without uploading or exposing the private path.
+      if(!blob||blob.type!=='image/jpeg'||!blob.size||blob.size>MAX_IMAGE_BYTES||typeof blob.slice!=='function'||imageSignature(new Uint8Array(await blob.slice(0,12).arrayBuffer()))!=='image/jpeg')throw Error('L’image préparée est indisponible ou invalide.');
+      if(!draftCurrent(d)||d.sequence!==token||!sourceAllowed(d))return;
+      if(d.previewURL)URL.revokeObjectURL(d.previewURL);
+      d.blob=blob;d.previewURL=URL.createObjectURL(blob);d.removeImage=false;d.imageUnresolved=false;updatePreview(d);status(d,'Image prête. Elle sera partagée uniquement si tu publies cette copie.');
+    }catch(error){
+      if(draftCurrent(d)&&d.sequence===token&&sourceAllowed(d)){d.imageError='L’image de ta note n’a pas pu être chargée. Réessaie, choisis une autre image ou retire-la pour publier sans image. '+message(error);status(d,'');}
+    }finally{if(draftCurrent(d)&&d.sequence===token){d.processing=false;updateComposer(d);updatePreview(d);}}
+  }
+  /** Opens a reviewed independent copy. No journal write or publication occurs here. */
+  function openFromJournal({entry,imageBlob=null,loadImage=null,onPublished=null,valid=()=>true}={}){
+    const context=ensure();assertSession(context);
+    if(!entry||entry.user_id&&entry.user_id!==context.user.id)throw Error('Cette note ne peut pas être partagée.');
+    const journal={imageBlob,loadImage:typeof loadImage==='function'?loadImage:null,onPublished:typeof onPublished==='function'?onPublished:null,valid:typeof valid==='function'?valid:()=>false};
+    if(!sourceAllowed({journal}))throw Error('Ton journal n’est plus accessible. Rouvre la note avant de la partager.');
+    const prefill={body:String(entry.title??'')+'\n\n'+String(entry.body??''),kind:entry.kind==='victory'?'victory':entry.kind==='difficult'?'struggle':'share',emotion:null,abstinence_days:null,image_path:null,image_alt:imageBlob||journal.loadImage?String(entry.image_alt||''):null};
+    openPost(null,{journal,prefill});
+  }
+  function openPost(id,source=null){
     const context=ensure();assertSession(context);releaseDraft();
-    const p=id?S.posts.find(x=>x.id===id):{};
+    const p=id?S.posts.find(x=>x.id===id):source?.prefill||{};
     if(!p||(id&&p.author_id!==context.user.id))throw Error('Cette publication ne peut pas être modifiée.');
-    modal(id?'Modifier ma publication':'Partager avec les membres',`<p class="small">Ton message et les options choisies seront visibles par les membres. Ton suivi privé reste séparé.</p>
+    modal(id?'Modifier ma publication':source?'Partager ma note avec la communauté':'Partager avec les membres',`<p class="small">${source?'Ta note d’origine reste privée. Tu prépares une copie indépendante, visible par les membres avec ton pseudo. Modifier cette copie ou annuler le partage ne modifie pas ta note.':'Ton message et les options choisies seront visibles par les membres. Ton suivi privé reste séparé.'}</p>
     <form id="communityPostForm" class="community-composer">
     <div class="two-fields">${select('kind','Type',KINDS,p.kind||'share')}${select('emotion','Mon émotion · facultatif',[['','Ne pas préciser'],...EMOTIONS],p.emotion||'')}</div>
-    <label>Mon message<textarea name="body" rows="4" maxlength="2000" required placeholder="Un ressenti, une victoire, une question…">${esc(p.body||'')}</textarea></label>
+    <label>${source?'La copie à partager':'Mon message'}<textarea name="body" rows="${source?'6':'4'}" ${source?'':'maxlength="2000"'} required aria-describedby="communityBodyCount" placeholder="Un ressenti, une victoire, une question…">${esc(p.body||'')}</textarea></label><p id="communityBodyCount" class="small" data-community-body-count aria-live="polite"></p>
     <label>Jours consécutifs sans alcool au partage · facultatif<input name="abstinence_days" type="number" inputmode="numeric" min="0" max="50000" step="1" value="${esc(p.abstinence_days??'')}" placeholder="Laisser vide pour ne pas partager" aria-describedby="communityDurationHelp"></label>
     <p id="communityDurationHelp" class="small">Durée que tu choisis de déclarer${id?' pour la date du message d’origine':''}. Aucun chiffre n’est repris automatiquement de ton suivi privé.</p>
     <div class="community-image-panel"><label>Ajouter une image · facultatif<input name="image" type="file" accept="image/jpeg,image/png,image/webp" aria-describedby="communityImageHelp"></label><p id="communityImageHelp" class="small">1 image, JPEG / PNG / WebP, 10 Mo maximum. Évite les informations personnelles et les photos d’autrui sans leur accord.</p>
     <img class="community-preview" data-community-preview alt="Aperçu de l’image jointe" hidden><button class="text" type="button" data-community-remove hidden>Retirer l’image</button>
+    ${source?'<p class="error-box" data-community-image-error role="alert" hidden></p><button class="secondary" type="button" data-community-image-retry hidden>Réessayer de charger l’image</button>':''}
     <label hidden>Décrire l’image · facultatif<input name="image_alt" maxlength="180" value="${esc(p.image_alt||'')}" placeholder="Une courte description accessible"></label></div>
     <label class="checklabel"><input name="share_consent" type="checkbox" required> Je choisis de partager ce message, ainsi que l’émotion, la durée et l’image que j’ai ajoutées, avec les membres.</label>
     <p class="community-inline-status small" data-community-status role="status" aria-live="polite"></p>
-    <button type="submit" class="primary full">${id?'Enregistrer les modifications':'Publier'}</button></form>`);
+    <button type="submit" class="primary full">${id?'Enregistrer les modifications':'Publier'}</button>${source?'<button type="button" class="text full" data-community-cancel>Annuler le partage</button>':''}</form>`);
     const form=document.getElementById('communityPostForm');
-    const d=draft={form,context,id:id||crypto.randomUUID(),editing:!!id,original:{...p},blob:null,previewURL:'',removeImage:false,sequence:0,processing:false,busy:false};
-    updatePreview(d);
+    const d=draft={form,context,id:id||crypto.randomUUID(),editing:!!id,original:{...p},blob:null,previewURL:'',removeImage:false,sequence:0,processing:false,busy:false,journal:source?.journal||null,imageUnresolved:false,imageError:'',pendingWrite:null};
+    updatePreview(d);updateComposer(d);
+    form.elements.body.addEventListener('input',()=>updateComposer(d));
     form.querySelector('[name="image"]').addEventListener('change',event=>{const file=event.target.files?.[0];if(file)void chooseImage(d,file);});
-    form.querySelector('[data-community-remove]').addEventListener('click',()=>{if(!draftCurrent(d)||d.busy)return;d.sequence++;d.processing=false;d.blob=null;d.removeImage=true;if(d.previewURL)URL.revokeObjectURL(d.previewURL);d.previewURL='';form.querySelector('[name="image"]').value='';form.querySelector('[name="image_alt"]').value='';form.querySelector('[type="submit"]').disabled=false;updatePreview(d);status(d,'Image retirée du brouillon.');});
+    form.querySelector('[data-community-remove]').addEventListener('click',()=>{if(!draftCurrent(d)||d.busy||d.pendingWrite)return;d.sequence++;d.processing=false;d.blob=null;d.removeImage=true;d.imageUnresolved=false;d.imageError='';if(d.previewURL)URL.revokeObjectURL(d.previewURL);d.previewURL='';form.querySelector('[name="image"]').value='';form.querySelector('[name="image_alt"]').value='';updateComposer(d);updatePreview(d);status(d,'Image retirée du brouillon.');});
+    form.querySelector('[data-community-image-retry]')?.addEventListener('click',()=>void loadJournalImage(d));
+    form.querySelector('[data-community-cancel]')?.addEventListener('click',()=>{if(draftCurrent(d)&&!d.busy)closeModal();});
     form.addEventListener('submit',event=>{event.preventDefault();event.stopImmediatePropagation();void savePost(d);},true);
+    if(d.journal&&(d.journal.imageBlob||d.journal.loadImage))void loadJournalImage(d);
   }
   async function removeUnusedImage(db,path,context){
     if(!validImagePath(path,context.user.id)||!sameSession(context))return false;
@@ -163,17 +206,30 @@ export function createCommunity({S,getClient,checkResult,notify,message,modal,cl
     }catch{return false;}
   }
   async function savePost(d){
-    if(!draftCurrent(d)||d.busy||d.processing)return;
-    if(!d.form.reportValidity())return;
-    const context=d.context;let db,uploadedPath='',saved=null,writeStarted=false,definiteRejection=false;
+    if(!draftCurrent(d)||d.busy||d.processing||d.imageUnresolved)return;
+    if(!d.pendingWrite&&!d.form.reportValidity())return;
+    const context=d.context;let db,uploadedPath=d.pendingWrite?.uploadedPath||'',saved=null,writeStarted=!!d.pendingWrite,definiteRejection=false;
     d.busy=true;const controls=[...d.form.querySelectorAll('input,textarea,select,button')];
-    const values=new FormData(d.form);controls.forEach(x=>x.disabled=true);status(d,'Publication en cours…');
+    const values=d.pendingWrite?null:new FormData(d.form);controls.forEach(x=>x.disabled=true);status(d,d.pendingWrite?'Vérification de la publication…':'Publication en cours…');
     try{
-      assertSession(context);
-      if(!values.has('share_consent'))throw Error('Confirme les informations que tu souhaites partager.');
-      const row=validatePost(Object.fromEntries(values));
-      row.image_path=d.removeImage?null:(d.original.image_path||null);
-      if(!row.image_path&&!d.blob)row.image_alt=null;
+      assertDraftContext(d);
+      let row;
+      if(d.pendingWrite){
+        row={...d.pendingWrite.row};db=await getClient();assertDraftContext(d);
+        // Keep the exact payload and uploaded path after an uncertain response.
+        // Read it back before any retry so a committed copy cannot be duplicated.
+        const recovered=checkResult(await db.from('posts').select(COLUMNS).eq('id',d.id).eq('author_id',context.user.id).maybeSingle());
+        assertDraftContext(d);
+        if(recovered){
+          if(!Object.entries(row).every(([key,value])=>(recovered[key]??null)===(value??null)))throw Error('Cette publication existe déjà avec un autre contenu. Ferme le brouillon et retrouve-la dans la communauté.');
+          saved=recovered;
+        }
+      }else{
+        if(!values.has('share_consent'))throw Error('Confirme les informations que tu souhaites partager.');
+        row=validatePost(Object.fromEntries(values));
+        row.image_path=d.removeImage?null:(d.original.image_path||null);
+        if(!row.image_path&&!d.blob)row.image_alt=null;
+      }
       if(context.demo){
         let imageURL=d.removeImage?'':d.original.image_url||'';
         if(d.blob){imageURL=URL.createObjectURL(d.blob);demoURLs.add(imageURL);}
@@ -181,33 +237,44 @@ export function createCommunity({S,getClient,checkResult,notify,message,modal,cl
         demoPool=d.editing?demoPool.map(p=>p.id===d.id?saved:p):[saved,...demoPool];S.posts=demoPool;
       }else{
         if(!navigator.onLine)throw Error('Hors connexion. Ton brouillon n’a pas été publié.');
-        db=await getClient();assertSession(context);
-        if(d.blob){
+        db||=await getClient();assertDraftContext(d);
+        if(d.blob&&!d.pendingWrite){
           uploadedPath=context.user.id+'/'+crypto.randomUUID()+'.jpg';status(d,'Envoi de l’image…');
           checkResult(await db.storage.from(BUCKET).upload(uploadedPath,d.blob,{contentType:'image/jpeg',cacheControl:'60',upsert:false}));
-          assertSession(context);row.image_path=uploadedPath;
+          assertDraftContext(d);row.image_path=uploadedPath;
         }
-        status(d,'Enregistrement du message…');
-        try{
-          writeStarted=true;
-          saved=checkResult(await (d.editing?db.from('posts').update({...row,updated_at:new Date().toISOString()}).eq('id',d.id).eq('author_id',context.user.id):db.from('posts').insert({...row,id:d.id,author_id:context.user.id})).select(COLUMNS).single());
-        }catch(error){
-          definiteRejection=typeof error?.code==='string'&&/^(?:22|23|42|PGRST)/.test(error.code);
-          // A timeout can happen after the write. Confirm the exact payload before retrying.
+        if(!saved){
+          assertDraftContext(d);status(d,'Enregistrement du message…');
+          d.pendingWrite={row:{...row},uploadedPath};
           try{
-            const recovered=checkResult(await db.from('posts').select(COLUMNS).eq('id',d.id).eq('author_id',context.user.id).maybeSingle());
-            if(recovered&&Object.entries(row).every(([key,value])=>(recovered[key]??null)===(value??null)))saved=recovered;
-          }catch{/* Keep the draft when confirmation is impossible. */}
-          if(!saved)throw error;
+            writeStarted=true;
+            saved=checkResult(await (d.editing?db.from('posts').update({...row,updated_at:new Date().toISOString()}).eq('id',d.id).eq('author_id',context.user.id):db.from('posts').insert({...row,id:d.id,author_id:context.user.id})).select(COLUMNS).single());
+          }catch(error){
+            definiteRejection=typeof error?.code==='string'&&/^(?:22|23|42|PGRST)/.test(error.code);
+            // A timeout can happen after the write. Confirm the exact payload before retrying.
+            try{
+              assertDraftContext(d);
+              const recovered=checkResult(await db.from('posts').select(COLUMNS).eq('id',d.id).eq('author_id',context.user.id).maybeSingle());
+              assertDraftContext(d);
+              if(recovered&&Object.entries(row).every(([key,value])=>(recovered[key]??null)===(value??null)))saved=recovered;
+            }catch{/* Keep the draft when confirmation is impossible. */}
+            if(!saved)throw error;
+          }
         }
-        assertSession(context);
+        assertDraftContext(d);
       }
+      if(!saved?.id)throw Error('La publication n’a pas pu être confirmée.');
     }catch(error){
       if(uploadedPath&&db&&!saved&&(!writeStarted||definiteRejection))await removeUnusedImage(db,uploadedPath,context);
-      if(draftCurrent(d))status(d,message(error)+' Ton brouillon reste ouvert.');
-      d.busy=false;controls.forEach(x=>x.disabled=false);return;
+      if(!writeStarted||definiteRejection||saved)d.pendingWrite=null;
+      if(draftCurrent(d))status(d,d.pendingWrite?'La publication n’a pas pu être confirmée. Vérifie son état avant de réessayer ; ton brouillon est conservé.':message(error)+' Ton brouillon reste ouvert.');
+      d.busy=false;controls.forEach(x=>x.disabled=!!d.pendingWrite&&x.type!=='submit'&&!x.matches('[data-community-cancel]'));updateComposer(d);return;
     }
-    if(!sameSession(context))return;
+    d.pendingWrite=null;
+    if(!sameSession(context)||!sourceAllowed(d))return;
+    let callbackFailed=false;
+    if(d.journal?.onPublished){try{await d.journal.onPublished(saved);}catch{callbackFailed=true;}}
+    if(!sameSession(context)||!sourceAllowed(d))return;
     if(draftCurrent(d))closeModal();
     let cleanupFailed=false;
     if(!context.demo&&d.original.image_path&&d.original.image_path!==saved.image_path){cleanupFailed=!await removeUnusedImage(db,d.original.image_path,context);}
@@ -215,7 +282,7 @@ export function createCommunity({S,getClient,checkResult,notify,message,modal,cl
     S.feedPage=0;
     try{await loadFeed();if(inCommunity())render();}catch{/* Saved successfully; the feed already displays its loading error. */}
     if(!sameSession(context))return;
-    notify(context.demo?'Publication de démonstration : rien n’a été envoyé en ligne.':cleanupFailed?'Message enregistré. Le nettoyage de l’ancienne image n’a pas pu être confirmé.':'Publication enregistrée.');
+    notify(context.demo?'Publication de démonstration : rien n’a été envoyé en ligne.':callbackFailed?'Publication enregistrée. Le lien avec ta note n’a pas pu être actualisé.':cleanupFailed?'Message enregistré. Le nettoyage de l’ancienne image n’a pas pu être confirmé.':'Publication enregistrée.');
   }
   async function removePost(button){
     const context=ensure();assertSession(context);const id=button.dataset.id,p=S.posts.find(x=>x.id===id);
@@ -243,5 +310,5 @@ export function createCommunity({S,getClient,checkResult,notify,message,modal,cl
   document.addEventListener('error',event=>{const image=event.target;if(image?.matches?.('img.community-image')){image.hidden=true;const button=image.closest('button');if(button&&!button.querySelector('span')){const span=document.createElement('span');span.textContent='Recharger l’image';span.className='small';button.append(span);}}},true);
   document.getElementById('modal')?.addEventListener('close',()=>{if(!document.getElementById('modal').open)releaseDraft();});
   const root=document.getElementById('modalContent');if(root)new MutationObserver(()=>{if(draft&&!document.contains(draft.form))releaseDraft();}).observe(root,{childList:true});
-  return {loadFeed,view,postList,openPost,removePost,reset};
+  return {loadFeed,view,postList,openPost,openFromJournal,removePost,reset};
 }

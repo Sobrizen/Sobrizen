@@ -15,7 +15,7 @@ Frontend statique en français, sans build, hébergé sur Vercel. Backend Supaba
 - Courbes sur 7 jours, 30 jours et 12 mois glissants, avec arrêts/reprises, estimations identifiées et données notées prioritaires.
 - Aperçu du bilan avant sauvegarde, correction des dates et périodes passées, conservation des acquis et des objectifs.
 - 30 étapes de réflexion à son rythme : contenus originaux, non validés comme traitement médical.
-- Journal privé (50 notes récentes à l'écran, export complet), plan de soutien et contact facultatif.
+- Journal personnel (50 notes récentes à l’écran, export complet du texte) : image facultative privée, aperçu, remplacement, retrait et téléchargement. Choix « Garder pour moi » par défaut, ou copie relue et explicitement publiée dans la communauté depuis la note. Voir [le fonctionnement et le stockage](docs/journal-images-and-sharing.md). Plan de soutien et contact facultatif.
 - Minuteur basé sur une échéance réelle, respiration et ancrage, ressources d'aide.
 - Communauté paginée, commentaires, suppression de ses contenus, signalement manuel, masquage personnel.
 - Récupération de mot de passe, renvoi de confirmation, export du suivi, rappel calendrier ICS.
@@ -32,6 +32,6 @@ Pas de chatbot IA, pas de vidéos hébergées, pas de notifications push, pas de
 Les offres gratuites restent soumises aux quotas et conditions des hébergeurs. Vercel Hobby est limité aux usages personnels non commerciaux.
 
 ## Validation
-Tests ciblés de l’interface : `node tests/section-navigation-dom.test.mjs` et `node tests/journal-motivation-dom.test.mjs`, avec la dépendance de test jsdom indiquée dans `tests/ux-dom-support.mjs`. Les tests ne contactent aucun service réel et utilisent uniquement des données fictives.
+Tests ciblés de l’interface : `node tests/section-navigation-dom.test.mjs`, `node tests/journal-motivation-dom.test.mjs`, `node tests/journal-notes-dom.test.mjs` et `node tests/community-journal-dom.test.mjs`, avec la dépendance de test jsdom indiquée dans `tests/ux-dom-support.mjs`. Les tests ne contactent aucun service réel et utilisent uniquement des données fictives.
 
 Les tests locaux peuvent valider le rendu et les interactions avec un backend simulé. Ils ne remplacent pas une recette réelle des emails, de l'installation iOS/Android et du cycle complet sur le domaine de production.

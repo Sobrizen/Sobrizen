@@ -10,7 +10,7 @@ export function integrateApp(source){
     if(!source.includes(anchor))throw Error('Community integration: missing anchor '+anchor);
   }
   if(source.split('\ninitGames();').length!==2)throw Error('Community integration: ambiguous boot anchor.');
-  const bridge=`\n${MARKER}\nconst community=createCommunity({S,getClient,checkResult,notify,message,modal,closeModal,render,greeting,sessionContext,sameSession,assertSession});\ncommunityView=community.view;\npostList=community.postList;\npostModal=community.openPost;\nloadFeed=community.loadFeed;\nactionHandlers['post-delete']=community.removePost;\nconst invalidateBeforeCommunity=invalidateSession;\ninvalidateSession=()=>{invalidateBeforeCommunity();community.reset();};\n`;
+  const bridge=`\n${MARKER}\nconst community=createCommunity({S,getClient,checkResult,notify,message,modal,closeModal,render,greeting,sessionContext,sameSession,assertSession});\ncommunityView=community.view;\npostList=community.postList;\npostModal=community.openPost;\nloadFeed=community.loadFeed;\nactionHandlers['post-delete']=community.removePost;\njournalShareHandler=community.openFromJournal;\nconst invalidateBeforeCommunity=invalidateSession;\ninvalidateSession=()=>{invalidateBeforeCommunity();community.reset();};\n`;
   return "import {createCommunity} from './community.mjs';\n"+source.replace('\ninitGames();',bridge+'\ninitGames();');
 }
 export function integrateWorker(source){
