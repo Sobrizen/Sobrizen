@@ -34,6 +34,7 @@
 
 /* Duration sits beside the username, without turning the feed into a ranking. */
 .community-post .community-author{display:flex;flex:1 1 210px;flex-wrap:nowrap;align-items:flex-start;gap:10px;min-width:0}
+.community-post .post-top>.tag{align-self:flex-start}
 .community-author-identity{flex:1;min-width:0}
 .community-author-identity>b{display:block;line-height:1.45;overflow-wrap:anywhere}
 .community-author-meta{display:flex;flex-wrap:wrap;align-items:center;gap:5px 8px;margin-top:4px;min-width:0}
