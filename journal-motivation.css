@@ -35,18 +35,18 @@
 .jm-demo{background:#eef6fa;border:1px solid #d2e4ec;border-radius:12px;padding:11px 13px;color:#355d72;font-size:.78rem;line-height:1.5}
 .jm-load-error,.jm-quote-error{border:1px solid #ebc9c5;border-radius:12px;background:#fff3f1;color:#8e3535;padding:12px 14px;font-size:.9rem;line-height:1.5}
 .jm-load-error p{margin:0 0 8px}
-body.ux-ready #modal:has([data-journal-quote]){width:min(500px,calc(100vw - 32px));max-height:min(820px,calc(100dvh - 40px));padding:28px;border-radius:27px;border:1px solid #d8e8ed;background:#fff;color:#173b4e;box-shadow:0 25px 100px #153d5233;overflow-y:auto;overscroll-behavior:contain;animation:jm-appear 180ms ease-out}
+body.ux-ready #modal:has([data-journal-quote]){width:min(540px,calc(100vw - 32px));max-height:min(820px,calc(100dvh - 40px));padding:24px;border-radius:27px;border:1px solid #d8e8ed;background:#fff;color:#173b4e;box-shadow:0 25px 100px #153d5233;overflow-y:auto;overscroll-behavior:contain;animation:jm-appear 180ms ease-out}
 body.ux-ready #modal:has([data-journal-quote])::backdrop{background:#15384966;backdrop-filter:blur(5px)}
 body.ux-ready #modal:has([data-journal-quote]) #modalContent{padding:0}
-body.ux-ready #modal:has([data-journal-quote]) .modal-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px}
+body.ux-ready #modal:has([data-journal-quote]) .modal-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
 body.ux-ready #modal:has([data-journal-quote]) .modal-top h2{margin:0;font-size:1rem;line-height:1.35;color:#4b6877;font-weight:600}
 body.ux-ready #modal:has([data-journal-quote]) .close{display:grid;place-items:center;min-width:44px;min-height:44px;flex:0 0 44px;background:#eef5f7;color:#315569;border-radius:50%;font-size:25px}
 .jm-quote{text-align:center;min-width:0}
-.jm-quote-symbol{width:64px;height:64px;margin:0 auto 20px;display:grid;place-items:center;border-radius:21px;background:#e8f5f5;color:#137681}
-.jm-quote-symbol svg{width:34px;height:34px}
+.jm-quote-symbol{width:48px;height:48px;margin:0 auto 12px;display:grid;place-items:center;border-radius:21px;background:#e8f5f5;color:#137681}
+.jm-quote-symbol svg{width:27px;height:27px}
 .jm-quote .eyebrow{color:#467681;font-size:.65rem;letter-spacing:.18em}
-.jm-quote blockquote{margin:16px 0 14px;font-size:clamp(1.65rem,5.6vw,2.15rem);font-weight:570;line-height:1.38;letter-spacing:-.045em;color:#173b4e;overflow-wrap:anywhere;outline-offset:7px}
-.jm-quote-credit{display:flex;flex-direction:column;gap:4px;min-width:0;margin:0 0 22px;color:#4e6b78;font-size:.8rem;line-height:1.5;overflow-wrap:anywhere}
+.jm-quote blockquote{margin:12px 0 12px;font-size:clamp(1.4rem,5.2vw,1.75rem);font-weight:570;line-height:1.38;letter-spacing:-.045em;color:#173b4e;overflow-wrap:anywhere;outline-offset:7px}
+.jm-quote-credit{display:flex;flex-direction:column;gap:3px;min-width:0;margin:0 0 14px;color:#4e6b78;font-size:.8rem;line-height:1.5;overflow-wrap:anywhere}
 .jm-quote-author{font-size:1rem;color:#173b4e;font-weight:700}
 .jm-quote-credit cite{font-style:normal}
 .jm-quote-location,.jm-quote-context{font-size:.76rem}
@@ -61,8 +61,8 @@ body.ux-ready #modal:has([data-journal-quote]) .close{display:grid;place-items:c
 .jm-quote.jm-quote-long blockquote{font-size:clamp(1.3rem,4.7vw,1.7rem);line-height:1.45}
 .jm-saved-quote .jm-quote-credit{margin-top:-8px}
 .jm-source-link:focus-visible,.jm-original summary:focus-visible{outline:3px solid #237fba;outline-offset:3px;border-radius:5px}
-.jm-quote-hint{max-width:310px;margin:0 auto 20px;color:#4e6b78;line-height:1.6;font-size:.9rem}
-.jm-quote-actions{display:grid;gap:8px;margin-top:20px}
+.jm-quote-hint{max-width:350px;margin:0 auto 14px;color:#4e6b78;line-height:1.6;font-size:.9rem}
+.jm-quote-actions{display:grid;gap:6px;margin-top:14px}
 .jm-quote-actions>button{display:flex;align-items:center;justify-content:center;gap:10px;min-height:50px;white-space:normal;line-height:1.4;padding:12px 14px}
 .jm-quote-actions>button.primary{background:#147a85;color:#fff;border:1px solid #147a85;box-shadow:0 5px 14px #147a851c}
 .jm-quote-actions>button.text{color:#406476}
@@ -80,9 +80,11 @@ body.ux-ready.dark #modal:has([data-journal-quote]) .modal-top h2,.dark .jm-quot
 body.ux-ready.dark #modal:has([data-journal-quote]) .close,.dark .jm-quote-symbol{background:#284b56;color:#aae2e4}
 .dark .jm-quote blockquote{color:#e5f2f7}.dark .jm-quote .eyebrow{color:#9dcbd0}
 @keyframes jm-appear{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-@media(max-width:640px){.jm-tabs{width:100%;margin-bottom:20px}.jm-tabs>[role=tab]{padding:10px 7px;font-size:.82rem;gap:6px}.jm-tabs svg{display:none}.jm-tabs>[role=tab]>span:not(.jm-tab-count){min-width:0}.jm-toolbar{align-items:stretch;flex-direction:column;gap:14px}.jm-toolbar .search{width:100%}.jm-toolbar>.primary{align-self:flex-start}.jm-motivation-intro{flex-direction:column;align-items:flex-start;gap:15px}.jm-quote-grid{grid-template-columns:minmax(0,1fr)}.jm-saved-quote{padding:21px}.jm-saved-quote blockquote{font-size:1.25rem}.jm-empty{padding:26px 18px}body.ux-ready #modal:has([data-journal-quote]){width:calc(100vw - 24px);max-height:calc(100dvh - 24px - env(safe-area-inset-top));padding:20px 20px max(20px,env(safe-area-inset-bottom));border-radius:24px;margin:auto auto max(12px,env(safe-area-inset-bottom))}.jm-quote-symbol{margin-bottom:17px;width:58px;height:58px}.jm-quote-actions{margin-top:16px}.jm-quote blockquote{font-size:clamp(1.5rem,6.3vw,1.95rem)}}
+@media(max-width:640px){.jm-tabs{width:100%;margin-bottom:20px}.jm-tabs>[role=tab]{padding:10px 7px;font-size:.82rem;gap:6px}.jm-tabs svg{display:none}.jm-tabs>[role=tab]>span:not(.jm-tab-count){min-width:0}.jm-toolbar{align-items:stretch;flex-direction:column;gap:14px}.jm-toolbar .search{width:100%}.jm-toolbar>.primary{align-self:flex-start}.jm-motivation-intro{flex-direction:column;align-items:flex-start;gap:15px}.jm-quote-grid{grid-template-columns:minmax(0,1fr)}.jm-saved-quote{padding:21px}.jm-saved-quote blockquote{font-size:1.25rem}.jm-empty{padding:26px 18px}body.ux-ready #modal:has([data-journal-quote]){width:calc(100vw - 24px);max-height:calc(100dvh - 24px - env(safe-area-inset-top));padding:20px 20px max(20px,env(safe-area-inset-bottom));border-radius:24px;margin:auto auto max(12px,env(safe-area-inset-bottom))}.jm-quote-symbol{margin-bottom:10px;width:44px;height:44px}.jm-quote-actions{margin-top:16px}.jm-quote blockquote{font-size:clamp(1.35rem,5.8vw,1.6rem)}}
 @media(prefers-reduced-motion:reduce){body.ux-ready #modal:has([data-journal-quote]){animation:none}}
 
 /* Keep attribution and sources readable with the user’s larger-text preference. */
 body.ux-large-text .jm-quote-credit,body.ux-large-text .jm-quote-location,body.ux-large-text .jm-quote-context,body.ux-large-text .jm-translation-label,body.ux-large-text .jm-source-link,body.ux-large-text .jm-original summary,body.ux-large-text .jm-original small{font-size:1rem;line-height:1.6}
 .jm-quote blockquote,.jm-saved-quote blockquote{white-space:pre-line}
+
+@media(max-height:700px){body.ux-ready #modal:has([data-journal-quote]) .jm-quote-symbol{display:none}body.ux-ready #modal:has([data-journal-quote]) .modal-top{margin-bottom:8px}.jm-quote blockquote{margin-top:9px}}
