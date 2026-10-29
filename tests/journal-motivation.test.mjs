@@ -1,0 +1,20 @@
+import assert from 'node:assert/strict';
+import {webcrypto} from 'node:crypto';
+import {MOTIVATION_QUOTES,MOTIVATION_TITLE,MOTIVATION_KIND,createQuoteRotation,isMotivationEntry,motivationEntryId} from '../journal-motivation.mjs';
+
+if(!globalThis.crypto)globalThis.crypto=webcrypto;
+assert.equal(MOTIVATION_QUOTES.length,40);
+assert.equal(new Set(MOTIVATION_QUOTES.map(quote=>quote.id)).size,40);
+assert.equal(new Set(MOTIVATION_QUOTES.map(quote=>quote.text)).size,40);
+const rotation=createQuoteRotation(()=>0),first=Array.from({length:40},()=>rotation.next());
+assert.equal(new Set(first.map(quote=>quote.id)).size,40,'All quotes appear before any repeats');
+assert.notEqual(rotation.next().id,first.at(-1).id,'Deck boundary never repeats the previous quote');
+const id=await motivationEntryId('account-one',MOTIVATION_QUOTES[0].id);
+assert.match(id,/^[0-9a-f]{8}-[0-9a-f]{4}-8[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+assert.equal(await motivationEntryId('account-one',MOTIVATION_QUOTES[0].id),id);
+assert.notEqual(await motivationEntryId('account-two',MOTIVATION_QUOTES[0].id),id);
+assert.notEqual(await motivationEntryId('account-one',MOTIVATION_QUOTES[1].id),id);
+assert.equal(isMotivationEntry({kind:MOTIVATION_KIND,title:MOTIVATION_TITLE,body:'Kept historical quote'}),true);
+assert.equal(isMotivationEntry({kind:'reflection',title:'Ma réflexion personnelle'}),false);
+assert.equal(isMotivationEntry({kind:'plan',title:MOTIVATION_TITLE}),false);
+console.log('PASS journal motivation catalog, rotation, compatible schema and stable account-scoped identifiers');

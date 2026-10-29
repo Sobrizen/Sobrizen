@@ -63,3 +63,9 @@ test('Build integration is idempotent and rejects source drift',()=>{
   const worker="const CACHE='sobrizen-v4-old';\nconst ASSETS=['/app.mjs'];";
   const updated=integrateWorker(worker);assert.equal(integrateWorker(updated),updated);assert(updated.includes('/community.mjs'));assert(!updated.includes('v4-old'));
 });
+test('A later release cache is preserved when the worker already includes community',()=>{
+  const worker="const CACHE='sobrizen-v4-20261029-modern-journal-1';\nconst ASSETS=['/app.mjs','/community.mjs','/community-core.mjs','/community.css','/modern.css','/journal-motivation.mjs'];";
+  const updated=integrateWorker(worker);
+  assert.equal(updated,worker,'A subsequent build must not revert the release cache or remove the new assets');
+  assert.equal(integrateWorker(updated),worker);
+});

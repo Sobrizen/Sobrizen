@@ -15,7 +15,9 @@ export function integrateApp(source){
 }
 export function integrateWorker(source){
   if(!/const CACHE='sobrizen-[^']+';/.test(source)||!source.includes('const ASSETS=['))throw Error('Community integration: unexpected service worker.');
-  source=source.replace(/const CACHE='sobrizen-[^']+';/,"const CACHE='sobrizen-v4-20261028-community-1';");
+  // Only migrate the old cache when adding community for the first time.
+  // Later release names are owned by sw.js and must survive every build.
+  if(!source.includes("'/community.mjs'"))source=source.replace(/const CACHE='sobrizen-[^']+';/,"const CACHE='sobrizen-v4-20261028-community-1';");
   for(const path of ['/community.mjs','/community-core.mjs','/community.css']){
     if(!source.includes("'"+path+"'"))source=source.replace('const ASSETS=[',"const ASSETS=['"+path+"',");
   }

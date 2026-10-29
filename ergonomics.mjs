@@ -1,4 +1,5 @@
 import {PAGE_LABELS,PAGE_HINTS,filterItems,gameCategory,formFingerprint} from './ergonomics-core.mjs';
+import {createSectionNavigation} from './section-navigation.mjs';
 /* Additive interface layer. Existing controllers alone own auth, payments and writes.
    No fetch, analytics, private-data persistence or automatic health progression. */
 const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
@@ -10,6 +11,7 @@ let started=false;
 export function initErgonomics(){
  if(started)return;started=true;
  const workspace=$('#workspace'),content=$('#content'),drawer=$('#appNav'),modal=$('#modal'),modalContent=$('#modalContent');
+ const sections=createSectionNavigation(content);
  const small=matchMedia('(max-width:800px)');
  let pageRoot=null,queued=false,lastPage='',lastOpen=false,returnFocus=null,filterObserver=null,filterView=null,pendingStepFocus=false;
  const forms=new WeakMap(),enhanced=new WeakSet(),sectionOpen=new Map();
@@ -44,7 +46,7 @@ export function initErgonomics(){
   const main=$('.main',workspace);if(main)main.inert=open;bottom.inert=open;
   if(!lastOpen&&open)($('#nav [aria-current="page"]',drawer)||visibleFocus(drawer)[0])?.focus({preventScroll:true});
   if(lastOpen&&!open&&active&&returnFocus?.isConnected&&small.matches)returnFocus.focus({preventScroll:true});lastOpen=open;
-  if(!active){filterObserver?.disconnect();filterView=null;pageRoot=null;sectionOpen.clear();lastPage='';}
+  if(!active){filterObserver?.disconnect();filterView=null;pageRoot=null;sectionOpen.clear();sections.reset();lastPage='';}
   groupMenu();
  }
  function formFields(f){return [...f.elements].filter(e=>e.matches('input,textarea,select')).map(e=>({name:e.name,type:e.type,value:['password','file'].includes(e.type)?'':e.value,checked:e.checked}));}
@@ -106,7 +108,7 @@ export function initErgonomics(){
   const grid=$('.step-grid',content);if(grid){const details=element('details','ux-step-picker'),current=$('.current',grid);const label=current?.getAttribute('aria-label')||'Mon programme';details.append(element('summary','',`${label} · choisir une étape`));grid.before(details);details.append(grid);}
   const form=$('#programForm',content),step=Number($('[name="step"]',form||content)?.value);
   const destinations={2:['Mes raisons','page','profile'],7:['Ouvrir mon suivi','page','progress'],8:['Trouver du soutien','action','help'],9:['Noter mon ressenti','page','health'],13:['Ouvrir mon journal','page','journal'],14:['Relire mon journal','page','journal'],15:['Mon plan personnel','page','profile'],18:['Vérifier mon profil','page','profile'],21:['Noter une consommation','tlAction','occasion'],22:['Mes outils de soutien','action','help'],26:['Ouvrir la communauté','page','community'],28:['Voir mon bilan','page','progress']};
-  if(form&&destinations[step]){const [label,key,value]=destinations[step],links=element('div','ux-program-link');links.append(nativeButton(label+' →',key,value));form.before(links);}
+  if(form&&destinations[step]){const [label,key,value]=destinations[step],links=element('div','ux-program-link'),link=nativeButton(label+' →',key,value);if([2,15].includes(step))link.dataset.szSection='motivation';if(step===9)link.dataset.szSection='feelings';links.append(link);form.before(links);}
   enhanceHistory();
  }
  function enhanceHealth(){
@@ -144,6 +146,7 @@ export function initErgonomics(){
   pageRoot=root;filterObserver?.disconnect();filterView=null;
   const page=document.body.dataset.page||'home';
   ({home:enhanceHome,journey:enhanceJourney,progress:enhanceHistory,journal:enhanceJournal,games:enhanceGames,community:enhanceCommunity,health:enhanceHealth,profile:enhanceProfile,movement:enhanceMovement}[page]||(()=>{}))();
+  sections.enhance(page);
   if(['journal','community','profile','games'].includes(page)){const heading=$('h1',content);if(heading)heading.textContent=PAGE_LABELS[page];}
   trackForms(content);syncShell();
   if(lastPage&&lastPage!==page&&!$('dialog[open]')){const heading=$('h1',content);if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true});}}lastPage=page;
@@ -165,6 +168,12 @@ export function initErgonomics(){
   const pageTransition=!modal?.open&&!target.closest('form')&&target.matches('[data-tl-action],[data-tl-chart-action],[data-tl-summary-action],[data-health-action="checkin"],[data-action="journey-settings"],[data-action="journey-date"],[data-action="reason-new"],[data-action="journal-new"],[data-action="journal-edit"],[data-action="post-new"],[data-action="post-edit"],[data-action="comments"],[data-action="help"]');
   const leaving=modalTransition||pageTransition||target.matches('[data-action="close"],[data-action="logout"],[data-action="step"],[data-page],[data-move="open"],[data-tl-action="history"],[data-tl-action="progress"]')||target.matches('a[href]')&&!target.getAttribute('href').startsWith('#')&&!/^(tel:|mailto:)/.test(target.getAttribute('href'));
   if(leaving&&!target.disabled&&!guard((target.dataset.action==='close'||modalTransition)&&modal?modal:document)){e.preventDefault();e.stopImmediatePropagation();return;}
+  if(target.dataset.page&&target.dataset.szSection)sections.remember(target.dataset.page,target.dataset.szSection);
+  if(target.dataset.tlAction==='history')sections.remember('journey','history');
+  if(target.dataset.action==='step')sections.remember('journey','steps');
+  if(['stage','current-stage'].includes(target.dataset.healthAction))sections.remember('health','benefits');
+  if(target.dataset.healthAction==='gain')sections.remember('health','feelings');
+  if(target.matches('a[href^="#"]')){let id;try{id=decodeURIComponent(target.getAttribute('href').slice(1));}catch{}const destination=id&&document.getElementById(id);if(destination&&sections.reveal(destination,{scroll:true})){e.preventDefault();return;}}
   if(target.dataset.action==='step')pendingStepFocus=true;
   const action=target.dataset.uxAction,value=target.dataset.uxValue;
   if(action==='navigate'){
