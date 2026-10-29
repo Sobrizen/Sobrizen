@@ -59,6 +59,7 @@ test('Image paths are author-owned JPEG UUID paths; magic bytes reject SVG',()=>
 test('Build integration is idempotent and rejects source drift',()=>{
   const fixture='function communityView(){}\nfunction postList(){}\nfunction postModal(){}\nasync function loadFeed(){}\nfunction invalidateSession(){}\nconst actionHandlers={};\ninitGames();';
   const once=integrateApp(fixture);assert.equal(integrateApp(once),once);assert(once.includes('communityView=community.view'));
+  assert(once.includes('getTrackingDuration:communityTrackingDuration'),'The built community must receive the canonical tracking bridge');
   assert.throws(()=>integrateApp('unrelated source'));assert.throws(()=>integrateApp(fixture+'\ninitGames();'));
   const worker="const CACHE='sobrizen-v4-old';\nconst ASSETS=['/app.mjs'];";
   const updated=integrateWorker(worker);assert.equal(integrateWorker(updated),updated);assert(updated.includes('/community.mjs'));assert(!updated.includes('v4-old'));

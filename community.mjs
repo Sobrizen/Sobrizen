@@ -1,6 +1,7 @@
+import {durationBadge} from './community-duration-ui.mjs';
 import {EMOTIONS,DURATIONS,KINDS,SORTS,PAGE_SIZE,BUCKET,MAX_SOURCE_BYTES,MAX_IMAGE_BYTES,esc,label,emptyFilters,normalizeFilters,validatePost,matchesPost,comparePosts,feedQuery,validImagePath,imageSignature} from './community-core.mjs';
 
-const COLUMNS='id,author_id,kind,body,emotion,abstinence_days,image_path,image_alt,created_at,updated_at,profiles!posts_author_id_fkey(display_name,username),post_likes(count),comments(count)';
+const COLUMNS='id,author_id,kind,body,emotion,abstinence_days,abstinence_source,image_path,image_alt,created_at,updated_at,profiles!posts_author_id_fkey(display_name,username),post_likes(count),comments(count)';
 const select=(name,title,options,value,extra='')=>`<label>${esc(title)}<select name="${esc(name)}" ${extra}>${options.map(([v,t])=>`<option value="${esc(v)}" ${v===value?'selected':''}>${esc(t)}</option>`).join('')}</select></label>`;
 const displayDate=value=>{const date=new Date(value);return Number.isFinite(date.valueOf())?date.toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'}):'';};
 const safeSignedURL=value=>{try{const u=new URL(value);return u.protocol==='https:'&&u.host==='lnvtowdbbagwfbewnchz.supabase.co'&&u.pathname.startsWith('/storage/v1/object/sign/community-images/')?u.href:'';}catch{return '';}};
@@ -34,7 +35,7 @@ export async function prepareImage(file){
 }
 
 /** Native app integration; journal content is supplied only after an explicit share action. */
-export function createCommunity({S,getClient,checkResult,notify,message,modal,closeModal,render,greeting,sessionContext,sameSession,assertSession}){
+export function createCommunity({S,getClient,checkResult,notify,message,modal,closeModal,render,greeting,sessionContext,sameSession,assertSession,getTrackingDuration=()=>({status:'unavailable',days:null,precision:'unknown'})}){
   let filters=emptyFilters(),contextSeen=null,revision=0,loading=false,feedError='',draft=null,demoPool=[];
   const demoURLs=new Set();
   if(!document.querySelector('link[data-community-style]')){const link=document.createElement('link');link.rel='stylesheet';link.href='/community.css';link.dataset.communityStyle='';document.head.append(link);}
@@ -51,7 +52,7 @@ export function createCommunity({S,getClient,checkResult,notify,message,modal,cl
       ['sam','Sam',4,'hope','share','Exemple fictif : je débute et je prends les choses un jour à la fois.'],
       ['lou','Lou',180,'calm','share','Exemple fictif : une soirée tranquille et un peu de lecture.'],
       ['alex','Alex',null,'stress','question','Exemple fictif : comment préparez-vous une soirée difficile ?']
-    ].map(([id,name,days,emotion,kind,body],i)=>({id:'demo-community-'+id,author_id:'demo-'+id,body,kind,emotion,abstinence_days:days,image_path:null,image_alt:null,created_at:new Date(now-i*3600000).toISOString(),profiles:{display_name:name+' · Démo',username:id+'_demo'},post_likes:[{count:i}],comments:[{count:0}]}));
+    ].map(([id,name,days,emotion,kind,body],i)=>({id:'demo-community-'+id,author_id:'demo-'+id,body,kind,emotion,abstinence_days:days,abstinence_source:days==null?null:'declared',image_path:null,image_alt:null,created_at:new Date(now-i*3600000).toISOString(),profiles:{display_name:name+' · Démo',username:id+'_demo'},post_likes:[{count:i}],comments:[{count:0}]}));
     S.demoFeedSeeded=true;
   }
   async function loadFeed(append=false){
@@ -89,10 +90,10 @@ export function createCommunity({S,getClient,checkResult,notify,message,modal,cl
     ensure();const rows=filteredRows();
     if(!rows.length)return `<article class="card community-empty">${loading?'Chargement des publications…':'Aucune publication avec ces filtres.'}<br><button class="text" type="button" data-community-reset>Afficher tous les messages</button></article>`;
     return rows.map(p=>{
-      const own=p.author_id===S.user.id,hasImage=!!p.image_path||!!(S.demo&&p.image_url),days=p.abstinence_days;
+      const own=p.author_id===S.user.id,hasImage=!!p.image_path||!!(S.demo&&p.image_url);
       const photo=hasImage?`<button type="button" class="community-image-button" data-community-image="${esc(p.id)}" aria-label="Ouvrir l’image jointe">${p.image_url?`<img class="community-image" src="${esc(p.image_url)}" alt="${esc(p.image_alt||'Image partagée par '+(p.profiles?.display_name||'un membre'))}" loading="lazy" decoding="async" referrerpolicy="no-referrer">`:'<span class="small">Afficher l’image</span>'}</button>`:'';
-      return `<article class="card community-post"><div class="post-top"><div class="row"><span class="avatar" aria-hidden="true">${esc((p.profiles?.display_name||'M').slice(0,1))}</span><div><b>${esc(p.profiles?.display_name||'Membre')}</b><div class="small">@${esc(p.profiles?.username||'membre')} · ${esc(displayDate(p.created_at))}</div></div></div><span class="tag">${esc(label(KINDS,p.kind,'Partage'))}</span></div>
-      <div class="community-tags">${p.emotion?`<span class="tag">${esc(label(EMOTIONS,p.emotion))}</span>`:''}${days!=null?`<span class="tag">${days===0?'Moins d’un jour':esc(days)+' jour'+(days>1?'s':'')} sans alcool · au partage</span>`:''}</div>
+      return `<article class="card community-post"><div class="post-top"><div class="row community-author"><span class="avatar" aria-hidden="true">${esc((p.profiles?.display_name||'M').slice(0,1))}</span><div class="community-author-identity"><b>${esc(p.profiles?.display_name||'Membre')}</b><div class="community-author-meta"><span class="community-author-handle">@${esc(p.profiles?.username||'membre')}</span>${durationBadge(p)}</div><time class="community-post-date" datetime="${esc(p.created_at)}">${esc(displayDate(p.created_at))}</time></div></div><span class="tag">${esc(label(KINDS,p.kind,'Partage'))}</span></div>
+      ${p.emotion?`<div class="community-tags"><span class="tag">${esc(label(EMOTIONS,p.emotion))}</span></div>`:''}
       <div class="community-body ${hasImage?'has-image':''}"><p class="entry-body">${esc(p.body)}</p>${photo}</div>
       <div class="post-actions"><button class="secondary" data-action="like" data-id="${esc(p.id)}" aria-pressed="${S.likes.has(p.id)}" aria-label="Soutenir cette publication">${S.likes.has(p.id)?'♥':'♡'} ${Number(p.post_likes?.[0]?.count)||0}</button><button class="secondary" data-action="comments" data-id="${esc(p.id)}">Commentaires (${Number(p.comments?.[0]?.count)||0})</button>${own?`<button class="text" data-action="post-edit" data-id="${esc(p.id)}">Modifier</button><button class="text" data-action="post-delete" data-id="${esc(p.id)}">Supprimer</button>`:`<button class="text" data-action="report" data-id="${esc(p.id)}">Signaler</button><button class="text" data-action="hide-author" data-id="${esc(p.author_id)}">Masquer pour moi</button>`}</div></article>`;
     }).join('');
@@ -104,12 +105,36 @@ export function createCommunity({S,getClient,checkResult,notify,message,modal,cl
     ${select('emotion','Émotion',[['all','Toutes les émotions'],...EMOTIONS,['unset','Émotion non partagée']],filters.emotion,'data-community-filter="emotion"')}
     ${select('sort','Trier par',SORTS,filters.sort,'data-community-filter="sort"')}</div>
     <form id="feedSearchForm" class="community-search"><label>Rechercher<input name="search" value="${esc(S.feedSearch)}" maxlength="80" type="search" placeholder="Un mot dans le message…"></label><button class="secondary">Chercher</button><button class="text" type="button" data-community-reset>Réinitialiser</button></form>
-    <p class="small community-hint">Durée déclarée au moment du partage, pas un classement des personnes. Les filtres se combinent.</p></section>
+    <p class="small community-hint">Durée au moment du partage, reprise du dernier arrêt pour les nouveaux messages. Les filtres se combinent.</p></section>
     <div class="filters" aria-label="Type de publication">${[['all','Tout'],...KINDS].map(([key,title])=>`<button class="${S.feedKind===key?'selected':''}" data-action="feed-kind" data-kind="${key}" aria-pressed="${S.feedKind===key}">${esc(title)}</button>`).join('')}</div>
     ${feedError?`<p class="error-box" role="alert">${esc(feedError)}</p>`:''}<div class="posts" aria-busy="${loading}">${postList()}</div>
     ${S.morePosts?'<button class="secondary full" data-action="feed-more">Afficher la suite</button>':''}
     <p class="small community-hint">Échanges entre membres, sans suivi médical ni surveillance d’urgence. Les signalements concernent aussi les images et sont examinés manuellement.</p>`;
   }
+  function currentDuration(d){
+    if(d.editing){
+      const days=d.original.abstinence_days;
+      return {status:'saved',days:Number.isSafeInteger(days)&&days>=0&&days<=50000?days:null,source:d.original.abstinence_source||null,precision:'unknown'};
+    }
+    try{
+      const source=getTrackingDuration();
+      if(source?.status==='active'&&Number.isSafeInteger(source.days)&&source.days>=0&&source.days<=50000)return {status:'active',days:source.days,source:'tracking',precision:source.precision==='minute'?'minute':'day'};
+      const status=['consent-required','missing','no-current-stop','unavailable'].includes(source?.status)?source.status:'unavailable';
+      return {status,days:null,source:null,precision:'unknown'};
+    }catch{return {status:'unavailable',days:null,source:null,precision:'unknown'};}
+  }
+  function durationPreview(duration){
+    const hasDays=duration.days!==null;
+    const title=duration.status==='saved'?'Durée au moment du partage':hasDays?'Ton arrêt actuel':'Aucune durée affichée';
+    const detail=duration.status==='saved'?(hasDays?'Cette durée reste celle du message d’origine, même si tu modifies le texte.':'Ce message a été publié sans durée. Sa modification n’ajoute pas ton suivi actuel.')
+      :hasDays?'Reprise automatiquement de ton dernier arrêt. Elle sera visible à côté de ton pseudo.'+(duration.precision==='day'?' Calcul selon les dates du suivi ; heure d’arrêt non précisée.':'')
+      :duration.status==='consent-required'?'Ton suivi n’est pas activé. Tu peux publier ce message sans badge de durée.'
+      :duration.status==='no-current-stop'?'Aucun arrêt en cours dans ton suivi. Ce message sera publié sans badge de durée.'
+      :duration.status==='missing'?'Renseigne ton dernier arrêt dans Mon suivi pour les prochains partages. Ce message sera publié sans badge de durée.'
+      :'Ton suivi est momentanément indisponible. Ce message sera publié sans badge de durée.';
+    return `<div class="community-duration-heading"><strong>${title}</strong>${durationBadge({abstinence_days:duration.days,abstinence_source:duration.source})}</div><p>${detail}</p>`;
+  }
+  function refreshDuration(d){const duration=currentDuration(d);d.duration=duration;const node=d.form?.querySelector('[data-community-duration]');if(node&&draftCurrent(d))node.innerHTML=durationPreview(duration);return duration;}
   function draftCurrent(d){return draft===d&&document.contains(d.form)&&sameSession(d.context);}
   function sourceAllowed(d){try{return !d.journal||d.journal.valid()===true;}catch{return false;}}
   function assertDraftContext(d){assertSession(d.context);if(!sourceAllowed(d))throw Error('Ton journal n’est plus accessible. Rouvre la note avant de la partager.');}
@@ -172,21 +197,21 @@ export function createCommunity({S,getClient,checkResult,notify,message,modal,cl
     const context=ensure();assertSession(context);releaseDraft();
     const p=id?S.posts.find(x=>x.id===id):source?.prefill||{};
     if(!p||(id&&p.author_id!==context.user.id))throw Error('Cette publication ne peut pas être modifiée.');
+    const duration=currentDuration({editing:!!id,original:p});
     modal(id?'Modifier ma publication':source?'Partager ma note avec la communauté':'Partager avec les membres',`<p class="small">${source?'Ta note d’origine reste privée. Tu prépares une copie indépendante, visible par les membres avec ton pseudo. Modifier cette copie ou annuler le partage ne modifie pas ta note.':'Ton message et les options choisies seront visibles par les membres. Ton suivi privé reste séparé.'}</p>
     <form id="communityPostForm" class="community-composer">
     <div class="two-fields">${select('kind','Type',KINDS,p.kind||'share')}${select('emotion','Mon émotion · facultatif',[['','Ne pas préciser'],...EMOTIONS],p.emotion||'')}</div>
     <label>${source?'La copie à partager':'Mon message'}<textarea name="body" rows="${source?'6':'4'}" ${source?'':'maxlength="2000"'} required aria-describedby="communityBodyCount" placeholder="Un ressenti, une victoire, une question…">${esc(p.body||'')}</textarea></label><p id="communityBodyCount" class="small" data-community-body-count aria-live="polite"></p>
-    <label>Jours consécutifs sans alcool au partage · facultatif<input name="abstinence_days" type="number" inputmode="numeric" min="0" max="50000" step="1" value="${esc(p.abstinence_days??'')}" placeholder="Laisser vide pour ne pas partager" aria-describedby="communityDurationHelp"></label>
-    <p id="communityDurationHelp" class="small">Durée que tu choisis de déclarer${id?' pour la date du message d’origine':''}. Aucun chiffre n’est repris automatiquement de ton suivi privé.</p>
+    <section class="community-duration-panel" data-community-duration aria-label="Durée affichée avec ma publication" aria-live="polite">${durationPreview(duration)}</section>
     <div class="community-image-panel"><label>Ajouter une image · facultatif<input name="image" type="file" accept="image/jpeg,image/png,image/webp" aria-describedby="communityImageHelp"></label><p id="communityImageHelp" class="small">1 image, JPEG / PNG / WebP, 10 Mo maximum. Évite les informations personnelles et les photos d’autrui sans leur accord.</p>
     <img class="community-preview" data-community-preview alt="Aperçu de l’image jointe" hidden><button class="text" type="button" data-community-remove hidden>Retirer l’image</button>
     ${source?'<p class="error-box" data-community-image-error role="alert" hidden></p><button class="secondary" type="button" data-community-image-retry hidden>Réessayer de charger l’image</button>':''}
     <label hidden>Décrire l’image · facultatif<input name="image_alt" maxlength="180" value="${esc(p.image_alt||'')}" placeholder="Une courte description accessible"></label></div>
-    <label class="checklabel"><input name="share_consent" type="checkbox" required> Je choisis de partager ce message, ainsi que l’émotion, la durée et l’image que j’ai ajoutées, avec les membres.</label>
+    <label class="checklabel"><input name="share_consent" type="checkbox" required> Je choisis de partager avec les membres ce message, la durée affichée, ainsi que l’émotion et l’image que j’ai ajoutées.</label>
     <p class="community-inline-status small" data-community-status role="status" aria-live="polite"></p>
     <button type="submit" class="primary full">${id?'Enregistrer les modifications':'Publier'}</button>${source?'<button type="button" class="text full" data-community-cancel>Annuler le partage</button>':''}</form>`);
     const form=document.getElementById('communityPostForm');
-    const d=draft={form,context,id:id||crypto.randomUUID(),editing:!!id,original:{...p},blob:null,previewURL:'',removeImage:false,sequence:0,processing:false,busy:false,journal:source?.journal||null,imageUnresolved:false,imageError:'',pendingWrite:null};
+    const d=draft={form,context,id:id||crypto.randomUUID(),editing:!!id,original:{...p},blob:null,previewURL:'',removeImage:false,sequence:0,processing:false,busy:false,journal:source?.journal||null,imageUnresolved:false,imageError:'',pendingWrite:null,duration};
     updatePreview(d);updateComposer(d);
     form.elements.body.addEventListener('input',()=>updateComposer(d));
     form.querySelector('[name="image"]').addEventListener('change',event=>{const file=event.target.files?.[0];if(file)void chooseImage(d,file);});
@@ -205,6 +230,9 @@ export function createCommunity({S,getClient,checkResult,notify,message,modal,cl
       checkResult(await db.storage.from(BUCKET).remove([path]));return true;
     }catch{return false;}
   }
+  const samePostValues=(actual,expected,keys=Object.keys(expected))=>!!actual&&keys.every(key=>(actual[key]??null)===(expected[key]??null));
+  const unchangedOriginal=(d,actual,row)=>samePostValues(actual,d.original,[...Object.keys(row),'updated_at']);
+  const editConflict=()=>Object.assign(Error('Cette publication a été modifiée ou supprimée ailleurs. Actualise la communauté avant de reprendre tes modifications.'),{code:'COMMUNITY_EDIT_CONFLICT'});
   async function savePost(d){
     if(!draftCurrent(d)||d.busy||d.processing||d.imageUnresolved)return;
     if(!d.pendingWrite&&!d.form.reportValidity())return;
@@ -220,13 +248,18 @@ export function createCommunity({S,getClient,checkResult,notify,message,modal,cl
         // Read it back before any retry so a committed copy cannot be duplicated.
         const recovered=checkResult(await db.from('posts').select(COLUMNS).eq('id',d.id).eq('author_id',context.user.id).maybeSingle());
         assertDraftContext(d);
-        if(recovered){
-          if(!Object.entries(row).every(([key,value])=>(recovered[key]??null)===(value??null)))throw Error('Cette publication existe déjà avec un autre contenu. Ferme le brouillon et retrouve-la dans la communauté.');
-          saved=recovered;
-        }
+        if(samePostValues(recovered,row))saved=recovered;
+        else if(d.editing){
+          // An uncommitted edit leaves the original row in place. It can be
+          // retried, but a changed/deleted version must never be overwritten.
+          if(!unchangedOriginal(d,recovered,row)){definiteRejection=true;throw editConflict();}
+        }else if(recovered)throw Error('Cette publication existe déjà avec un autre contenu. Ferme le brouillon et retrouve-la dans la communauté.');
       }else{
         if(!values.has('share_consent'))throw Error('Confirme les informations que tu souhaites partager.');
-        row=validatePost(Object.fromEntries(values));
+        const duration=refreshDuration(d);
+        // Ignore any manual/form value. Only the canonical tracking projection is copied.
+        row=validatePost({...Object.fromEntries(values),abstinence_days:duration.days});
+        row.abstinence_source=duration.source;
         row.image_path=d.removeImage?null:(d.original.image_path||null);
         if(!row.image_path&&!d.blob)row.image_alt=null;
       }
@@ -244,19 +277,28 @@ export function createCommunity({S,getClient,checkResult,notify,message,modal,cl
           assertDraftContext(d);row.image_path=uploadedPath;
         }
         if(!saved){
-          assertDraftContext(d);status(d,'Enregistrement du message…');
-          d.pendingWrite={row:{...row},uploadedPath};
+          assertDraftContext(d);
+          if(!d.editing&&!d.pendingWrite){const duration=refreshDuration(d);row.abstinence_days=duration.days;row.abstinence_source=duration.source;}
+          status(d,'Enregistrement du message…');
+          const updatedAt=d.pendingWrite?.updatedAt||new Date(Math.max(Date.now(),(Date.parse(d.original.updated_at)||0)+1)).toISOString();
+          d.pendingWrite={row:{...row},uploadedPath,updatedAt};
           try{
             writeStarted=true;
-            saved=checkResult(await (d.editing?db.from('posts').update({...row,updated_at:new Date().toISOString()}).eq('id',d.id).eq('author_id',context.user.id):db.from('posts').insert({...row,id:d.id,author_id:context.user.id})).select(COLUMNS).single());
+            if(d.editing){
+              let update=db.from('posts').update({...row,updated_at:updatedAt}).eq('id',d.id).eq('author_id',context.user.id);
+              update=d.original.updated_at==null?update.is('updated_at',null):update.eq('updated_at',d.original.updated_at);
+              saved=checkResult(await update.select(COLUMNS).maybeSingle());
+              if(!saved)throw editConflict();
+            }else saved=checkResult(await db.from('posts').insert({...row,id:d.id,author_id:context.user.id}).select(COLUMNS).single());
           }catch(error){
-            definiteRejection=typeof error?.code==='string'&&/^(?:22|23|42|PGRST)/.test(error.code);
+            definiteRejection=error?.code==='COMMUNITY_EDIT_CONFLICT'||typeof error?.code==='string'&&/^(?:22|23|42|PGRST)/.test(error.code);
             // A timeout can happen after the write. Confirm the exact payload before retrying.
             try{
               assertDraftContext(d);
               const recovered=checkResult(await db.from('posts').select(COLUMNS).eq('id',d.id).eq('author_id',context.user.id).maybeSingle());
               assertDraftContext(d);
-              if(recovered&&Object.entries(row).every(([key,value])=>(recovered[key]??null)===(value??null)))saved=recovered;
+              if(samePostValues(recovered,row))saved=recovered;
+              else if(d.editing&&!unchangedOriginal(d,recovered,row)){definiteRejection=true;error=editConflict();}
             }catch{/* Keep the draft when confirmation is impossible. */}
             if(!saved)throw error;
           }

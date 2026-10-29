@@ -10,7 +10,7 @@ export function integrateApp(source){
     if(!source.includes(anchor))throw Error('Community integration: missing anchor '+anchor);
   }
   if(source.split('\ninitGames();').length!==2)throw Error('Community integration: ambiguous boot anchor.');
-  const bridge=`\n${MARKER}\nconst community=createCommunity({S,getClient,checkResult,notify,message,modal,closeModal,render,greeting,sessionContext,sameSession,assertSession});\ncommunityView=community.view;\npostList=community.postList;\npostModal=community.openPost;\nloadFeed=community.loadFeed;\nactionHandlers['post-delete']=community.removePost;\njournalShareHandler=community.openFromJournal;\nconst invalidateBeforeCommunity=invalidateSession;\ninvalidateSession=()=>{invalidateBeforeCommunity();community.reset();};\n`;
+  const bridge=`\n${MARKER}\nconst community=createCommunity({S,getClient,checkResult,notify,message,modal,closeModal,render,greeting,sessionContext,sameSession,assertSession,getTrackingDuration:communityTrackingDuration});\ncommunityView=community.view;\npostList=community.postList;\npostModal=community.openPost;\nloadFeed=community.loadFeed;\nactionHandlers['post-delete']=community.removePost;\njournalShareHandler=community.openFromJournal;\nconst invalidateBeforeCommunity=invalidateSession;\ninvalidateSession=()=>{invalidateBeforeCommunity();community.reset();};\n`;
   return "import {createCommunity} from './community.mjs';\n"+source.replace('\ninitGames();',bridge+'\ninitGames();');
 }
 export function integrateWorker(source){
@@ -26,13 +26,13 @@ export function integrateWorker(source){
 function build(){
   const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
   // No network dependencies or secrets are used by this build.
-  for(const file of ['community-core.mjs','community.mjs'])execFileSync(process.execPath,['--check',resolve(root,file)],{stdio:'inherit'});
-  execFileSync(process.execPath,['--test',resolve(root,'community-core.test.mjs')],{stdio:'inherit'});
+  for(const file of ['community-core.mjs','community.mjs','community-tracking.mjs','community-duration-ui.mjs'])execFileSync(process.execPath,['--check',resolve(root,file)],{stdio:'inherit'});
+  execFileSync(process.execPath,['--test',...['community-core.test.mjs','tests/community-tracking.test.mjs','tests/community-duration-ui.test.mjs'].map(file=>resolve(root,file))],{stdio:'inherit'});
   const app=integrateApp(readFileSync(resolve(root,'app.mjs'),'utf8'));
   const worker=integrateWorker(readFileSync(resolve(root,'sw.js'),'utf8'));
   writeFileSync(resolve(root,'app.mjs'),app);writeFileSync(resolve(root,'sw.js'),worker);
   execFileSync(process.execPath,['--check',resolve(root,'app.mjs')],{stdio:'inherit'});
   execFileSync(process.execPath,['--check',resolve(root,'sw.js')],{stdio:'inherit'});
-  console.log('Community filters, emotions and optional private images integrated.');
+  console.log('Community, optional images and automatic tracking badges integrated.');
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url))build();

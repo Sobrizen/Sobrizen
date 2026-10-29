@@ -16,7 +16,7 @@ const deferred=()=>{let resolve;const promise=new Promise(done=>resolve=done);re
 
 class Query{
   constructor(table){this.table=table;this.op='select';this.filters=[];this.one=false;this.columns='*';}
-  select(columns='*'){this.columns=columns;return this;}eq(key,val){this.filters.push([key,val]);return this;}in(key,val){this.filters.push([key,val]);return this;}
+  select(columns='*'){this.columns=columns;return this;}eq(key,val){this.filters.push([key,val]);return this;}is(key,val){this.filters.push([key,{is:val}]);return this;}in(key,val){this.filters.push([key,val]);return this;}
   order(){return this;}range(){return this;}limit(){return this;}single(){this.one=true;return this;}maybeSingle(){this.one=true;return this;}
   insert(payload){this.op='insert';this.payload=clone(payload);return this;}update(payload){this.op='update';this.payload=clone(payload);return this;}delete(){this.op='delete';return this;}
   then(resolve,reject){return this.run().then(resolve,reject);}
@@ -24,7 +24,7 @@ class Query{
     calls.push({table:this.table,op:this.op,payload:clone(this.payload),filters:clone(this.filters)});
     if(this.table==='post_likes')return result([]);
     assert.equal(this.table,'posts','The share component must not read or write private journal rows');
-    const matches=row=>this.filters.every(([key,val])=>Array.isArray(val)?val.includes(row[key]):row[key]===val);
+    const matches=row=>this.filters.every(([key,val])=>Array.isArray(val)?val.includes(row[key]):val&&typeof val==='object'&&Object.hasOwn(val,'is')?(row[key]??null)===val.is:row[key]===val);
     let rows=posts.filter(matches);
     if(this.op==='select'&&this.one&&recoveryFailures){recoveryFailures--;return{data:null,error:{message:'fetch failed'}};}
     if(this.op==='insert'){
@@ -57,7 +57,7 @@ try{
   await check('opening and cancelling a reviewed copy never writes, preserves the original, and omits private metadata',async()=>{
     const entry=note({kind:'difficult',title:'<Titre privé>',body:'Corps <script>inactif</script>'}),original=clone(entry);
     community.openFromJournal({entry});
-    const form=$('#communityPostForm');assert.equal(form.elements.body.value,entry.title+'\n\n'+entry.body);assert.equal(form.elements.kind.value,'struggle');assert.equal(form.elements.emotion.value,'');assert.equal(form.elements.abstinence_days.value,'');assert.equal(form.elements.share_consent.checked,false);
+    const form=$('#communityPostForm');assert.equal(form.elements.body.value,entry.title+'\n\n'+entry.body);assert.equal(form.elements.kind.value,'struggle');assert.equal(form.elements.emotion.value,'');assert.equal(form.elements.abstinence_days,undefined);assert.equal(form.elements.share_consent.checked,false);
     assert.match(txt('#modalContent'),/copie indépendante/);assert.match(txt('#modalContent'),/note d’origine reste privée/);assert.equal($('#modalContent script'),null);assert.deepEqual(writes(),[]);
     form.querySelector('[data-community-cancel]').click();await settle();assert.equal($('#modal').open,false);assert.deepEqual(entry,original);assert.deepEqual(writes(),[]);
     assert.throws(()=>community.openFromJournal({entry:note({user_id:UID2})}),/ne peut pas être partagée/);
