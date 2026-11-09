@@ -10,11 +10,11 @@ import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {HEALTH_STAGES} from '../health-evidence.mjs';
 import {timelineStopBasis} from '../timeline-core.mjs';
-import {environment,boot,mockService,UID,$,$$,txt,click,value,submit,closeModal,route,settle,setNow,now} from './ux-dom-support.mjs';
+import {environment,boot,mockService,UID,$,$$,txt,click,value,submit,closeModal,route,settle,setNow,now,isWriteCall} from './ux-dom-support.mjs';
 
 const groups=['empty','mixed','craving','motion','without-consent'];
 const group=process.argv.find(arg=>arg.startsWith('--group='))?.slice(8);
-const writeCount=mock=>mock.calls.filter(call=>call.rpc||['insert','upsert','update','delete'].includes(call.op)).length;
+const writeCount=mock=>mock.calls.filter(isWriteCall).length;
 const stageAt=minutes=>HEALTH_STAGES.find(stage=>stage.fromMinutes===minutes);
 const stamp='2026-10-27T10:00:00.000Z';
 const id=number=>`99999999-9999-4999-8999-${number.toString(16).padStart(12,'0')}`;
@@ -168,7 +168,8 @@ if(!group){
         assert.equal(hero.classList.contains('hz-celebrate'),true);
         for(const svg of $$('svg',hero)){assert.equal(svg.getAttribute('aria-hidden'),'true');assert.equal(svg.getAttribute('focusable'),'false');}
         assert.equal(hero.querySelector('[aria-live]'),null);
-        const focus=$('.hz-metric[data-metric="mood"]');focus.focus();$('.hz-history').open=true;
+        await click('#sz-health-tab-feelings');
+        const focus=$('.hz-metric[data-metric="mood"]');assert.equal(focus.closest('[hidden]'),null);focus.focus();$('.hz-history').open=true;
         setNow(now()+60000);await env.tick();
         assert.equal($('[data-health-celebration]'),hero);
         assert.equal(document.activeElement,focus);
@@ -185,13 +186,15 @@ if(!group){
       });
       await check('exploring a future stage never awards that milestone; replay is local and keeps focus',async()=>{
         const index=HEALTH_STAGES.length-1,before=writeCount(mock);
+        await click('#sz-health-tab-benefits');
         await click(`[data-health-action="stage"][data-index="${index}"]`);
         assert.equal($('.hz-stage.selected').dataset.index,String(index));
         assert.match(txt('.hz-stage-title .tag'),/Pour la suite de ton arrêt/);
         assert.equal($('[data-health-celebration]').dataset.healthMilestone,stageAt(2880).id);
         assert.equal($('[data-health-celebration]').dataset.healthNewMilestone,'false');
         assert.equal($('.hz-hero').classList.contains('hz-celebrate'),false);
-        const replay=$('[data-health-action="celebrate"]');replay.focus();await click(replay);
+        await click('#sz-health-tab-overview');
+        const replay=$('[data-health-action="celebrate"]');assert.equal(replay.closest('[hidden]'),null);replay.focus();await click(replay);
         assert.equal($('.hz-hero').classList.contains('hz-celebrate'),true);
         assert.equal(document.activeElement,replay);
         assert.equal($('[data-health-celebration]').dataset.healthMilestone,stageAt(2880).id);
@@ -199,7 +202,8 @@ if(!group){
       });
       await check('a real new milestone preserves the active control, open disclosures and explored stage',async()=>{
         const index=HEALTH_STAGES.length-1;
-        const focus=$('.hz-metric[data-metric="mood"]');focus.focus();$('.hz-history').open=true;
+        await click('#sz-health-tab-feelings');
+        const focus=$('.hz-metric[data-metric="mood"]');assert.equal(focus.closest('[hidden]'),null);focus.focus();$('.hz-history').open=true;
         $('#hz-addiction-support').open=true;
         setNow('2026-10-28T12:30:00Z');await env.tick();
         const hero=$('[data-health-celebration]');

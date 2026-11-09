@@ -1,1 +1,53 @@
-{"cleanUrls":true,"trailingSlash":false,"headers":[{"source":"/(.*)","headers":[{"key":"X-Content-Type-Options","value":"nosniff"},{"key":"Referrer-Policy","value":"strict-origin-when-cross-origin"},{"key":"X-Frame-Options","value":"DENY"},{"key":"Permissions-Policy","value":"camera=(), microphone=(), geolocation=()"}]},{"source":"/sw.js","headers":[{"key":"Cache-Control","value":"no-cache"},{"key":"Service-Worker-Allowed","value":"/"}]},{"source":"/(section-colors.css|daily-core.mjs|daily-ui.mjs|daily-entry.mjs|daily.css|ergonomics.mjs|ergonomics-core.mjs|ergonomics.css|movement.mjs|movement.css|games-mobile.mjs|games-mobile-core.mjs|games-mobile.css|health-ui.mjs|health-core.mjs|health-encouragement.mjs|time-core.mjs|health-evidence.mjs|health.css|app.mjs|core.mjs|program.mjs|progress.mjs|progress-core.mjs|timeline-core.mjs|timeline-ui.mjs|timeline-summary.mjs|timeline-chart.mjs|journey-reference.mjs|tracking-core.mjs|tracking-ui.mjs|progress.css|renewal.css|v2.css|brand.css|index.html|manifest.webmanifest)","headers":[{"key":"Cache-Control","value":"no-cache"}]},{"source":"/(community.mjs|community-core.mjs|community.css|community-duration-ui.mjs|community-tracking.mjs|consumption-core.mjs|consumption-calculator.mjs|consumption-calculator.css)","headers":[{"key":"Cache-Control","value":"no-cache"}]},{"source":"/(form-validation.mjs|form-validation.css|username.mjs|modern.css|journal-notes-ui.mjs|journal-notes.css|journal-motivation.css|journal-motivation.mjs|journal-motivation-quotes.mjs|journal-motivation-ui.mjs|section-navigation.mjs)","headers":[{"key":"Cache-Control","value":"no-cache"}]},{"source":"/(profile-photo-core.mjs|profile-photo-ui.mjs|profile-photo.css)","headers":[{"key":"Cache-Control","value":"no-cache"}]}],"buildCommand":"node scripts/integrate-community.mjs && node scripts/integrate-profile-photos.mjs","outputDirectory":"."}
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "installCommand": "npm ci --ignore-scripts --no-audit --no-fund",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(), geolocation=()"
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; frame-src 'none'; form-action 'self'; script-src 'self' https://esm.sh; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://lnvtowdbbagwfbewnchz.supabase.co; connect-src 'self' https://esm.sh https://lnvtowdbbagwfbewnchz.supabase.co wss://lnvtowdbbagwfbewnchz.supabase.co; media-src 'self' blob:; worker-src 'self'; manifest-src 'self'; upgrade-insecure-requests"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        }
+      ]
+    },
+    {
+      "source": "/sw.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        },
+        {
+          "key": "Service-Worker-Allowed",
+          "value": "/"
+        }
+      ]
+    }
+  ]
+}

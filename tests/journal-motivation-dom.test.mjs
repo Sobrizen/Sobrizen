@@ -65,7 +65,7 @@ try{
     assert.match(txt('#journalMotivationList'),new RegExp(selected.text.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));assert.match(txt('#journalMotivationList'),new RegExp(selected.author.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
     const legacyCard=$$('#journalMotivationList .jm-saved-quote').find(card=>card.querySelector('blockquote')?.textContent===legacy);
     assert.ok(legacyCard,'Earlier saved encouragements must remain readable');assert.equal(legacyCard.querySelector('.jm-quote-author'),null);assert.equal(legacyCard.querySelector('.jm-source-link'),null);
-    assert.ok(mock.calls.some(call=>call.table==='journal_entries'&&call.op==='select'&&call.filters.some(([name,value])=>name==='title'&&value===MOTIVATION_TITLE)));
+    assert.ok(mock.calls.some(call=>call.rpc==='list_journal_entries'&&call.args.p_motivation===true&&call.args.p_limit===21),'Quotes use their own bounded server query');
   });
 
   await check('an existing remote quote is recovered without inserting or changing its original date',async()=>{
@@ -89,9 +89,11 @@ try{
     await click('[data-action="journal-quote-open"]');const selected=quote(),id=await motivationEntryId(UID,selected.id);mock.tables.journal_entries=mock.tables.journal_entries.filter(item=>item.id!==id);
     const original=mock.client.from;
     mock.client.from=table=>{const query=original(table),run=query.run.bind(query);query.run=async()=>table==='journal_entries'&&query.op==='insert'?{data:null,error:{message:'fetch failed'}}:run();return query;};
-    await click('[data-action="journal-quote-save"]');await settle(20);
-    assert.ok($('#modal').open);assert.equal($('#jmQuoteError').hidden,false);assert.match(txt('#jmQuoteError'),/Connexion indisponible/);assert.equal(mock.tables.journal_entries.filter(item=>item.id===id).length,0);
-    mock.client.from=original;await click('[data-action="journal-quote-save"]');await settle(30);
+    try{
+      await click('[data-action="journal-quote-save"]');await settle(20);
+      assert.ok($('#modal').open);assert.equal($('#jmQuoteError').hidden,false);assert.equal(txt('#jmQuoteError'),'Connexion interrompue. Vérifie l’enregistrement avant de réessayer.');assert.equal(mock.tables.journal_entries.filter(item=>item.id===id).length,0);
+    }finally{mock.client.from=original;}
+    await click('[data-action="journal-quote-save"]');await settle(30);
     assert.equal($('#modal').open,false);assert.equal(mock.tables.journal_entries.filter(item=>item.id===id).length,1);
   });
 

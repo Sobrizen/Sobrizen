@@ -379,7 +379,7 @@ body.ux-ready dialog.pz-play{
 body.ux-ready dialog.pz-play::backdrop{background:#dceff3!important}
 body.ux-ready .pz-play button{background:#fff!important;color:var(--clinical-ink)!important;border-color:#9fcdd5!important;box-shadow:0 3px 0 rgba(68,134,145,.12)!important}
 body.ux-ready .pz-top{border-color:#b9dce1!important}
-body.ux-ready .pz-score,.body.ux-ready .pz-message{color:var(--clinical-muted)!important}
+body.ux-ready .pz-score,body.ux-ready .pz-message{color:var(--clinical-muted)!important}
 body.ux-ready .pz-progress{background:#c7e4e8!important}
 body.ux-ready .pz-progress i{background:linear-gradient(90deg,#75cbd2,#348f9c)!important}
 body.ux-ready .pz-stage canvas{border-color:#9ecdd5!important;box-shadow:0 10px 30px rgba(39,101,112,.14)!important;filter:hue-rotate(145deg) saturate(.60) brightness(1.24)}
@@ -423,3 +423,64 @@ body.dark :is(input,textarea,select),body.ux-ready.dark :is(input,textarea,selec
 @media(prefers-reduced-motion:reduce){
   .ga-canvas,.pz-stage canvas{filter:none!important}
 }
+
+/* Game foregrounds and surfaces are paired in both themes. */
+body.ux-ready dialog.ga-play{--ga-sub:#425f69;--ga-accent:#206772}
+body.ux-ready dialog.pz-play{--pz-ink:#193747;--pz-sub:#425f69;--accent:#206772}
+body.ux-ready .ga-card>span:not(.ga-card-icon){color:#425f69!important}
+body.ux-ready .ga-card :is(small,strong){color:#206772!important}
+body.ux-ready .ga-play .ga-score{color:var(--ga-ink)!important}
+body.ux-ready .ga-play .ga-ground p{color:var(--ga-sub)!important}
+body.ux-ready .ga-play .ga-modal p,
+body.ux-ready .ga-play .ga-quiet,
+body.ux-ready .ga-play small{color:var(--ga-sub)!important}
+body.ux-ready .pz-play .pz-score,
+body.ux-ready .pz-play .pz-message,
+body.ux-ready .pz-play .pz-modal p,
+body.ux-ready .pz-play .pz-quiet{color:var(--pz-sub)!important}
+body.ux-ready .ga-play button.ga-primary,
+body.ux-ready .pz-modal button.pz-primary{background:linear-gradient(135deg,#1b6571,#154e5a)!important;color:#fff!important}
+body.ux-ready.dark .ga-card,
+body.ux-ready.dark .pz-card[data-brain-game]{background:linear-gradient(145deg,#204850,#14333d)!important;color:#eefcfe!important;border-color:#527c83!important}
+body.ux-ready.dark .ga-card small,
+body.ux-ready.dark .ga-card strong{color:#a2e7e0!important}
+body.ux-ready.dark .ga-card>span:not(.ga-card-icon){color:#c0dce0!important}
+body.ux-ready.dark dialog.ga-play,
+body.ux-ready.dark dialog.pz-play{
+  --ga-ink:#eefcfe;--ga-sub:#c0dce0;--ga-accent:#a2e7e0;
+  --pz-ink:#eefcfe;--pz-sub:#c0dce0;--accent:#a2e7e0;
+  --surface:#244b55;--edge:#648b92;
+  background:linear-gradient(180deg,#12343e,#102b35)!important;
+  color:#eefcfe!important;color-scheme:dark!important;
+}
+body.ux-ready.dark dialog.ga-play::backdrop,
+body.ux-ready.dark dialog.pz-play::backdrop{background:#102b35!important}
+body.ux-ready.dark .ga-play button,
+body.ux-ready.dark .ga-play .ga-key,
+body.ux-ready.dark .pz-play button{background:#244b55!important;color:#eefcfe!important;border-color:#648b92!important}
+body.ux-ready.dark .ga-play .ga-key.ga-rotate,
+body.ux-ready.dark .ga-play .ga-key.ga-drop{background:#2d5863!important;color:#eefcfe!important}
+body.ux-ready.dark .ga-play button.ga-pressed,
+body.ux-ready.dark .pz-tray button[aria-pressed=true]{background:#326773!important;border-color:#b4eee7!important;outline-color:#b4eee7!important}
+body.ux-ready.dark .ga-play .ga-cover,
+body.ux-ready.dark .pz-play .pz-cover{background:rgba(5,22,30,.94)!important}
+body.ux-ready.dark .ga-play .ga-modal,
+body.ux-ready.dark .pz-play .pz-modal{background:linear-gradient(145deg,#204650,#132f39)!important;color:#eefcfe!important;border-color:#648b92!important}
+body.ux-ready.dark .ga-play button.ga-primary,
+body.ux-ready.dark .pz-modal button.pz-primary{background:#a2e7e0!important;color:#103d43!important;border-color:#a2e7e0!important}
+body.ux-ready.dark .ga-play .ga-memory-key.ga-matched{background:#245d54!important;border-color:#a2e7e0!important}
+body.ux-ready.dark .ga-play .ga-reaction.ga-signal{background:#a2e7d3!important;color:#103c35!important;border-color:#d3fff0!important}
+body.ux-ready.dark .ga-play .ga-reaction.ga-signal>small{color:#103c35!important}
+body.ux-ready.dark .ga-play .ga-arena{background:radial-gradient(ellipse,#214b5c,#102a38)!important;border-color:#648b92!important}
+body.ux-ready.dark .ga-play .ga-target{background:transparent!important}
+body.ux-ready.dark .ga-play .ga-merge{background:#123442!important;border-color:#648b92!important}
+body.ux-ready.dark .ga-play .ga-sequence-key:nth-child(1){background:#145746!important;color:#dcfff3!important}
+body.ux-ready.dark .ga-play .ga-sequence-key:nth-child(2){background:#76423e!important;color:#ffe7df!important}
+body.ux-ready.dark .ga-play .ga-sequence-key:nth-child(3){background:#275482!important;color:#e6f3ff!important}
+body.ux-ready.dark .ga-play .ga-sequence-key:nth-child(4){background:#675323!important;color:#fff2c6!important}
+body.ux-ready.dark .ga-play .ga-sequence-key.ga-lit{background:#eafff6!important;color:#123d35!important;border-color:#fff!important}
+body.ux-ready.dark .ga-play .ga-count{background:rgba(8,31,39,.83)!important;color:#d9fff4!important}
+body.ux-ready.dark .ga-play .ga-canvas,
+body.ux-ready.dark .pz-stage canvas{filter:none!important;border-color:#648b92!important}
+body.ux-ready.dark .pz-progress{background:#355861!important}
+body.ux-ready.dark .pz-used{color:#bad3d7!important;border-color:#648b92!important}

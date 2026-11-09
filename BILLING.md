@@ -1,86 +1,100 @@
-# SobriZen — état de l'intégration de paiement
+# SobriZen Premium — préparation du lancement du 9 novembre 2026
 
-Mise à jour : 30 septembre 2026. **Les ventes ne sont pas ouvertes.** Ce document décrit la préparation, pas une validation commerciale ou juridique.
+**Les ventes restent fermées tant que les prérequis réels ne sont pas confirmés.** Le code, les tarifs Stripe et le service de facturation ont été préparés pour l’offre officielle. Une clé configurée, un compteur à 100 ou un test automatisé réussi ne constituent pas une preuve de paiement réel ni une validation juridique.
 
-## Offre existante en production
+## Offre officielle et objets Stripe
 
-- Compte Stripe : SOBRIZEN, `acct_1ULRv6B6h4U0FlMo`.
-- Premium : **29,99 EUR par an**, 2999 centimes, jamais par mois.
-- Produit : `prod_VMAu4k8wMdvkAu`.
-- Prix : `price_1ULSYDB6h4U0FlMoAnD7zybM`.
-- Portail client : `bpc_1ULSYkB6h4U0FlMoFFlXmdcr`. Résiliation en fin de période, factures et carte bancaire accessibles. Les liens légaux pointent vers la page publiée, explicitement encore en projet pour l'offre payante.
-- Ancien Payment Link : `plink_1ULTAZB6h4U0FlMoxsBC7hIu`, désactivé. Ne pas l'activer à la place du Checkout lié au compte : il ne porte pas automatiquement l'identifiant de l'utilisateur attendu par le serveur.
-- Virements Stripe vers la banque : réglage manuel constaté, non modifié.
+Compte SOBRIZEN vérifié par le connecteur : `acct_1ULRv6B6h4U0FlMo`. Produit commun : `prod_VMAu4k8wMdvkAu`.
 
-## Éléments installés
+| Offre | Prix récurrent | Objet Stripe en mode réel |
+|---|---:|---|
+| Mensuel | 2,99 €/mois | `price_1UZzodB6h4U0FlMoqyWxNKjy` |
+| Annuel | 29,99 €/an | `price_1ULSYDB6h4U0FlMoAnD7zybM` |
+| Annuel de lancement | 19,99 €/an | `price_1UZzojB6h4U0FlMos31G0H6E` |
 
-Pages `abonnement.html` et `legal.html`, accessibles aussi sous `/abonnement` et `/legal` avec Vercel cleanUrls ; liens depuis l'accueil et le pied de page. Leur réponse HTTP 200 et la présence des éléments attendus ont été vérifiées sur le domaine de production.
+Les deux nouveaux prix ont été créés et leurs montants, périodicités, devise EUR, mode réel et produit ont été contrôlés. Le prix annuel existant est conservé. Aucun abonnement ni paiement client n’a été créé pour ces vérifications.
 
-Supabase, projet `lnvtowdbbagwfbewnchz` : fonction Edge `sobrizen-billing`, version 1. Le code serveur déployé se consulte dans Supabase. Le module de validation `billing/core.mjs` est versionné dans ce dépôt. La copie du module serveur dans GitHub a été bloquée par l'outil et n'est pas annoncée comme enregistrée.
+Chaque première souscription éligible reçoit un essai de **7 jours**. Le moyen de paiement est collecté par Stripe ; l’abonnement commence à être facturé à la fin de l’essai si la reconduction reste active. Un compte ayant déjà eu un abonnement n’obtient pas un second essai. Le serveur exige une acceptation de la version `2026-11-09`, un plan connu, le montant attendu et l’éligibilité affichée à l’utilisateur ; il ne choisit pas une offre plus chère à sa place.
 
-Routes :
+Le tarif de lancement est un véritable prix récurrent à 1 999 centimes, conservé à chaque renouvellement de cet abonnement. Il ne s’agit pas d’une remise limitée à la première facture. Une résiliation effective met fin à sa garantie. Le portail ne permet pas de modifier arbitrairement le prix ou la quantité.
 
-- `GET /health` : état des prérequis, aucun secret divulgué.
-- `POST /status` : état enregistré du seul utilisateur connecté.
-- `POST /checkout` : création du paiement annuel, soumise aux prérequis et à la connexion.
-- `POST /portal` : session Stripe du seul client associé au compte connecté.
-- `POST /sync` : vérification Stripe et contrôle d'appartenance du Checkout au compte.
-- `POST /webhook` : contrôle de signature, environnement réel et suivi des événements Stripe.
-- `POST /request` : enregistrement d'une demande de rétractation ou de suppression, avec accusé téléchargeable. **Ce n'est pas un remboursement ni une suppression automatique ; aucun email n'est automatiquement envoyé au support.**
+La franchise en base de TVA, déjà confirmée pour ce projet, reste configurée : Stripe Tax automatique désactivé et mention « TVA non applicable, article 293 B du CGI » sur les factures des nouveaux clients. Les prix sont définis comme montants finaux. Un changement de régime fiscal exige une nouvelle revue.
 
-Webhook Stripe créé : `we_1ULTYkB6h4U0FlMocC2P0puY`, destination `/functions/v1/sobrizen-billing/webhook` du projet Supabase. Version d'API attendue : `2025-02-24.acacia`. Événements : paiement Checkout terminé, facture payée/échouée, abonnement créé/modifié/supprimé, remboursement et litige.
+## Réservation des 100 places
 
-Les tables `billing_config`, `billing_customers`, `billing_subscriptions`, `billing_events`, `billing_checkout_locks`, `billing_consents`, `billing_requests` ont été ajoutées sans supprimer les tables de suivi. RLS activée partout ; seuls les traitements serveur écrivent les droits. Un membre ne peut lire que ses propres états, consentements et demandes. Les quatre tables purement serveur n'ont volontairement aucune politique utilisateur et leurs privilèges utilisateur sont révoqués.
+`billing_checkout_attempts` contient les réservations et allocations de lancement. `billing_launch_pool` fournit le verrou SQL commun à toutes les allocations. La réservation et le contrôle de capacité sont atomiques ; la 101e allocation est refusée.
 
-Les réponses des RPC de sauvegarde et de libération de verrou ont été rendues explicitement JSON par la migration `return_explicit_billing_rpc_acknowledgements`, pour être compatibles avec le lecteur de réponses du serveur déployé.
+- La réservation dure au plus une heure sur Checkout. Le compteur déduit les réservations et les souscriptions de lancement confirmées.
+- Un simple dépassement de l’heure locale ne libère jamais une place. Stripe doit confirmer que la session est expirée. Les événements signés et une réconciliation bornée assurent ce suivi.
+- La confirmation de la souscription, y compris un essai, attribue définitivement la place. Une résiliation ou la suppression du compte ne réinitialise pas le compteur.
+- L’identifiant de tentative fixe sert de clé d’idempotence. Un double clic réutilise la session en cours. Un résultat réseau incertain ne permet pas d’en créer une seconde.
+- Une tentative ambiguë devenue trop ancienne reste réservée et signale `CHECKOUT_RECOVERY_REQUIRED`. Le support doit réconcilier sa session Stripe avant de la libérer. Ne pas la libérer sur une supposition.
+- Une disponibilité inconnue reste inconnue : aucun nombre « 100 » n’est fabriqué côté client.
 
-## Vérifications réellement exécutées
+## Code serveur et déploiement
 
-- 12 tests unitaires du module de validation de facturation avaient été réussis lors de la préparation initiale : prix annuel exact, fermeture par défaut, paiement validé, conservation jusqu'à l'échéance lors de la résiliation, expiration, paiement échoué, facture remboursée ou contestée, quantités erronées, signature valide, falsifiée, expirée ou de test.
-- Après ajout de la séparation Gratuit/Premium, les quatre modules JavaScript modifiés (`app.mjs`, `progress.mjs`, `games.mjs`, `movement.mjs`) ont été recompilés syntaxiquement sans erreur. Le clonage local du dépôt n'était pas possible dans l'environnement réseau courant, donc la suite complète `node --test` n'a pas été relancée ici.
-- Tests de protocole en production : `/health` répond 200 ; `/status` et `/checkout` sans connexion répondent 401 ; `/webhook` sans signature répond 400.
-- Privileges SQL vérifiés : aucun droit INSERT/UPDATE des abonnements pour les membres, aucun accès utilisateur à la lecture du secret de webhook.
-- Les tables de suivi existantes n'ont pas été modifiées pour simuler un paiement.
+Le serveur complet est versionné : `billing/core.mjs`, `billing/handler.mjs` et `supabase/functions/sobrizen-billing/index.ts`. Le SDK Stripe est épinglé à **23.1.0**, les requêtes serveur à l’API **2026-10-28.endive**. Le code serveur et les migrations ne sont pas copiés dans `dist/`.
 
-**Aucun paiement réel de contrôle, aucun cycle de renouvellement réel et aucun parcours complet de paiement de bout en bout n'ont été validés. Les tests unitaires utilisent des données synthétiques.**
+Le service `sobrizen-billing` a été déployé en **version 12** le 9 novembre. Son endpoint reste celui du projet Supabase `lnvtowdbbagwfbewnchz`. `verify_jwt=false` est intentionnel : les routes membres vérifient elles-mêmes le jeton auprès de Supabase Auth, tandis que le webhook vérifie la signature HMAC Stripe, l’horodatage, le mode réel et le compte attendu.
 
-## Prérequis non satisfaits — ne pas ouvrir les ventes
+Les secrets existants restent exclusivement côté serveur. Aucun secret n’est copié dans le dépôt, la page ou un rapport. Les identifiants de produit/prix et la clé Supabase publishable ne sont pas des secrets.
 
-### Secrets serveur
+| Route | Comportement |
+|---|---|
+| `GET /health` | Offre, compteur et disponibilité ; ferme les ventes si un prérequis, le secret, le compte ou la capacité est invalide. |
+| `GET /healthz` | Vérifie la clé serveur, le compte Stripe attendu, les encaissements autorisés et le secret webhook. |
+| `POST /status` | Droits du compte connecté ; peut réconcilier une ancienne réservation. Ne crée aucun client, prix ou paiement. |
+| `POST /checkout` | Compte confirmé, conditions, prix exact, éligibilité, verrou et capacité avant ouverture de Checkout. |
+| `POST /portal` | Portail du client Stripe lié au compte ; résiliation en fin de période. |
+| `POST /sync` | Réconciliation serveur et refus d’une session appartenant à un autre compte. |
+| `POST /webhook` | Signature et idempotence, lecture de l’état Stripe courant, paiements, essai, expiration et incidents. |
+| `POST /request` | Accusé de réception d’une demande de rétractation ou d’effacement, à traiter manuellement. |
 
-Le contrôle `/health` confirme l'absence de `STRIPE_SECRET_KEY` et de `STRIPE_WEBHOOK_SECRET`. Leur installation doit se faire dans Supabase, projet Sobrizen, Edge Functions, Secrets. Ne jamais les mettre dans GitHub, dans le JavaScript du navigateur, dans un document public ou dans une conversation.
+Un retour navigateur « succès » n’accorde aucun droit. Les droits résultent d’un essai vérifié ou d’une facture encaissée, rattachée au bon abonnement et confirmée par ses paiements/charges. Une facture marquée payée hors Stripe, un paiement incomplet, remboursé ou contesté ne suffit pas. Les horodatages empêchent un ancien résultat de remplacer un état plus récent.
 
-La première valeur est une clé serveur du compte Stripe de production SOBRIZEN, avec les permissions nécessaires à l'intégration ; la seconde est le secret de signature de la destination webhook identifiée ci-dessus. L'enregistrement automatique du secret a été bloqué et n'a pas été contourné.
+## Webhook et portail
 
-L'installation des clés ne vaut pas validation des autres prérequis et n'ouvre pas automatiquement les ventes.
+Webhook : `we_1ULTYkB6h4U0FlMocC2P0puY`. Il est actif vers le chemin `/functions/v1/sobrizen-billing/webhook`. Les événements ont été étendus à l’expiration Checkout, paiements différés, essai, pause/reprise, remboursements, litiges et avertissement de fraude précoce.
 
-### Application et vérification du cycle
+Le format des événements de cette destination reste `2025-02-24.acacia` ; le handler accepte les références d’abonnement anciennes et nouvelles puis relit les ressources avec son API actuelle. Changer le format de la destination n’était pas nécessaire au fonctionnement et n’a pas été annoncé comme réalisé.
 
-La séparation Gratuit/Premium est maintenant raccordée à l'état de facturation vérifié en base : le gratuit conserve un rapport synthétique exact, les 4 exercices Doux, Snake Zen, Blocs Zen et l'exercice d'ancrage ; Premium débloque les courbes détaillées, les niveaux Moyen/Intense et trois mini-jeux supplémentaires. Les données, l'historique, le journal, la communauté, les outils d'aide, l'export et les droits relatifs aux données restent disponibles indépendamment de Premium. L'interface échoue en mode fermé si le statut d'abonnement n'est pas lisible.
+Portail : `bpc_1ULSYkB6h4U0FlMoFFlXmdcr`, vérifié actif, factures/carte/résiliation activées, annulation en fin de période, modification d’offre et pause désactivées. L’ancien Payment Link non lié au compte reste désactivé. Ne pas le réactiver pour contourner Checkout.
 
-Le parcours doit ensuite être testé dans un environnement de test distinct, avec une configuration adaptée : paiement accepté/refusé, authentification supplémentaire, mauvais compte, double clic, événement dupliqué, renouvellement, résiliation, expiration, remboursement, reconnexion et conservation de l'historique. Ne pas utiliser de cartes de test dans la production.
+Les avertissements de fraude suspendent l’accès concerné ; aucun remboursement ou annulation financière automatique n’est effectué par cette version. Le support doit traiter les demandes et vérifier les incidents dans Stripe. Le formulaire de demande n’envoie pas automatiquement un email et ne supprime pas immédiatement un compte.
 
-### Informations et exploitation
+## Base de données et ordre de publication
 
-À confirmer avant vente : régime de TVA applicable, mentions de facturation, médiateur compétent et convention couvrant SobriZen, consentement explicite pour les données sensibles, durées de conservation, suppression effective du compte, traitement et confirmation durable des rétractations, notifications de reconduction, gestion des échecs de paiement et fonctionnement réel de l'adresse de support.
+Les fichiers de `supabase/migrations/` sont générés avec la CLI Supabase puis alignés sur les versions effectivement appliquées. Les scripts de `db/`, `schema/` et `game-records.sql` sont les sources relues et testées. Ne pas appliquer les deux copies.
 
-L'identité d'entrepreneur individuel, le SIREN 850869033 et le SIRET 85086903300025 ont été vérifiés avec l'API officielle de recherche d'entreprises. Cela ne valide ni le régime de TVA ni la couverture d'une convention de médiation.
+1. Facturation v2 : colonnes d’essai/plan/blocage, réservations, risques et fonction `sobrizen_has_premium()`.
+2. Consentement et journal : RPC, politiques supplémentaires et version de note monotone. Les droits de lecture des anciennes colonnes sont maintenus pendant cette phase.
+3. Records personnels.
+4. Agenda privé et ses RPC.
+5. Frontend et nouveau service worker.
+6. Restriction finale des quatre colonnes sensibles de `user_settings`, désormais lues par RPC contrôlé.
 
-Le forfait Vercel actuel n'a pas pu être confirmé via la connexion, qui ne renvoie aucune équipe. Vérifier qu'il autorise l'exploitation commerciale. Aucun forfait payant n'a été souscrit ou changé dans cette intervention.
+La migration Agenda a demandé une confirmation supplémentaire dans le connecteur Supabase ; les demandes initiales ont expiré. Son application doit être constatée avant de présenter la fonction comme disponible aux comptes réels. La restriction finale des colonnes doit suivre la publication du frontend. Les onglets anciens devront alors recharger l’application.
 
-Les paramètres publics de Checkout devront pointer vers les conditions définitives avant d'exiger leur acceptation. Les liens du portail client ne remplacent pas nécessairement ces paramètres publics de Checkout.
+Les tables serveur de facturation ont RLS activée, sans politique utilisateur, et leurs privilèges sont révoqués. Les avertissements correspondants « RLS enabled, no policy » sont intentionnels. Les trois fonctions `SECURITY DEFINER` de réglages/export sont également intentionnelles : identité `auth.uid()` obligatoire, aucun argument d’identité fourni par le client, recherche SQL vide, tables/colonnes autorisées explicitement, accès anonyme révoqué. Les tests vérifient leur isolation.
 
-### Verrouillage de lancement
+## Validation acquise et limites
 
-`billing_config` contient cinq indicateurs de lancement. `premium_features_ready` est maintenant à **true** après raccordement et contrôle de syntaxe des écrans Gratuit/Premium. `sales_enabled`, `legal_ready`, `tax_ready` et `hosting_ready` restent à **false**. Le module refuse toujours l'ouverture tant que tous les prérequis ne sont pas satisfaits.
+Les tests utilisent de vrais modules applicatifs, des contrôleurs DOM, des doubles de Stripe/Auth/HTTP et PostgreSQL PGlite avec rôles/RLS. Les scénarios comprennent essai, montants et prix, propriétaire, erreurs réseau, double clic, replay, signature, remboursement, litige, capacité 100 et droits Premium.
 
-## Avis de sécurité supplémentaires
+Les appels parallèles de PGlite partagent une connexion : ils ne sont pas un test de contention ou de charge sur plusieurs connexions de production. Aucun numéro de carte de test n’a été utilisé en mode réel et aucun paiement de contrôle n’a été déclenché.
 
-L'audit Supabase signale que la protection contre les mots de passe compromis est désactivée. Vérifier sa disponibilité et son coût avant activation : https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection.
+Après déploiement v12 : `/health` répond **200**, retourne **100 places**, les trois montants et `trial_days=7` ; `/healthz` répond **204**. Les ventes sont toujours fermées. Un test complet Stripe en environnement de test distinct reste à conduire avec les accès correspondants, incluant authentification bancaire, renouvellement, résiliation, remboursement et échec de paiement.
 
-Les avis informatifs « RLS enabled, no policy » des tables réservées au serveur correspondent ici au refus d'accès utilisateur intentionnel, contrôlé par révocation des privilèges. Ne pas créer une politique publique permissive pour supprimer cet avis.
+## Points restant nécessaires à l’ouverture commerciale
 
+- Médiateur réellement conventionné couvrant SobriZen, coordonnées à publier ; ne pas inventer une adhésion.
+- Forfait d’hébergement autorisant l’exploitation commerciale ; l’accès Vercel à l’équipe a renvoyé 403 et le forfait n’est pas confirmé.
+- Recette Stripe de bout en bout et configuration/vérification des confirmations, rappels d’essai et reconductions annuelles.
+- Finalisation des informations de conservation/transferts de données et du traitement opérationnel des demandes de support.
+- Finalisation de la publication et des migrations encore en attente.
 
-## Fiscalité
+`billing_config` conserve `sales_enabled=false`, `legal_ready=false`, `hosting_ready=false`, `tax_ready=true`, `premium_features_ready=true`. La nouvelle version des conditions est `2026-11-09`. Ne modifier les indicateurs qu’après résolution documentée des points correspondants.
 
-- `tax_ready = true` : SobriZen est configuré pour la franchise en base de TVA, sans Stripe Tax automatique. Les nouveaux clients Stripe reçoivent sur leurs factures la mention « TVA non applicable, article 293 B du Code général des impôts (CGI) ».
+La protection Supabase contre les mots de passe compromis reste signalée comme désactivée. La version PostgreSQL doit également être mise à niveau selon les avis Supabase, avec les garanties de sauvegarde et de maintenance appropriées. Aucun changement de forfait ni achat n’a été effectué.
+
+Références officielles : [Sécurité des mots de passe](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection), [RLS](https://supabase.com/docs/guides/database/postgres/row-level-security), [fonctions privilégiées](https://supabase.com/docs/guides/database/functions#security-definer-vs-invoker), [Checkout](https://docs.stripe.com/api/checkout/sessions/create), [paiements de factures](https://docs.stripe.com/api/invoice-payment/list), [limites commerciales Vercel](https://vercel.com/docs/limits/fair-use-guidelines), [médiation de la consommation](https://www.economie.gouv.fr/dgccrf/les-fiches-pratiques/la-mediation-de-la-consommation-ce-que-vous-devez-savoir).

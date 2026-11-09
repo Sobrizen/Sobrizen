@@ -1,0 +1,4 @@
+{
+  "compilerOptions": {"allowJs": true, "checkJs": false},
+  "imports": {"stripe": "npm:stripe@23.1.0"}
+}

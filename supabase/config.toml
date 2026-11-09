@@ -1,0 +1,5 @@
+project_id = "sobrizen"
+[functions.sobrizen-billing]
+# Browser routes verify the Supabase access token themselves; Stripe uses HMAC.
+verify_jwt = false
+entrypoint = "./functions/sobrizen-billing/index.ts"

@@ -6,7 +6,7 @@
  */
 import assert from 'node:assert/strict';
 import {timelineStopBasis} from '../timeline-core.mjs';
-import {environment,boot,mockService,UID,UID2,$,$$,txt,click,value,submit,closeModal,route,settle,setNow,now} from './ux-dom-support.mjs';
+import {environment,boot,mockService,UID,UID2,$,$$,txt,click,value,submit,closeModal,route,settle,setNow,now,isWriteCall} from './ux-dom-support.mjs';
 
 const groups=['home','calendar','editing','occasion','records','privacy','modes'];
 const selected=process.argv.find(arg=>arg.startsWith('--group='))?.slice(8);
@@ -14,7 +14,7 @@ assert.ok(!selected||groups.includes(selected),`Unknown daily DOM group: ${selec
 const instant='2026-10-27T12:30:00Z',today='2026-10-27',stamp='2026-10-27T10:00:00.000Z';
 const id=n=>`dddddddd-dddd-4ddd-8ddd-${n.toString(16).padStart(12,'0')}`;
 const clone=value=>structuredClone(value);
-const writes=mock=>mock.calls.filter(call=>call.rpc||['insert','upsert','update','delete'].includes(call.op));
+const writes=mock=>mock.calls.filter(isWriteCall);
 const dailyWrites=mock=>writes(mock).filter(call=>call.table==='daily_checkins');
 const day=(date,root='.dy-week')=>$(`${root} .dy-day-button[data-date="${date}"]`);
 const form=()=>$('#dailyEntryForm');
@@ -184,6 +184,7 @@ try{
 
   await check('calendar','calendar navigation preserves keyboard focus and future dates stay disabled',async()=>{
     await reset('calendar');await route('progress');const count=writes(mock).length;
+    await click('#sz-progress-tab-calendar');assert.equal($('#dy-calendar').closest('[hidden]'),null);
     assert.ok($('#dy-calendar'));assert.match(txt('.dy-calendar-controls h3'),/octobre 2026/);
     for(const date of ['2026-10-28','2026-10-29','2026-10-30','2026-10-31']){
       assert.equal(day(date,'#dy-calendar').disabled,true);assert.equal(day(date,'#dy-calendar').dataset.provenance,'future');
@@ -305,7 +306,7 @@ try{
     const target=$('#journalForm');assert.ok(target);assert.equal(target.elements.entry_date.value,today);
     assert.equal(target.elements.body.value,'');await value(target,'kind','plan');await value(target,'title','Mon plan personnel');
     await submit(target);assert.equal($('#modal').open,true);assert.equal(writes(mock).length,count);
-    assert.match(txt('#notice'),/Écris au moins une phrase/);
+    assert.equal(target.elements.body.validity.valueMissing,true);assert.ok(target.elements.body.validationMessage,'A native validation message explains the required note');
   });
 
   await check('records','a real dated plan is saved and edited through Journal without changing the alcohol calendar',async()=>{
@@ -342,7 +343,7 @@ try{
     await value(target,'kind','plan');await value(target,'title','Mon plan du 26');
     await value(target,'body','Si je rentre fatigué, je prépare une boisson sans alcool.');
     await value(target,'entry_date',today);const count=writes(mock).length;await submit(target);
-    assert.equal($('#modal').open,true);assert.equal(writes(mock).length,count);assert.match(txt('#notice'),/date passée ou aujourd/);
+    assert.equal($('#modal').open,true);assert.equal(writes(mock).length,count);assert.equal(target.elements.entry_date.validity.rangeOverflow,true);assert.ok(target.elements.entry_date.validationMessage,'The current date max rejects the future date before a write');
     await value(target,'entry_date',date);await submit(target);assert.equal($('#modal').open,false);
     await route('health');await click('.hz-hero [data-health-action="checkin"]');
     assert.equal($('#healthCheckinForm').elements.checkin_date.value,date);await closeModal();await route('home');
@@ -371,7 +372,10 @@ try{
     await route('home');assert.equal($('.dy-page'),null);assert.equal(form(),null);
     assert.equal($('#modalContent').textContent.includes('Mon point du jour'),false);
     const before=dailyWrites(mock).length;
-    oldForm.dispatchEvent(new SubmitEvent('submit',{bubbles:true,cancelable:true}));await settle();
+    // A detached node cannot reach the delegated application submit listener.
+    // Reattach the stale controls so this exercises the real consent/session guard.
+    document.body.append(oldForm);assert.equal(oldForm.isConnected,true);
+    try{await submit(oldForm);}finally{oldForm.remove();}
     assert.equal(dailyWrites(mock).length,before);assert.equal(row(mock),undefined);
     assert.doesNotMatch(txt('#content'),/Bilan fictif QA|Note privée QA/);
   });

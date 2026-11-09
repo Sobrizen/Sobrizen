@@ -8,6 +8,7 @@ body.ux-ready{
   --sz-health:#206744;--sz-health-soft:#eaf6ee;--sz-health-edge:#acd1b9;
   --sz-journey:#23657b;--sz-journey-soft:#eaf4f8;--sz-journey-edge:#b1cfdd;
   --sz-journal:#69478b;--sz-journal-soft:#f2edf8;--sz-journal-edge:#cdbbdf;
+  --sz-agenda:#3a6657;--sz-agenda-soft:#edf4ef;--sz-agenda-edge:#b7cfc1;
   --sz-movement:#236855;--sz-movement-soft:#eaf5f1;--sz-movement-edge:#acd1c2;
   --sz-games:#5056a0;--sz-games-soft:#eef0fb;--sz-games-edge:#bfc4e5;
   --sz-community:#804c73;--sz-community-soft:#f7eef5;--sz-community-edge:#d9bfd2;
@@ -23,6 +24,7 @@ body.ux-ready.dark{
   --sz-health:#95d6ae;--sz-health-soft:#203d31;--sz-health-edge:#4e7c61;
   --sz-journey:#94d0e4;--sz-journey-soft:#203a48;--sz-journey-edge:#51788a;
   --sz-journal:#cfb1ee;--sz-journal-soft:#342f48;--sz-journal-edge:#78658e;
+  --sz-agenda:#acd7bf;--sz-agenda-soft:#253b32;--sz-agenda-edge:#557d66;
   --sz-movement:#8ed7bd;--sz-movement-soft:#1b3e36;--sz-movement-edge:#477d6d;
   --sz-games:#b6bdf5;--sz-games-soft:#2b3250;--sz-games-edge:#68739f;
   --sz-community:#e3b0d3;--sz-community-soft:#423044;--sz-community-edge:#88627d;
@@ -35,6 +37,7 @@ body.ux-ready[data-page=progress]{--sz-section:var(--sz-progress);--sz-section-s
 body.ux-ready[data-page=health]{--sz-section:var(--sz-health);--sz-section-soft:var(--sz-health-soft);--sz-section-edge:var(--sz-health-edge)}
 body.ux-ready[data-page=journey]{--sz-section:var(--sz-journey);--sz-section-soft:var(--sz-journey-soft);--sz-section-edge:var(--sz-journey-edge)}
 body.ux-ready[data-page=journal]{--sz-section:var(--sz-journal);--sz-section-soft:var(--sz-journal-soft);--sz-section-edge:var(--sz-journal-edge)}
+body.ux-ready[data-page=agenda]{--sz-section:var(--sz-agenda);--sz-section-soft:var(--sz-agenda-soft);--sz-section-edge:var(--sz-agenda-edge)}
 body.ux-ready[data-page=movement]{--sz-section:var(--sz-movement);--sz-section-soft:var(--sz-movement-soft);--sz-section-edge:var(--sz-movement-edge)}
 body.ux-ready[data-page=games]{--sz-section:var(--sz-games);--sz-section-soft:var(--sz-games-soft);--sz-section-edge:var(--sz-games-edge)}
 body.ux-ready[data-page=community]{--sz-section:var(--sz-community);--sz-section-soft:var(--sz-community-soft);--sz-section-edge:var(--sz-community-edge)}
@@ -62,6 +65,7 @@ body.ux-ready #nav button[data-page=progress],body.ux-ready .ux-bottom-nav butto
 body.ux-ready #nav button[data-page=health],body.ux-ready .ux-bottom-nav button[data-ux-value=health]{--nav-accent:var(--sz-health);--nav-soft:var(--sz-health-soft);--nav-edge:var(--sz-health-edge)}
 body.ux-ready #nav button[data-page=journey]{--nav-accent:var(--sz-journey);--nav-soft:var(--sz-journey-soft);--nav-edge:var(--sz-journey-edge)}
 body.ux-ready #nav button[data-page=journal]{--nav-accent:var(--sz-journal);--nav-soft:var(--sz-journal-soft);--nav-edge:var(--sz-journal-edge)}
+body.ux-ready #nav button[data-page=agenda]{--nav-accent:var(--sz-agenda);--nav-soft:var(--sz-agenda-soft);--nav-edge:var(--sz-agenda-edge)}
 body.ux-ready #nav button[data-move=open]{--nav-accent:var(--sz-movement);--nav-soft:var(--sz-movement-soft);--nav-edge:var(--sz-movement-edge)}
 body.ux-ready #nav button[data-page=games]{--nav-accent:var(--sz-games);--nav-soft:var(--sz-games-soft);--nav-edge:var(--sz-games-edge)}
 body.ux-ready #nav button[data-page=community]{--nav-accent:var(--sz-community);--nav-soft:var(--sz-community-soft);--nav-edge:var(--sz-community-edge)}
@@ -78,7 +82,7 @@ body.ux-ready .ux-bottom-nav button.selected{background:var(--nav-soft)!importan
 /* Fonds calmes, titres foncés, action principale de la couleur de la rubrique. */
 body.ux-ready #content :is(.card,.stat,.tl-action-card,.mv-card,.hz-evidence,.dy-week,.dy-calendar,.hz-wins,.hz-addiction,.hz-outlook){background:var(--sz-surface)!important;border-color:var(--sz-line)!important;box-shadow:none!important}
 body.ux-ready #content :is(h1,h2,h3){color:var(--sz-ink)}
-body.ux-ready #content :is(.greeting,.dy-heading) h1{color:var(--sz-section)}
+body.ux-ready #content :is(.greeting,.dy-heading,.ag-heading) h1{color:var(--sz-section)}
 body.ux-ready #content .eyebrow{color:var(--sz-section)}
 body.ux-ready #content :is(.muted,.small,.tl-caption,.hz-caption,.dy-clock-detail){color:var(--sz-muted)}
 body.ux-ready #workspace .primary,body.ux-ready #modal .primary,body.ux-ready #movement-player .primary{

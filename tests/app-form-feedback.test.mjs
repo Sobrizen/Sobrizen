@@ -32,7 +32,7 @@ mock.client.from=table=>{
   };
   return query;
 };
-const writes=table=>mock.calls.filter(call=>call.table===table&&['insert','update','upsert','delete'].includes(call.op));
+const writes=table=>mock.calls.filter(call=>call.table===table&&['insert','update','upsert','delete'].includes(call.op)||table==='user_settings'&&call.rpc==='save_private_settings');
 const linkedText=input=>[...new Set([input.getAttribute('aria-describedby'),input.getAttribute('aria-errormessage')].filter(Boolean).join(' ').split(/\s+/))]
   .map(id=>document.getElementById(id)).filter(node=>node&&!node.hidden&&!node.closest('[hidden]')).map(node=>node.textContent.trim()).join(' ');
 function fieldError(input,pattern){
@@ -111,7 +111,7 @@ try{
     await value(form,'support_phone','pas un numero');await value(form,'privacy',true);await submit(form);await settle();
     assert.equal(writes('user_settings').length,before);fieldError(input,/numéro|chiffres|téléphone/i);
     await value(form,'support_phone','+33 6 12 34 56 78');cleanField(input);await submit(form);await settle(20);
-    assert.equal(writes('user_settings').length,before+1);assert.equal(mock.tables.user_settings.find(row=>row.user_id===UID).support_phone,'+33 6 12 34 56 78');
+    assert.equal(writes('user_settings').length,before+1);assert.equal(writes('user_settings').at(-1).rpc,'save_private_settings');assert.equal(writes('user_settings').at(-1).args.p_settings.support_phone,'+33 6 12 34 56 78');assert.equal(mock.tables.user_settings.find(row=>row.user_id===UID).support_phone,'+33 6 12 34 56 78');
   });
 
   await check('password confirmation explains a mismatch beside its field and clears after correction',async()=>{

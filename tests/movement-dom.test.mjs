@@ -16,6 +16,7 @@ const options={skip:!JSDOM&&'Provide jsdom through SOBRIZEN_JSDOM_PATH for DOM r
 const source=await readFile(new URL('../movement.mjs',import.meta.url),'utf8');
 const ergonomics=await readFile(new URL('../ergonomics.mjs',import.meta.url),'utf8');
 const ergonomicsCore=await readFile(new URL('../ergonomics-core.mjs',import.meta.url),'utf8');
+const sectionNavigation=await readFile(new URL('../section-navigation.mjs',import.meta.url),'utf8');
 const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
 const plainModule=value=>value.replace(/^import .*?;\s*$/gm,'').replace(/^export /gm,'');
 const flush=()=>new Promise(resolve=>setImmediate(resolve));
@@ -23,7 +24,7 @@ const flush=()=>new Promise(resolve=>setImmediate(resolve));
 async function app({premium=true,reduced=false}={}){
  const errors=[],navigations=[],virtualConsole=new VirtualConsole();
  virtualConsole.on('jsdomError',error=>{
-  if(/navigation|Not implemented: navigation/i.test(error.message))navigations.push(error);
+  if(/^Not implemented: navigation/i.test(error.message))navigations.push(error);
   else errors.push(error);
  });
  const dom=new JSDOM(html,{url:'https://sobrizen.test/',runScripts:'outside-only',pretendToBeVisual:true,virtualConsole});
@@ -43,7 +44,9 @@ async function app({premium=true,reduced=false}={}){
  // Navigation performs the same document replacement as the application shell.
  // All movement and ergonomics listeners below are the actual production code.
  d.addEventListener('click',event=>{const b=event.target.closest('button');if(!b||b.disabled)return;if(b.dataset.page){d.body.dataset.page=b.dataset.page;d.querySelector('#content').innerHTML=`<div class="greeting"><h1>${b.dataset.page}</h1></div>`;}if(b.dataset.action==='logout')d.querySelector('#workspace').hidden=true;});
- w.eval(`{${plainModule(source)}\n}\n//# sourceURL=movement.mjs`);
+ w.eval(`{${plainModule(source)}\nconfigureMovementAccess(()=>window.__qaPremium);\n}\n//# sourceURL=movement.mjs`);
+ w.__qaPremium=premium;
+ w.eval(`var createSectionNavigation = (()=>{${plainModule(sectionNavigation)};return createSectionNavigation;})();`);
  w.eval(`{${plainModule(ergonomicsCore)}\n${plainModule(ergonomics)}\n}\n//# sourceURL=ergonomics.mjs`);
  await flush();
  const get=selector=>d.querySelector(selector);
@@ -51,7 +54,7 @@ async function app({premium=true,reduced=false}={}){
  async function key(selector,key){const target=get(selector);target.focus();const event=new w.KeyboardEvent('keydown',{key,bubbles:true,cancelable:true});target.dispatchEvent(event);await flush();return event;}
  async function advance(seconds){time+=seconds*1000;const pending=[...frames.values()];frames.clear();for(const fn of pending)fn(time);await flush();}
  async function visibility(value){hidden=value;d.dispatchEvent(new w.Event('visibilitychange'));await flush();}
- async function access(value){d.documentElement.dataset.premium=String(value);d.dispatchEvent(new w.CustomEvent('sobrizen-access-change',{detail:{premium:value,ready:true}}));await flush();}
+ async function access(value){w.__qaPremium=value;d.documentElement.dataset.premium=String(value);d.dispatchEvent(new w.CustomEvent('sobrizen-access-change',{detail:{premium:value,ready:true}}));await flush();}
  async function cancel(){const dialog=get('#movement-player'),event=new w.Event('cancel',{cancelable:true});dialog.dispatchEvent(event);if(!event.defaultPrevented)dialog.close();await flush();}
  function close(){dom.window.close();assert.deepEqual(errors,[],errors.map(error=>error.stack||error.message).join('\n'));}
  return {w,d,get,click,key,advance,visibility,access,cancel,close,frames,queries,navigations};
@@ -87,6 +90,8 @@ test('difficulty keyboard navigation keeps one selected tab and supports Home/En
 test('free access stays on Doux, locked difficulties stay locked, and upgrades work',options,async()=>{
  const a=await app({premium:false});try{
   await a.click('#nav [data-move="open"]');
+  a.d.documentElement.dataset.premium='true';
+  a.d.dispatchEvent(new a.w.CustomEvent('sobrizen-access-change',{detail:{premium:true,ready:true}}));
   assert.equal(a.d.querySelectorAll('.mv-card').length,4);
   await a.key('#mv-tab-doux','ArrowRight');
   assert.equal(a.d.activeElement.id,'mv-tab-moyen');
@@ -200,7 +205,7 @@ test('focus loss pauses, access revocation closes stale Premium controls, and lo
   await a.click('#mv-play');await a.advance(2);a.w.dispatchEvent(new a.w.Event('blur'));await a.advance(8);
   assert.equal(a.get('#mv-clock').textContent,'00:43');assert.equal(a.get('#mv-play').textContent,'Reprendre');
   // Cover the gap before the access-change broadcast reaches the UI.
-  a.d.documentElement.dataset.premium='false';await a.click('#mv-play');
+  a.w.__qaPremium=false;a.d.documentElement.dataset.premium='false';await a.click('#mv-play');
   assert.equal(a.get('#movement-player').open,false);assert.equal(a.frames.size,0);
   assert.equal(a.get('#mv-panel').getAttribute('aria-labelledby'),'mv-tab-doux');
   await a.click('[data-move="session"]');await a.click('#mv-play');

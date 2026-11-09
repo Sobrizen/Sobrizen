@@ -69,6 +69,7 @@ export function createJournalNotes({S,getClient,checkResult,notify,message,modal
   function pageRendered(){
     observer?.disconnect();observer=null;
     if(S.page!=='journal'||!healthConsentActive())return;
+    reloaded();
     const buttons=[...document.querySelectorAll('[data-journal-image]')];
     if(typeof IntersectionObserver==='function'){
       observer=new IntersectionObserver(items=>{for(const item of items)if(item.isIntersecting){observer?.unobserve(item.target);void hydrate(item.target);}},{rootMargin:'200px'});
@@ -165,11 +166,18 @@ export function createJournalNotes({S,getClient,checkResult,notify,message,modal
         assert(context);status(d,'Enregistrement de ta note…');
         try{
           writeStarted=true;
-          // A fixed UUID makes an uncertain response safe to retry; ownership is also enforced by RLS.
-          saved=checkResult(await (d.editing?db.from('journal_entries').update(row).eq('id',d.id).eq('user_id',context.user.id):db.from('journal_entries').upsert(row,{onConflict:'id'})).select().single());
-          if(!saved)throw Error('Cette note n’est plus disponible. Actualise ton journal.');
+          // The server timestamp is the version of the draft opened above. The
+          // comparison belongs in the UPDATE, not in a preceding SELECT: another
+          // device may save between those requests. A new fixed UUID is inserted
+          // once; retry recovery below never overwrites a subsequently edited row.
+          if(d.editing&&!d.original.updated_at)throw Object.assign(Error('La version de cette note est indisponible. Rouvre-la avant de la modifier.'),{code:'PT409'});
+          const mutation=d.editing
+            ?db.from('journal_entries').update(row).eq('id',d.id).eq('user_id',context.user.id).eq('updated_at',d.original.updated_at)
+            :db.from('journal_entries').insert(row);
+          saved=checkResult(await mutation.select().maybeSingle());
+          if(!saved)throw Object.assign(Error('Cette note a été modifiée ou supprimée ailleurs. Copie tes changements, puis rouvre la note pour comparer les versions.'),{code:'PT409'});
         }catch(error){
-          definiteRejection=typeof error?.code==='string'&&/^(?:22|23|42|PGRST)/.test(error.code);
+          definiteRejection=typeof error?.code==='string'&&/^(?:22|23|42|PGRST|PT409)/.test(error.code);
           assert(context);
           try{
             const recovered=checkResult(await db.from('journal_entries').select('*').eq('id',d.id).eq('user_id',context.user.id).maybeSingle());assert(context);
@@ -192,20 +200,20 @@ export function createJournalNotes({S,getClient,checkResult,notify,message,modal
     // Closing or replacing the editor while saving never causes an unexpected share dialog.
     const stillOpen=current(d);if(stillOpen)closeModal();if(S.page==='journal'||S.page==='home'||S.page==='journey')render();
     notify(context.demo?'Note enregistrée dans la démonstration. Aucune donnée envoyée en ligne.':cleanupFailed?'Note enregistrée. Le retrait de l’ancienne image du stockage reste à confirmer.':'Note enregistrée dans ton journal.');
-    if(sharing&&stillOpen){try{await share(saved.id,d.blob);}catch(error){if(valid(context))notify('Ta note est bien enregistrée. Le partage n’a pas pu être ouvert : '+message(error));}}
+    if(sharing&&stillOpen){try{await share(saved.id,d.blob,saved);}catch(error){if(valid(context))notify('Ta note est bien enregistrée. Le partage n’a pas pu être ouvert : '+message(error));}}
   }
   async function rememberShare(entry,post,context){
-    if(!valid(context)||!entryFor(entry.id))return;
+    if(!valid(context))return;
     let saved;
     if(context.demo)saved={...entryFor(entry.id),shared_post_id:post.id};
     else{
       const db=await getClient();assert(context);
       saved=checkResult(await db.from('journal_entries').update({shared_post_id:post.id}).eq('id',entry.id).eq('user_id',context.user.id).select().maybeSingle());assert(context);
     }
-    if(saved&&valid(context)){S.journal=S.journal.map(note=>note.id===entry.id?{...note,shared_post_id:saved.shared_post_id}:note);onChanged();if(S.page==='journal')render();}
+    if(saved&&valid(context)){S.journal=S.journal.map(note=>note.id===entry.id?{...note,...saved}:note);onChanged();if(S.page==='journal')render();}
   }
-  async function share(id,preparedBlob=null){
-    privateWrite();const context=sessionContext();assert(context);const entry=entryFor(id);
+  async function share(id,preparedBlob=null,entrySnapshot=null){
+    privateWrite();const context=sessionContext();assert(context);const entry=entryFor(id)||entrySnapshot;
     if(!entry||isMotivationEntry(entry))throw Error('Cette note n’est plus disponible.');
     if(typeof openShare!=='function')throw Error('Le partage est momentanément indisponible. Réessaie après avoir actualisé.');
     return openShare({entry:{...entry},imageBlob:hasImage(entry)?preparedBlob:null,loadImage:hasImage(entry)?async()=>{const item=await readImage(entry,context);assert(context);return item.blob;}:null,valid:()=>valid(context),onPublished:post=>rememberShare(entry,post,context)});
