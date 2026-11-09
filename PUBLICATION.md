@@ -5,7 +5,7 @@
 Node 24, puis `npm ci`. Les dépendances de QA sont épinglées et verrouillées : jsdom 30.1.3 et PGlite 0.5.16. Elles ne sont pas livrées au navigateur.
 
 - `npm test` exécute la suite complète et configure les deux noms de variables historiques de jsdom et de PGlite. Une dépendance absente fait échouer cette commande avant le lancement des tests, au lieu de laisser certains harnais sauter silencieusement leurs assertions.
-- `npm run test:agenda` exécute les 42 tests locaux de domaine, DOM et PostgreSQL de l’agenda.
+- `npm run test:agenda` exécute les 44 tests locaux de domaine, DOM et PostgreSQL de l’agenda.
 - `npm run test:build` vérifie les transformations, la politique de ressources et un build réel en copie temporaire isolée.
 - `npm run build` prépare uniquement `dist/`. Les sources `app.mjs`, `community.mjs`, `index.html`, `legal.html` et `sw.js` restent inchangées.
 
@@ -41,7 +41,13 @@ Les autres en-têtes conservent `nosniff`, la politique de référent `strict-or
 
 Références consultées : [configuration Vercel](https://vercel.com/docs/project-configuration), [CSP et en-têtes de sécurité Vercel](https://vercel.com/docs/cdn-security/security-headers).
 
-## Recette avant publication
+## État de la publication du 9 novembre 2026
+
+La PR n° 1 est fusionnée et le build Vercel de production a réussi. Les ressources publiques `app.mjs`, `agenda-ui.mjs`, `game-records.mjs`, `sw.js` et `abonnement.html` ont répondu HTTP 200 avec des octets identiques au build testé ; l’en-tête CSP a été constaté sur la page d’abonnement. Voir [le contrôle initial des fichiers publics](verification/2026-11-09/frontend-public.json). Le correctif d’espacement des cartes de prix du commit `d4af375864163d557262ebe8e7a15a50361c96b2` a ensuite été déployé, avec un [nouveau contrôle du fichier et de la CSP](verification/2026-11-09/offre-corrigee.json) et une [capture du résultat public](verification/2026-11-09/offre-production.png). Les cinq migrations de cette livraison sont appliquées, y compris la restriction finale des colonnes privées après publication du frontend ; voir [RELEASE_2026-11-09.md](RELEASE_2026-11-09.md). Le dossier `verification/` conserve les preuves dans le dépôt et ne fait pas partie de la liste des ressources publiées.
+
+Les parcours visuels décrits dans la livraison ont été vérifiés sur le site public avec les données de démonstration et une fenêtre de bureau, y compris les thèmes clair/sombre de l’agenda et les cartes de prix corrigées. La vérification des ressources déployées et les interactions fictives ne constituent pas une recette authentifiée sur comptes réels, une vérification physique sur mobile ni une validation de paiement de bout en bout.
+
+## Recette de déploiement
 
 Les tests SQL créent des utilisateurs synthétiques dans une instance PostgreSQL locale PGlite. Aucune migration n’est effectuée par le build. Les migrations préparées et l’installation des fonctions serveur sont des étapes séparées.
 

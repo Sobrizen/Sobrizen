@@ -1,0 +1,9 @@
+{
+  "url": "https://www.sobrizen.com/abonnement",
+  "status": 200,
+  "bytes": 10504,
+  "sha256": "7687991a922871307667bd8db9b0a30c9d54b739ed877d6bc9124b9bc9d0c2c1",
+  "matches_build": true,
+  "layout_fix": true,
+  "csp": "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; frame-src 'none'; form-action 'self'; script-src 'self' https://esm.sh; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://lnvtowdbbagwfbewnchz.supabase.co; connect-src 'self' https://esm.sh https://lnvtowdbbagwfbewnchz.supabase.co wss://lnvtowdbbagwfbewnchz.supabase.co; media-src 'self' blob:; worker-src 'self'; manifest-src 'self'; upgrade-insecure-requests"
+}

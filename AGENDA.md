@@ -37,7 +37,7 @@ Les événements sont délégués avec le préfixe `data-ag-*`. Les formulaires 
 - L’édition et la suppression utilisent une version entière attendue. Une version ancienne provoque un conflit explicite. Aucun cache privé n’est enregistré dans le navigateur.
 - La création et la modification demandent Premium, côté interface et côté serveur. La lecture, l’export et la suppression restent disponibles au propriétaire après expiration. Les exemples de démonstration restent modifiables en mémoire.
 
-## Schéma préparé et accès serveur
+## Schéma déployé et accès serveur
 
 `schema/agenda.sql` est la source de la migration **`20261109213640_agenda_objectives`, appliquée en production le 9 novembre 2026**. La présence de la table et des deux RPC a été vérifiée après application. Elle crée uniquement ses nouveaux objets et suit la migration fournissant `public.sobrizen_has_premium()`, sans argument, à partir des abonnements/essais/grants internes réellement validés côté serveur. Ne pas réappliquer la copie source.
 
@@ -74,6 +74,12 @@ node --test tests/agenda-core.test.mjs tests/agenda-dom.test.mjs tests/agenda-sq
 
 `npm ci` installe les dépendances de test épinglées ; `npm run test:agenda` configure automatiquement les harnais. Les tests DOM utilisent `jsdom@30.1.3`, chargeable aussi par `SOBRIZEN_QA_JSDOM` (fichier `lib/api.js`). Les tests SQL utilisent `@electric-sql/pglite@0.5.16`, chargeable aussi par `SOBRIZEN_QA_PGLITE`. Ce sont des dépendances de test uniquement. Sans ces dépendances, les tests concernés indiquent explicitement un saut ; les tests de domaine n’en dépendent pas. `npm test` exige les dépendances et configure toutes les variantes de variables historiques pour éviter ces sauts.
 
-Le groupe contient 44 tests : 23 domaine/cache, 11 DOM et 10 PostgreSQL isolé. La base de test utilise deux utilisateurs synthétiques et un droit Premium contrôlé par le serveur simulé. Elle vérifie les vraies politiques RLS, privilèges, triggers et RPC du SQL préparé. Elle ne se connecte à aucun projet Supabase.
+Le groupe contient 44 tests : 23 domaine/cache, 11 DOM et 10 PostgreSQL isolé. La base de test utilise deux utilisateurs synthétiques et un droit Premium contrôlé par le serveur simulé. Elle vérifie les vraies politiques RLS, privilèges, triggers et RPC du SQL versionné. Elle ne se connecte à aucun projet Supabase.
 
-La vérification visuelle finale et les parcours de navigation sont à effectuer dans l’application intégrée, en petit écran et en mode sombre, avant publication. Ces tests locaux ne constituent pas une preuve de migration ni de disponibilité sur un serveur déployé.
+## État en production et limites de recette
+
+La migration Agenda est appliquée et le frontend a été publié après fusion de la PR n° 1. `agenda-ui.mjs` répond HTTP 200 en production avec des octets identiques au build testé. La recette sur le site public en démonstration a vérifié les vues Jour/Semaine/Mois, la création d’un rendez-vous Pro fictif, la progression d’un objectif de 3/10 à 5/10 et les thèmes clair/sombre. Voir les captures [claire](verification/2026-11-09/agenda-production.png) et [sombre](verification/2026-11-09/agenda-sombre-production.png).
+
+Le contenu des exports réellement téléchargés a également été vérifié : le JSON indique `demo=true` et contient les sept éléments attendus (six exemples et le rendez-vous créé). Le fichier ICS est délimité par `BEGIN:VCALENDAR` et `END:VCALENDAR` et contient trois `VEVENT`, quatre `VTODO`, le titre du rendez-vous fictif et la progression `PERCENT-COMPLETE:50`.
+
+La recette visuelle a utilisé une fenêtre de bureau. Aucune vérification physique sur un téléphone n’est annoncée. Les interactions de démonstration restent en mémoire : elles ne constituent pas une validation de la persistance, des droits Premium ou des conflits sur un compte réel. Ces parcours authentifiés et la recette sur appareils mobiles doivent être documentés séparément. Les tests locaux ne sont pas présentés comme une preuve de migration ; la migration et la disponibilité du module ont fait l’objet des contrôles distincts décrits ci-dessus.

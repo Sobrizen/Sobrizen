@@ -1,0 +1,42 @@
+[
+  {
+    "file": "app.mjs",
+    "status": 200,
+    "bytes": 76593,
+    "sha256": "052360d99beae1520a0dddeaca0fa874c4bbeaec782ee34ee1e613351527acdf",
+    "matches_build": true,
+    "csp": null
+  },
+  {
+    "file": "agenda-ui.mjs",
+    "status": 200,
+    "bytes": 31080,
+    "sha256": "c5371c605a94f0479f87ca3c27b099cde131dba4d257735ea4dd1805a1189619",
+    "matches_build": true,
+    "csp": null
+  },
+  {
+    "file": "game-records.mjs",
+    "status": 200,
+    "bytes": 6114,
+    "sha256": "010964b6d09c82c45ac0227ff950dfe2493e8948e05d7318ca7862249ec79ccb",
+    "matches_build": true,
+    "csp": null
+  },
+  {
+    "file": "sw.js",
+    "status": 200,
+    "bytes": 3186,
+    "sha256": "30051a038bbe725a77cc058305d3c4325618258fd646fc44fc7729ae27bf7528",
+    "matches_build": true,
+    "csp": null
+  },
+  {
+    "file": "abonnement.html",
+    "status": 200,
+    "bytes": 10033,
+    "sha256": "1e0c67e93ecd96ab2259555b26191dd3bfbb19a0def49f4820ebbd39df06898a",
+    "matches_build": true,
+    "csp": "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; frame-src 'none'; form-action 'self'; script-src 'self' https://esm.sh; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://lnvtowdbbagwfbewnchz.supabase.co; connect-src 'self' https://esm.sh https://lnvtowdbbagwfbewnchz.supabase.co wss://lnvtowdbbagwfbewnchz.supabase.co; media-src 'self' blob:; worker-src 'self'; manifest-src 'self'; upgrade-insecure-requests"
+  }
+]
