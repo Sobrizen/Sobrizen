@@ -73,7 +73,7 @@ Les fichiers de `supabase/migrations/` sont générés avec la CLI Supabase puis
 5. Frontend et nouveau service worker.
 6. Restriction finale des quatre colonnes sensibles de `user_settings`, désormais lues par RPC contrôlé.
 
-La migration Agenda a demandé une confirmation supplémentaire dans le connecteur Supabase ; les demandes initiales ont expiré. Son application doit être constatée avant de présenter la fonction comme disponible aux comptes réels. La restriction finale des colonnes doit suivre la publication du frontend. Les onglets anciens devront alors recharger l’application.
+La migration Agenda a été confirmée et appliquée sous la version `20261109213640` ; sa table et ses deux RPC ont été constatés en production. La restriction finale des colonnes doit suivre la publication du frontend. Les onglets anciens devront alors recharger l’application.
 
 Les tables serveur de facturation ont RLS activée, sans politique utilisateur, et leurs privilèges sont révoqués. Les avertissements correspondants « RLS enabled, no policy » sont intentionnels. Les trois fonctions `SECURITY DEFINER` de réglages/export sont également intentionnelles : identité `auth.uid()` obligatoire, aucun argument d’identité fourni par le client, recherche SQL vide, tables/colonnes autorisées explicitement, accès anonyme révoqué. Les tests vérifient leur isolation.
 
