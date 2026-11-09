@@ -3,10 +3,10 @@ import assert from 'node:assert/strict';
 import {HEALTH_SOURCES} from '../health-evidence.mjs';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
-import {environment,boot,mockService,UID,UID2,$,$$,txt,click,value,submit,key,closeModal,route,settle,setNow,now} from './ux-dom-support.mjs';
+import {environment,boot,mockService,UID,UID2,$,$$,txt,click,value,submit,key,closeModal,route,settle,setNow,now,isWriteCall} from './ux-dom-support.mjs';
 
 const group=process.argv.find(arg=>arg.startsWith('--group='))?.slice(8);
-const groups=['demo','without-consent','member','premium','races'];
+const groups=['demo','without-consent','member','premium','trial','blocked','races'];
 if(!group){
   let failures=0;
   for(const name of groups){
@@ -24,6 +24,8 @@ if(!group){
   assert.ok(groups.includes(group),`Unknown group ${group}`);
   const env=await environment({online:group!=='demo',mobile:group==='demo'});
   const mock=group==='demo'?null:await mockService({consent:group!=='without-consent',premium:group==='premium'});
+  if(group==='trial')mock.tables.billing_subscriptions=[{user_id:UID,status:'trialing',trial_until:'2026-10-29T12:30:00Z',paid_until:null,access_blocked:false,cancel_at_period_end:false,plan:'monthly'}];
+  if(group==='blocked')mock.tables.billing_subscriptions=[{user_id:UID,status:'active',paid_until:'2027-10-29T12:30:00Z',access_blocked:true,cancel_at_period_end:false,plan:'annual'}];
   const results=[];
   async function check(name,fn){try{await fn();results.push({name,ok:true});console.log(`PASS [${group}] ${name}`);}catch(error){results.push({name,ok:false});console.error(`FAIL [${group}] ${name}\n${error.stack}`);env.answer(true);if($('#gaPlay [data-ga="close"]'))await click('#gaPlay [data-ga="close"]').catch(()=>{});$('#modal')?.close();}}
   await boot({mock});
@@ -31,8 +33,8 @@ if(!group){
   else{assert.equal($('#workspace').hidden,false,txt('#authInfo'));assert.equal($('#loadError').hidden,true,txt('#loadError'));await closeModal();}
 
   if(group==='demo'){
-    await check('all eight app routes have a current navigation state, heading and usable labels',async()=>{
-      for(const page of ['home','progress','health','journey','journal','games','community','profile']){
+    await check('all nine app routes have a current navigation state, heading and usable labels',async()=>{
+      for(const page of ['home','progress','health','journey','journal','agenda','games','community','profile']){
         await route(page);assert.equal(document.body.dataset.page,page);assert.ok($('#content h1'),`Missing heading for ${page}`);assert.equal($(`#nav [data-page="${page}"]`).getAttribute('aria-current'),'page');assert.doesNotMatch(txt('#content'),/\bNaN\b|\bundefined\b|\bInfinity\b/);
       }
       const shortcuts=$$('.ux-bottom-nav [data-ux-action="navigate"]').map(el=>el.dataset.uxValue);assert.deepEqual(shortcuts,['home','progress','health','help','menu']);
@@ -89,7 +91,7 @@ if(!group){
     await check('profile saves a demo display name and offers readable text and theme controls',async()=>{
       await route('profile');await value($('#profileForm'),'display_name','Alex QA');await submit($('#profileForm'));assert.equal($('#profileForm').elements.display_name.value,'Alex QA');await click('[data-ux-action="text-size"][data-ux-value="large"]');assert.equal(document.body.classList.contains('ux-large-text'),true);const dark=document.body.classList.contains('dark');await click('[data-action="theme"]');assert.equal(document.body.classList.contains('dark'),!dark);
     });
-    await check('free game catalog exposes three games and keeps five Premium gates',async()=>{await route('games');assert.equal($$('#gameZone [data-game]').length,3);assert.equal($$('#gameZone [data-game-upgrade]').length,5);await click('[data-game="ground"]');assert.ok($('#gaPlay'));for(let i=0;i<5;i++)await click('#gaPlay [data-ga="ground"]');assert.equal($('#gaPlay').dataset.state,'result');await click('#gaPlay [data-ga="close"]');assert.equal($('#gaPlay'),null);});
+    await check('free game catalog exposes three games and keeps ten Premium gates',async()=>{await route('games');assert.equal($$('#gameZone [data-game]').length,3);assert.equal($$('#gameZone [data-game-upgrade]').length,10);await click('[data-game="ground"]');assert.ok($('#gaPlay'));for(let i=0;i<5;i++)await click('#gaPlay [data-ga="ground"]');assert.equal($('#gaPlay').dataset.state,'result');await click('#gaPlay [data-ga="close"]');assert.equal($('#gaPlay'),null);});
     await check('help and a pause remain available without sending or calling anyone',async()=>{await click('header [data-action="help"]');assert.ok($('#modal a[href="tel:112"]'));assert.match(txt('#modalContent'),/ne traitent pas un sevrage/);await click('[data-action="urge"]');await submit($('#urgeStartForm'));assert.equal(txt('#timer'),'10:00');setNow(now()+60000);await env.tick();assert.equal(txt('#timer'),'09:00');await submit($('#urgeEndForm'));assert.equal($('#modal').open,false);});
   }
 
@@ -102,10 +104,35 @@ if(!group){
       await route('profile');assert.doesNotMatch(txt('#content'),/QA PLAN SENSIBLE|Contact fictif QA/);const count=mock.calls.filter(call=>call.op!=='select').length,form=$('#settingsForm');if(form){await value(form,'response_plan','Brouillon QA interdit');await submit(form);}assert.equal(mock.calls.filter(call=>call.op!=='select').length,count);await click('header [data-action="help"]');assert.doesNotMatch(txt('#modalContent'),/QA PLAN SENSIBLE|Contact fictif QA/);await closeModal();
     });
     await check('wellbeing cannot be saved without consent even through a direct action',async()=>{await route('health');const before=mock.calls.length;const forged=document.createElement('button');forged.dataset.healthAction='checkin';document.body.append(forged);await click(forged);assert.equal($('#healthCheckinForm'),null);assert.equal(mock.calls.length,before);forged.remove();});
+    await check('general agenda, game records and an explicit complete owner export remain available without health consent',async()=>{
+      assert.ok(mock.calls.some(call=>call.table==='agenda_items'&&call.filters.some(([key,value])=>key==='user_id'&&value===UID)));
+      assert.ok(mock.calls.some(call=>call.table==='game_records'&&call.filters.some(([key,value])=>key==='user_id'&&value===UID)));
+      await route('agenda');assert.ok($('.ag-page'));assert.equal($('#content [data-action="health-consent"]'),null);
+      await route('profile');await click('#sz-profile-tab-settings');const before=env.downloads.length;await click('[data-action="export"]');await settle(15);
+      assert.equal(env.downloads.length,before+1);const payload=JSON.parse(await env.downloads.at(-1).text());assert.equal(payload.version,5);assert.equal(payload.profile.id,UID);assert.equal(payload.journal[0].body,'Corps privé QA');assert.match(payload.settings.response_plan,/QA PLAN SENSIBLE/);assert.equal(mock.calls.at(-1).rpc,'export_personal_data');
+      assert.doesNotMatch(txt('#content'),/Corps privé QA|QA PLAN SENSIBLE/,'Export must not repopulate the gated tracking interface');
+    });
+  }
+
+  if(group==='trial'){
+    await check('a valid server trial unlocks games, movement and Agenda without a fictitious paid period',async()=>{
+      assert.equal(document.documentElement.dataset.premium,'true');await route('profile');assert.match(txt('#content'),/Essai Premium/);assert.match(txt('#content'),/29\/10\/2026|29 octobre 2026/);
+      await route('games');assert.equal($$('#gameZone [data-game]').length,8);assert.equal($$('#gameZone [data-brain-game]').length,5);await route('agenda');assert.ok($('.ag-page'));assert.equal($('#content [data-action="health-consent"]'),null);
+      await click('#nav [data-move="open"]');await click('#mv-tab-moyen');assert.equal($('#mv-tab-moyen').getAttribute('aria-selected'),'true');
+    });
+  }
+  if(group==='blocked'){
+    await check('blocked payment access remains free even when its previous paid period is in the future',async()=>{
+      assert.equal(document.documentElement.dataset.premium,'false');await route('games');assert.equal($$('#gameZone [data-game]').length,3);assert.equal($$('#gameZone [data-game-upgrade]').length,10);
+      document.documentElement.dataset.premium='true';document.dispatchEvent(new CustomEvent('sobrizen-access-change',{detail:{premium:true,ready:true}}));
+      const forged=document.createElement('button');forged.dataset.game='memory';document.body.append(forged);try{await click(forged);assert.equal($('#gaPlay'),null);}finally{forged.remove();}
+      await click('#nav [data-move="open"]');await click('#mv-tab-moyen');assert.equal($('#mv-tab-doux').getAttribute('aria-selected'),'true');assert.equal($('#mv-tab-moyen').getAttribute('aria-selected'),'false');
+      document.documentElement.dataset.premium='false';
+    });
   }
 
   if(group==='member'){
-    await check('active consent loads private data with owner filters and accurate current duration',async()=>{assert.ok(mock.calls.some(call=>call.table==='health_checkins'));assert.ok(mock.calls.some(call=>call.table==='user_settings'&&call.columns==='*'));await route('health');assert.equal(txt('[data-health-clock-value]'),'2');assert.equal(txt('.hz-stage.is-current strong'),'2 jours');assert.equal($$('.hz-chart-point').length,1);});
+    await check('active consent loads private data with owner filters and accurate current duration',async()=>{assert.ok(mock.calls.some(call=>call.table==='health_checkins'));assert.ok(mock.calls.some(call=>call.rpc==='read_private_settings'));await route('health');assert.equal(txt('[data-health-clock-value]'),'2');assert.equal(txt('.hz-stage.is-current strong'),'2 jours');assert.equal($$('.hz-chart-point').length,1);});
     await check('a health timer boundary must not navigate away from the movement page',async()=>{
       await route('health');await click('#nav [data-move="open"]');assert.equal(document.body.dataset.page,'movement');const before=now(),page=$('#movement-root'),focused=$('[data-move="level"][data-level="doux"]');focused.focus();
       try{setNow(before+86400000);await env.tick();assert.equal(document.body.dataset.page,'movement');assert.equal($('#movement-root'),page,'Background health clock must not replace the active movement DOM');assert.equal(document.activeElement,focused);}
@@ -120,19 +147,19 @@ if(!group){
       await route('progress');await click('[data-tl-action="occasion"]');const form=$('#tlOccasionForm');await submit(form);await value(form,'units','2');await value(form,'cost','5');await submit(form);await submit(form);assert.equal($('#modal').open,false,txt('[data-tl-error]'));
       const call=mock.calls.findLast(call=>call.rpc==='save_journey_timeline');assert.ok(call);assert.equal(call.args.p_expected_revision,1);const saved=mock.tables.journey_timelines[0];assert.equal(saved.revision,2);assert.equal(saved.document.occasions[0].units,2);assert.equal(saved.document.occasions[0].cost,5);await route('health');assert.equal($$('.hz-stage.is-current').length,0);assert.match(txt('.hz-context'),/conserv/);assert.ok($$('.hz-history-row').length>0);
     });
-    await check('journal save uses the authenticated owner and returns the saved private record',async()=>{await route('journal');await click('[data-action="journal-new"]');await value($('#journalForm'),'title','Note authentifiée QA');await value($('#journalForm'),'body','Texte sauvegardé QA');await submit($('#journalForm'));assert.equal($('#modal').open,false,txt('#notice'));assert.match(txt('#journalList'),/Note authentifiée QA/);const call=mock.calls.findLast(call=>call.table==='journal_entries'&&call.op==='upsert');assert.equal(call.payload.user_id,UID);});
+    await check('journal save uses the authenticated owner and returns the saved private record',async()=>{await route('journal');await click('[data-action="journal-new"]');await value($('#journalForm'),'title','Note authentifiée QA');await value($('#journalForm'),'body','Texte sauvegardé QA');await submit($('#journalForm'));assert.equal($('#modal').open,false,txt('#notice'));assert.match(txt('#journalList'),/Note authentifiée QA/);const call=mock.calls.findLast(call=>call.table==='journal_entries'&&call.op==='insert');assert.equal(call.payload.user_id,UID);});
     await check('health RPC errors preserve drafts; a one-row REST array is accepted on success',async()=>{
       await route('health');await click('.hz-hero [data-health-action="checkin"]');let form=$('#healthCheckinForm');await value(form,'mood','4');await value(form,'note','Brouillon RPC QA');mock.faults.health={code:'PT409',message:'Conflit QA'};await submit(form);assert.equal($('#modal').open,true);assert.equal(form.elements.note.value,'Brouillon RPC QA');assert.ok(!$('#healthFormError').hidden);await submit(form);assert.equal($('#modal').open,false,txt('#healthFormError'));assert.match(txt('.hz-history'),/Brouillon RPC QA/);assert.ok(mock.tables.health_checkins.some(row=>row.note==='Brouillon RPC QA'&&row.user_id===UID));
     });
-    await check('plan writes patch only personal fields and do not overwrite consent metadata',async()=>{await route('profile');await value($('#settingsForm'),'response_plan','Plan QA modifié');await submit($('#settingsForm'));const call=mock.calls.findLast(call=>call.table==='user_settings'&&call.op==='upsert');assert.ok(call);assert.equal(call.payload.user_id,UID);assert.equal(call.payload.response_plan,'Plan QA modifié');for(const key of ['health_data_consent_at','health_data_consent_version','health_data_consent_revoked_at'])assert.equal(Object.hasOwn(call.payload,key),false);assert.match(txt('#notice'),/enregistré/i);});
+    await check('plan writes patch only personal fields and do not overwrite consent metadata',async()=>{await route('profile');await value($('#settingsForm'),'response_plan','Plan QA modifié');await submit($('#settingsForm'));const call=mock.calls.findLast(call=>call.rpc==='save_private_settings');assert.ok(call);assert.equal(call.args.p_settings.response_plan,'Plan QA modifié');for(const key of ['user_id','health_data_consent_at','health_data_consent_version','health_data_consent_revoked_at'])assert.equal(Object.hasOwn(call.args.p_settings,key),false);assert.match(txt('#notice'),/enregistré/i);});
     await check('withdrawal clears health, journal and support data and prevents later writes',async()=>{
       await click('[data-action="health-consent-withdraw"]');assert.equal(mock.tables.user_settings[0].health_data_consent_revoked_at,new Date().toISOString());assert.doesNotMatch(txt('#content'),/Plan QA modifié|Contact fictif QA/);const before=mock.calls.length;await route('health');assert.equal($$('.hz-metric').length,0);await route('journal');assert.equal($('#journalList'),null);assert.equal(mock.calls.length,before);await click('header [data-action="help"]');assert.doesNotMatch(txt('#modalContent'),/Plan QA modifié|Contact fictif QA/);await closeModal();
     });
   }
 
   if(group==='premium'){
-    await check('premium subscription unlocks detailed tracking and all eight games',async()=>{assert.equal(document.documentElement.dataset.premium,'true');await route('progress');assert.ok($('[data-tl-chart-instance]'));await route('games');assert.equal($$('#gameZone [data-game]').length,8);assert.equal($$('#gameZone [data-game-upgrade]').length,0);});
-    await check('detailed chart supports keyboard selection and period navigation without writes',async()=>{await route('progress');const writes=mock.calls.filter(call=>call.op&&call.op!=='select'||call.rpc).length,point=$('.tl-chart-point');assert.ok(point);point.focus();const event=await key(point,'End');assert.equal(event.defaultPrevented,true);assert.ok(document.activeElement.matches('.tl-chart-point'));await key(document.activeElement,'Enter');assert.ok($('[data-tl-chart-instance]'));assert.equal(mock.calls.filter(call=>call.op&&call.op!=='select'||call.rpc).length,writes);});
+    await check('premium subscription unlocks detailed tracking and all thirteen games',async()=>{assert.equal(document.documentElement.dataset.premium,'true');await route('progress');assert.ok($('[data-tl-chart-instance]'));await route('games');assert.equal($$('#gameZone [data-game]').length,8);assert.equal($$('#gameZone [data-brain-game]').length,5);assert.equal($$('#gameZone [data-game-upgrade]').length,0);});
+    await check('detailed chart supports keyboard selection and period navigation without writes',async()=>{await route('progress');const writes=mock.calls.filter(isWriteCall).length,point=$('.tl-chart-point');assert.ok(point);point.focus();const event=await key(point,'End');assert.equal(event.defaultPrevented,true);assert.ok(document.activeElement.matches('.tl-chart-point'));await key(document.activeElement,'Enter');assert.ok($('[data-tl-chart-instance]'));assert.equal(mock.calls.filter(isWriteCall).length,writes);});
     for(const id of ['snake','blocks','merge','sequence','memory','reaction','taps','ground'])await check(`game ${id}: launch, help, keyboard pause/resume and clean close`,async()=>{
       await route('games');const launch=$(`[data-game="${id}"]`);launch.focus();await click(launch);assert.equal($('#gaPlay')?.dataset.game,id);assert.equal(document.body.style.overflow,'hidden');await env.frames(3,800);await click('#gaPlay [data-ga="help"]');assert.equal($('#gaPlay').classList.contains('ga-paused'),true);await key($('#gaPlay'),'p');assert.equal($('#gaPlay').classList.contains('ga-paused'),false);await key($('#gaPlay'),'p');assert.equal($('#gaPlay').classList.contains('ga-paused'),true);await click('#gaPlay [data-ga="resume"]');if(id==='taps'){await click('#gaPlay [data-ga="target"]');assert.equal(txt('#gaPlay .ga-score'),'19 s');assert.match(txt('#gaPlay .ga-unit'),/1 cibles/);}if(id==='ground'){await click('#gaPlay [data-ga="ground"]');assert.equal(txt('#gaPlay .ga-level'),'2 / 5');}await click('#gaPlay [data-ga="close"]');assert.equal($('#gaPlay'),null);assert.equal(document.body.style.overflow,'');assert.equal(document.activeElement,launch);
     });
@@ -143,8 +170,8 @@ if(!group){
     await check('pending profile write cannot populate the next account after logout',async()=>{
       await route('profile');await value($('#profileForm'),'display_name','ANCIEN COMPTE RETARD QA');const gate=mock.defer(call=>call.table==='profiles'&&call.op==='update');await submit($('#profileForm'));assert.equal(gate.used,true);await mock.signOut();await mock.signIn();gate.release();await settle(30);await closeModal();await route('profile');assert.equal($('#profileForm').elements.display_name.value,'Autre compte QA');assert.equal($('#modal').open,false);assert.doesNotMatch(txt('#content'),/ANCIEN COMPTE RETARD QA/);
     });
-    await check('paginated private export stops at an account change and downloads nothing',async()=>{
-      await mock.signOut();await mock.signIn({id:UID});await closeModal();await route('profile');const base=mock.tables.daily_checkins[0];mock.tables.daily_checkins=Array.from({length:501},(_,i)=>({...base,id:`qa-check-${i}`,checkin_date:`2025-${String(Math.floor(i/28)%12+1).padStart(2,'0')}-${String(i%28+1).padStart(2,'0')}`}));const gate=mock.defer(call=>call.table==='daily_checkins'&&call.range?.[0]===0);const before=env.downloads.length;await click('[data-action="export"]');assert.equal(gate.used,true);await mock.signOut();await mock.signIn();gate.release();await settle(30);assert.equal(env.downloads.length,before);assert.equal(mock.calls.filter(call=>call.table==='daily_checkins'&&call.range?.[0]===500).length,0);assert.doesNotMatch(txt('#content'),/Corps privé QA|Motivation fictive QA/);
+    await check('an explicit export stops at an account change and downloads nothing',async()=>{
+      await mock.signOut();await mock.signIn({id:UID});await closeModal();await route('profile');const base=mock.tables.daily_checkins[0];mock.tables.daily_checkins=Array.from({length:501},(_,i)=>({...base,id:`qa-check-${i}`,checkin_date:`2025-${String(Math.floor(i/28)%12+1).padStart(2,'0')}-${String(i%28+1).padStart(2,'0')}`}));const gate=mock.defer(call=>call.rpc==='export_personal_data');const before=env.downloads.length;await click('[data-action="export"]');assert.equal(gate.used,true);await mock.signOut();await mock.signIn();gate.release();await settle(30);assert.equal(env.downloads.length,before);assert.equal(mock.calls.filter(call=>call.rpc==='export_personal_data').length,1);assert.doesNotMatch(txt('#content'),/Corps privé QA|Motivation fictive QA/);
     });
     await check('pending wellbeing RPC cannot show an old account observation after logout',async()=>{
       await mock.signOut();await mock.signIn({id:UID});await closeModal();await route('health');await click('.hz-hero [data-health-action="checkin"]');await value($('#healthCheckinForm'),'mood','5');await value($('#healthCheckinForm'),'note','ANCIEN RESSENTI RETARD QA');const gate=mock.defer(call=>call.rpc==='save_health_checkin');await submit($('#healthCheckinForm'));assert.equal(gate.used,true);await mock.signOut();await mock.signIn();gate.release();await settle(30);await closeModal();await route('health');assert.equal($$('.hz-metric').length,0);assert.doesNotMatch(txt('#content'),/ANCIEN RESSENTI RETARD QA/);assert.equal($('#healthCheckinForm'),null);

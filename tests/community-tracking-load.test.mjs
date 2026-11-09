@@ -15,6 +15,14 @@ const hook=registerHooks({load(url,context,next){
 }});
 let failNextTable=null;
 const from=mock.client.from;
+const rpc=mock.client.rpc;
+mock.client.rpc=async(name,args)=>{
+  const fail=name==='list_journal_entries'&&failNextTable==='journal_entries';
+  if(fail)failNextTable=null;
+  const result=await rpc(name,args);
+  if(fail)throw Error('Simulated private read failure');
+  return result;
+};
 mock.client.from=table=>{
   const query=from(table);
   if(table===failNextTable){
@@ -102,7 +110,7 @@ try{
     const before=mock.calls.length;
     assert.equal(await app.loadPrivate(),true);
     assert.deepEqual(read(),{status:'consent-required',days:null,precision:'unknown'});
-    assert.equal(mock.calls.slice(before).some(call=>['daily_checkins','journey_timelines','journal_entries'].includes(call.table)),false);
+    assert.equal(mock.calls.slice(before).some(call=>['daily_checkins','journey_timelines','journal_entries'].includes(call.table)||['list_journal_entries','read_private_settings'].includes(call.rpc)),false);
   });
 
   await check('demo setup supplies its own complete in-memory tracking without a private load',async()=>{
@@ -113,5 +121,5 @@ try{
   });
 
   assert.deepEqual(env.errors,[]);
-}finally{hook.deregister();env.close();}
+}finally{mock.client.from=from;mock.client.rpc=rpc;hook.deregister();env.close();}
 console.log(`${passed}/8 community tracking load checks passed; real network disabled`);

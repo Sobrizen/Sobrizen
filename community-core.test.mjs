@@ -62,7 +62,7 @@ test('Build integration is idempotent and rejects source drift',()=>{
   assert(once.includes('getTrackingDuration:communityTrackingDuration'),'The built community must receive the canonical tracking bridge');
   assert.throws(()=>integrateApp('unrelated source'));assert.throws(()=>integrateApp(fixture+'\ninitGames();'));
   const worker="const CACHE='sobrizen-v4-old';\nconst ASSETS=['/app.mjs'];";
-  const updated=integrateWorker(worker);assert.equal(integrateWorker(updated),updated);assert(updated.includes('/community.mjs'));assert(!updated.includes('v4-old'));
+  const updated=integrateWorker(worker);assert.equal(integrateWorker(updated),updated);assert(updated.includes('/community.mjs'));assert(updated.includes('v4-old'),'Only the release changes the cache version');
 });
 test('A later release cache is preserved when the worker already includes community',()=>{
   const worker="const CACHE='sobrizen-v4-20261029-modern-journal-1';\nconst ASSETS=['/app.mjs','/community.mjs','/community-core.mjs','/community.css','/modern.css','/journal-motivation.mjs'];";

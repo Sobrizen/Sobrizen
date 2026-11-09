@@ -16,7 +16,7 @@ export function integratePhotosApp(source){
   source=once(source,`<span class="avatar">\${esc((p.profiles?.display_name||'M').slice(0,1))}</span>`, '${photoMarkup(p.author_id===S.user.id?S.profile:p.profiles,p.author_id)}');
   source=once(source,`<div class="comment"><b>\${esc(c.profiles?.display_name||'Membre')}</b>`,`<div class="comment"><div class="sz-comment-author">\${photoMarkup(c.author_id===S.user.id?S.profile:c.profiles,c.author_id)}<b>\${esc(c.profiles?.display_name||'Membre')}</b></div>`);
   const bridge=`\n${MARKER}\nconst profilePhotos=createProfilePhotos({S,getClient,sessionContext,sameSession,assertSession,modal,closeModal,notify});\nconst renderBeforePhotos=render;\nrender=()=>{renderBeforePhotos();if(S.user)profilePhotos.header();};\nconst invalidateBeforePhotos=invalidateSession;\ninvalidateSession=()=>{profilePhotos.reset();invalidateBeforePhotos();};\n`;
-  source=once(source,'\ninitGames();',bridge+'\ninitGames();');
+  source=once(source,'\ninitGames(',bridge+'\ninitGames(');
   return "import {photoMarkup} from './profile-photo-core.mjs';\nimport {createProfilePhotos} from './profile-photo-ui.mjs';\n"+source;
 }
 export function integratePhotosCommunity(source){
@@ -27,9 +27,16 @@ export function integratePhotosCommunity(source){
 }
 export function integratePhotosWorker(source){
   if(!/const CACHE='sobrizen-[^']+';/.test(source))throw Error('Profile photo integration: missing worker cache.');
-  if(!source.includes("'/profile-photo-ui.mjs'"))source=source.replace(/const CACHE='sobrizen-[^']+';/,"const CACHE='sobrizen-v10-20261029-profile-photos-1';");
+  // The release cache name belongs to sw.js. Bridges must never roll it back.
   for(const path of ['/profile-photo-core.mjs','/profile-photo-ui.mjs','/profile-photo.css'])if(!source.includes("'"+path+"'"))source=once(source,'const ASSETS=[',"const ASSETS=['"+path+"',");
   return source;
+}
+export function integratePhotosIndex(source){
+  return source.includes('href="/profile-photo.css"')?source:once(source,'</head>','<link rel="stylesheet" href="/profile-photo.css"></head>');
+}
+export function integratePhotosLegal(source){
+  if(source.includes('id="profile-photos-privacy"'))return source;
+  return once(source,'<h3>Notes, images et partage volontaire</h3>','<h3 id="profile-photos-privacy">Photo de profil facultative</h3><p>Vous pouvez ajouter, remplacer ou retirer une photo de profil. Après votre validation, elle est visible par les membres connectés dans la communauté et les commentaires, y compris sur vos anciens messages. Sans photo, votre initiale est affichée. L’image est centrée, redimensionnée et réencodée avant envoi ; son nom original et ses métadonnées photographiques ne sont pas transmis. Les photos sont stockées séparément des images du journal, dans un espace dont la lecture nécessite un compte connecté. Un retrait ne peut pas effacer les copies déjà vues ou conservées par un autre membre. L’effacement d’un compte doit également inclure les fichiers de son dossier de photos de profil.</p><h3>Notes, images et partage volontaire</h3>');
 }
 export function buildPhotos(root){
   for(const file of ['profile-photo-core.mjs','profile-photo-ui.mjs'])execFileSync(process.execPath,['--check',resolve(root,file)],{stdio:'inherit'});
@@ -37,8 +44,7 @@ export function buildPhotos(root){
   const read=file=>readFileSync(resolve(root,file),'utf8'),write=(file,text)=>writeFileSync(resolve(root,file),text);
   // Compute all transformations before writing any output.
   const app=integratePhotosApp(read('app.mjs')),community=integratePhotosCommunity(read('community.mjs')),worker=integratePhotosWorker(read('sw.js'));
-  let index=read('index.html');if(!index.includes('href="/profile-photo.css"'))index=once(index,'</head>','<link rel="stylesheet" href="/profile-photo.css"></head>');
-  let legal=read('legal.html');if(!legal.includes('id="profile-photos-privacy"'))legal=once(legal,'<h3>Notes, images et partage volontaire</h3>','<h3 id="profile-photos-privacy">Photo de profil facultative</h3><p>Vous pouvez ajouter, remplacer ou retirer une photo de profil. Après votre validation, elle est visible par les membres connectés dans la communauté et les commentaires, y compris sur vos anciens messages. Sans photo, votre initiale est affichée. L’image est centrée, redimensionnée et réencodée avant envoi ; son nom original et ses métadonnées photographiques ne sont pas transmis. Les photos sont stockées séparément des images du journal, dans un espace dont la lecture nécessite un compte connecté. Un retrait ne peut pas effacer les copies déjà vues ou conservées par un autre membre. L’effacement d’un compte doit également inclure les fichiers de son dossier de photos de profil.</p><h3>Notes, images et partage volontaire</h3>');
+  const index=integratePhotosIndex(read('index.html')),legal=integratePhotosLegal(read('legal.html'));
   for(const [file,text]of Object.entries({'app.mjs':app,'community.mjs':community,'sw.js':worker,'index.html':index,'legal.html':legal}))write(file,text);
   for(const file of ['app.mjs','community.mjs','sw.js'])execFileSync(process.execPath,['--check',resolve(root,file)],{stdio:'inherit'});
   console.log('Optional member-visible profile photos integrated.');

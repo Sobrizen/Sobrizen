@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {PAGE_LABELS,normalizeSearch,filterItems,gameCategory,formFingerprint} from '../ergonomics-core.mjs';
-test('all nine existing sections remain navigable',()=>assert.equal(Object.keys(PAGE_LABELS).length,9));
+test('all existing sections plus Agenda remain navigable',()=>{assert.equal(Object.keys(PAGE_LABELS).length,10);assert.equal(PAGE_LABELS.agenda,'Agenda & objectifs');});
 test('French search ignores accents, case and repeated spaces',()=>assert.equal(normalizeSearch('  RéFLEXION  ÉTÉ '),'reflexion ete'));
 test('history filters combine categories, search and pagination without mutation',()=>{const items=[{category:'sober',text:'Arrêt le 12 octobre'},{category:'drinking',text:'Soirée du 14 octobre'},{category:'sober',text:'Arrêt le 20 octobre'}],before=JSON.stringify(items);const r=filterItems(items,{category:'sober',query:'arret',limit:1});assert.equal(r.total,2);assert.equal(r.visible.length,1);assert.equal(r.remaining,1);assert.equal(JSON.stringify(items),before);});
 test('an empty result never invents history',()=>assert.deepEqual(filterItems([{category:'sober',text:'repos'}],{query:'2027'}),{visible:[],total:0,remaining:0}));

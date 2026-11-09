@@ -1,0 +1,17 @@
+/* Shared record labels; game palettes provide explicit readable foregrounds. */
+.ga-library .ga-card>.game-personal-record{display:block;font-size:12px;font-weight:700;line-height:1.5;margin-top:3px;color:inherit;overflow-wrap:anywhere}
+.ga-library .game-record-sync{display:block;font-size:12px;line-height:1.5;flex:1 1 100%}
+.ga-library-meta{flex-wrap:wrap}
+.ga-library .game-record-retry{font-size:12px;min-height:40px;padding:8px 12px}
+.ga-stat{flex-wrap:wrap;justify-content:flex-end}
+.ga-stat .game-personal-record{flex:1 1 100%;font-size:11px;font-weight:600;line-height:1.35;text-align:right;max-width:min(52vw,310px)}
+.ga-play .game-personal-record{color:var(--ga-ink)}
+.pz-play .game-personal-record{color:var(--pz-ink,#eef6ff)}
+.ga-hud:has(.game-personal-record){height:auto;min-height:46px}
+.pz-hud{flex-wrap:wrap}
+.pz-hud>.game-personal-record{flex:1 1 100%;font-size:11px;line-height:1.35}
+.ga-modal .game-personal-record,.pz-modal .game-personal-record{font-size:13px;line-height:1.5;font-weight:700}
+.ga-modal .game-record-sync,.pz-modal .game-record-sync{font-size:11px;line-height:1.45}
+.ga-play .game-record-retry,.pz-play .game-record-retry{font-size:12px}
+.ga-play [hidden],.pz-play [hidden],.ga-library [hidden]{display:none!important}
+@media(max-height:440px) and (orientation:landscape){.ga-stat .game-personal-record,.pz-hud>.game-personal-record{font-size:10px}.ga-hud:has(.game-personal-record){min-height:38px}}

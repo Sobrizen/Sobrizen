@@ -130,7 +130,7 @@ try{
     mock.client.from=table=>{
       const query=originalFrom(table),run=query.run.bind(query);
       query.run=async()=>{
-        if(uncertain&&table==='journal_entries'&&query.op==='upsert'){await run();return{data:null,error:{message:'fetch failed after commit'}};}
+        if(uncertain&&table==='journal_entries'&&query.op==='insert'){await run();return{data:null,error:{message:'fetch failed after commit'}};}
         if(uncertain&&table==='journal_entries'&&query.op==='select'&&query.filters.some(([name])=>name==='id'))return{data:null,error:{message:'fetch unavailable during confirmation'}};
         return run();
       };
@@ -182,6 +182,33 @@ try{
     assert.equal($('#journalForm [name="visibility"]:checked').value,'private');await value($('#journalForm'),'body','Une réflexion nouvelle, pour moi.');await submit($('#journalForm'));await settle(25);
     assert.equal(mock.tables.journal_entries[0].body,'Une réflexion nouvelle, pour moi.');assert.equal(mock.tables.journal_entries[0].shared_post_id,entry.shared_post_id);assert.equal(shares.length,0);
     assert.equal(mock.calls.some(call=>call.table==='posts'&&call.op!=='select'),false);
+    const write=writes().find(call=>call.op==='update');assert.deepEqual(write.filters,[['id',entry.id],['user_id',UID],['updated_at',stamp]],'The update itself must compare the version opened in the draft');
+  });
+
+  await check('an edit from a second device cannot overwrite a newer text or attachment and keeps the draft open',async()=>{
+    const entry=seed(note());await controller.open(entry.id);await value($('#journalForm'),'body','Mes changements locaux à conserver');await pickImage();
+    const remote=mock.tables.journal_entries[0];remote.body='Version enregistrée sur mon autre appareil';remote.updated_at='2026-10-27T11:00:00.000Z';
+    await submit($('#journalForm'));await settle(35);
+    assert.equal($('#modal').open,true);assert.equal($('#journalForm').elements.body.value,'Mes changements locaux à conserver');
+    assert.match($('[data-jn-status]').textContent,/modifiée ou supprimée ailleurs/);assert.match($('[data-jn-status]').textContent,/brouillon reste ouvert/);
+    assert.equal(remote.body,'Version enregistrée sur mon autre appareil');assert.equal(remote.image_path,null);
+    assert.equal(writes().filter(call=>call.op==='update').length,1);assert.equal(shares.length,0);
+    assert.ok(storageCalls.some(call=>call.op==='remove'&&call.paths.includes(uploads()[0].path)),'Rejected CAS cleans only the unreferenced new upload');
+  });
+
+  await check('a deletion on another device is not recreated by editing the old draft',async()=>{
+    const entry=seed(note());await controller.open(entry.id);await value($('#journalForm'),'body','Texte encore ouvert');mock.tables.journal_entries=[];
+    await submit($('#journalForm'));await settle(25);
+    assert.equal(mock.tables.journal_entries.length,0);assert.equal($('#modal').open,true);assert.equal($('#journalForm').elements.body.value,'Texte encore ouvert');
+    assert.match($('[data-jn-status]').textContent,/modifiée ou supprimée ailleurs/);assert.equal(writes().some(call=>call.op==='insert'||call.op==='upsert'),false);
+  });
+
+  await check('an uncertain edit is recovered only when the server row confirms exactly the submitted payload',async()=>{
+    const entry=seed(note());await controller.open(entry.id);await value($('#journalForm'),'body','Édition confirmée après interruption');
+    const originalFrom=mock.client.from;
+    mock.client.from=table=>{const query=originalFrom(table),run=query.run.bind(query);query.run=async()=>{const result=await run();return table==='journal_entries'&&query.op==='update'?{data:null,error:{message:'fetch failed after commit'}}:result;};return query;};
+    try{await submit($('#journalForm'));await settle(25);assert.equal($('#modal').open,false);assert.equal(mock.tables.journal_entries[0].body,'Édition confirmée après interruption');assert.equal(writes().filter(call=>call.op==='update').length,1);}
+    finally{mock.client.from=originalFrom;}
   });
 
   await check('removing an image updates the private note before deleting only its unreferenced owned object',async()=>{

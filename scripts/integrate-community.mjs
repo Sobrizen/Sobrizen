@@ -9,15 +9,13 @@ export function integrateApp(source){
   for(const anchor of ['function communityView(', 'function postList(', 'function postModal(', 'async function loadFeed(', 'function invalidateSession(', 'const actionHandlers=']){
     if(!source.includes(anchor))throw Error('Community integration: missing anchor '+anchor);
   }
-  if(source.split('\ninitGames();').length!==2)throw Error('Community integration: ambiguous boot anchor.');
+  if(source.split('\ninitGames(').length!==2)throw Error('Community integration: ambiguous boot anchor.');
   const bridge=`\n${MARKER}\nconst community=createCommunity({S,getClient,checkResult,notify,message,modal,closeModal,render,greeting,sessionContext,sameSession,assertSession,getTrackingDuration:communityTrackingDuration});\ncommunityView=community.view;\npostList=community.postList;\npostModal=community.openPost;\nloadFeed=community.loadFeed;\nactionHandlers['post-delete']=community.removePost;\njournalShareHandler=community.openFromJournal;\nconst invalidateBeforeCommunity=invalidateSession;\ninvalidateSession=()=>{invalidateBeforeCommunity();community.reset();};\n`;
-  return "import {createCommunity} from './community.mjs';\n"+source.replace('\ninitGames();',bridge+'\ninitGames();');
+  return "import {createCommunity} from './community.mjs';\n"+source.replace('\ninitGames(',bridge+'\ninitGames(');
 }
 export function integrateWorker(source){
   if(!/const CACHE='sobrizen-[^']+';/.test(source)||!source.includes('const ASSETS=['))throw Error('Community integration: unexpected service worker.');
-  // Only migrate the old cache when adding community for the first time.
-  // Later release names are owned by sw.js and must survive every build.
-  if(!source.includes("'/community.mjs'"))source=source.replace(/const CACHE='sobrizen-[^']+';/,"const CACHE='sobrizen-v4-20261028-community-1';");
+  // Cache versions are owned by the release, never by an additive build bridge.
   for(const path of ['/community.mjs','/community-core.mjs','/community.css']){
     if(!source.includes("'"+path+"'"))source=source.replace('const ASSETS=[',"const ASSETS=['"+path+"',");
   }

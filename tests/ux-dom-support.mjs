@@ -16,6 +16,7 @@ export const settle=async(ms=8)=>{await Promise.resolve();await new Promise(reso
 export const $=(selector,root=document)=>root.querySelector(selector);
 export const $$=(selector,root=document)=>[...root.querySelectorAll(selector)];
 export const txt=(selector,root=document)=>$(selector,root)?.textContent.trim()||'';
+export const isWriteCall=call=>['insert','upsert','update','delete'].includes(call.op)||!!call.rpc&&!['list_journal_entries','read_private_settings','export_personal_data'].includes(call.rpc);
 
 export async function environment({online=false,mobile=false}={}){
   let library;
@@ -97,13 +98,14 @@ export async function mockService({consent=true,premium=false}={}){
     progress_chapters:[{id:id(2),user_id:UID,effective_on:'2026-10-25',...goal,origin:'chosen',created_at:stamp}],subscription_anchors:[],
     journey_timelines:[{user_id:UID,document:doc,revision:1,created_at:stamp,updated_at:stamp}],
     daily_checkins:[{id:id(3),user_id:UID,checkin_date:'2026-10-26',sober_today:true,mood:3,energy:4,craving:0,note:'Bilan fictif QA',updated_at:stamp}],
-    journal_entries:[{id:id(4),user_id:UID,entry_date:'2026-10-26',title:'Note privée QA',body:'Corps privé QA',kind:'reflection',created_at:stamp}],program_progress:[],urge_events:[],reasons:[],
+    journal_entries:[{id:id(4),user_id:UID,entry_date:'2026-10-26',title:'Note privée QA',body:'Corps privé QA',kind:'reflection',created_at:stamp,updated_at:stamp}],program_progress:[],urge_events:[],reasons:[],
+    agenda_items:[],game_records:[],game_record_completions:[],
     health_checkins:[{id:id(5),user_id:UID,checkin_date:'2026-10-26',mood:3,energy:4,sleep_quality:3,anxiety:2,concentration:3,physical_comfort:4,note:'Ressenti fictif QA',created_at:stamp,updated_at:stamp}],
     posts:[{id:id(6),author_id:UID2,body:'Publication fictive QA',kind:'victory',created_at:stamp,profiles:{display_name:'Autre compte QA'},post_likes:[{count:0}],comments:[{count:0}]}],post_likes:[],comments:[],content_reports:[],
   };
   const calls=[],gates=[];let authCallback=()=>{},currentUser={id:UID},serial=20;
   const faults={health:null,timeline:null};
-  const ownerTables=new Set(['user_settings','billing_subscriptions','premium_test_grants','sobriety_journeys','progress_settings','progress_chapters','subscription_anchors','journey_timelines','daily_checkins','journal_entries','program_progress','urge_events','reasons','health_checkins']);
+  const ownerTables=new Set(['user_settings','billing_subscriptions','premium_test_grants','sobriety_journeys','progress_settings','progress_chapters','subscription_anchors','journey_timelines','daily_checkins','journal_entries','program_progress','urge_events','reasons','health_checkins','agenda_items','game_records','game_record_completions']);
   function defer(match){let release;const promise=new Promise(resolve=>{release=resolve;});const gate={match,promise,release,used:false,call:null};gates.push(gate);return gate;}
   async function pause(call,result){const gate=gates.find(g=>!g.used&&g.match(call));if(gate){gate.used=true;gate.call=call;await gate.promise;}return result;}
   class Query{
@@ -125,9 +127,10 @@ export async function mockService({consent=true,premium=false}={}){
         return row[key]===val;
       });
       let rows=tables[this.table].filter(matches);
-      if(this.op==='update'){for(const row of rows)Object.assign(row,this.payload);}
+      if(this.op==='update'){for(const row of rows)Object.assign(row,this.payload,this.table==='journal_entries'?{updated_at:new NativeDate(clock+(++serial)).toISOString()}:{});}
       if(this.op==='delete'){tables[this.table]=tables[this.table].filter(row=>!matches(row));}
       if(['upsert','insert'].includes(this.op)){
+        if(this.op==='insert'&&this.payload.id&&tables[this.table].some(row=>row.id===this.payload.id))return pause(call,{data:null,error:{code:'23505',message:'Duplicate primary key in QA'}});
         // Model the unique daily constraint so a concurrent insert cannot silently win.
         if(this.op==='insert'&&this.table==='daily_checkins'&&tables[this.table].some(row=>row.user_id===this.payload.user_id&&row.checkin_date===this.payload.checkin_date)){
           return pause(call,{data:null,error:{code:'23505',message:'Duplicate daily declaration in QA'}});
@@ -144,7 +147,33 @@ export async function mockService({consent=true,premium=false}={}){
   }
   const client={from:table=>new Query(table),auth:{onAuthStateChange:callback=>{authCallback=callback;return{data:{subscription:{unsubscribe(){}}}};},getSession:async()=>({data:{session:currentUser?{user:currentUser}:null},error:null}),signOut:async()=>{currentUser=null;authCallback('SIGNED_OUT',null);return{data:{},error:null};}},
     async rpc(name,args){const call={rpc:name,args:clone(args)};calls.push(call);let result;
-      if(name==='save_health_checkin'){
+      if(name==='list_journal_entries'){
+        assert.ok(currentUser,'Journal listing requires an authenticated session');
+        const settings=tables.user_settings.find(row=>row.user_id===currentUser.id);
+        if(!settings?.health_data_consent_at||settings.health_data_consent_revoked_at)return pause(call,{data:null,error:{code:'42501',message:'Consentement requis'}});
+        assert.ok(Number.isInteger(args.p_offset)&&args.p_offset>=0);assert.ok(args.p_limit>=1&&args.p_limit<=21);assert.ok(args.p_search.length<=200);
+        const rows=tables.journal_entries.filter(row=>row.user_id===currentUser.id&&((row.kind==='reflection'&&row.title==='Une pensée pour avancer · SobriZen')===args.p_motivation)&&(row.title+' '+row.body).toLocaleLowerCase().includes(args.p_search.toLocaleLowerCase())).sort((a,b)=>String(b.entry_date).localeCompare(String(a.entry_date))||String(b.created_at).localeCompare(String(a.created_at))||String(b.id).localeCompare(String(a.id)));
+        result={data:clone(rows.slice(args.p_offset,args.p_offset+args.p_limit)),error:null};
+      }else if(name==='read_private_settings'||name==='save_private_settings'){
+        const settings=tables.user_settings.find(row=>row.user_id===currentUser?.id);
+        if(!settings?.health_data_consent_at||settings.health_data_consent_revoked_at)result={data:null,error:{code:'42501',message:'Consentement requis'}};
+        else{if(name==='save_private_settings'){assert.ok(Object.keys(args.p_settings).every(key=>['support_name','support_phone','risky_situation','response_plan','reminder_time'].includes(key)));Object.assign(settings,args.p_settings,{updated_at:new NativeDate(clock+(++serial)).toISOString()});}result={data:clone(settings),error:null};}
+      }else if(name==='export_personal_data'){
+        assert.ok(currentUser,'Export requires an authenticated session');
+        const one=table=>clone(tables[table].find(row=>(table==='profiles'?row.id:row.user_id)===currentUser.id)||null);
+        const all=table=>clone(tables[table].filter(row=>row.user_id===currentUser.id));
+        result={data:{version:5,demo:false,exported_at:new Date().toISOString(),profile:one('profiles'),journey:one('sobriety_journeys'),settings:one('user_settings'),journey_timeline:one('journey_timelines'),progress_settings:one('progress_settings'),subscription_anchor:one('subscription_anchors'),checks:all('daily_checkins'),journal:all('journal_entries'),urges:all('urge_events'),reasons:all('reasons'),program:all('program_progress'),health_checkins:all('health_checkins'),progress_chapters:all('progress_chapters'),agenda_items:all('agenda_items'),game_records:all('game_records'),game_record_completions:all('game_record_completions')},error:null};
+      }else if(name==='save_game_record'){
+        if(!currentUser||args.p_expected_user_id!==currentUser.id)return pause(call,{data:null,error:{code:'42501',message:'Le compte a changé'}});
+        const free=['snake','blocks','ground'].includes(args.p_game_id),premium=tables.billing_subscriptions.some(row=>row.user_id===currentUser.id&&['active','trialing'].includes(row.status)&&Date.parse(row.paid_until)>clock)||tables.premium_test_grants.some(row=>row.user_id===currentUser.id&&Date.parse(row.expires_at)>clock);
+        if(!free&&!premium)return pause(call,{data:null,error:{code:'42501',message:'Premium requis'}});
+        let saved=tables.game_records.find(row=>row.user_id===currentUser.id&&row.game_id===args.p_game_id);
+        if(!saved){saved={user_id:currentUser.id,game_id:args.p_game_id,best_score:0,best_level:0,best_time_ms:null,completed_sessions:0,created_at:new Date().toISOString()};tables.game_records.push(saved);}
+        saved.best_score=Math.max(saved.best_score,args.p_score);saved.best_level=Math.max(saved.best_level,args.p_level);
+        if(args.p_time_ms!==null)saved.best_time_ms=saved.best_time_ms===null?args.p_time_ms:Math.min(saved.best_time_ms,args.p_time_ms);
+        if(args.p_game_id==='ground'&&args.p_completed&&!tables.game_record_completions.some(row=>row.user_id===currentUser.id&&row.run_id===args.p_run_id)){tables.game_record_completions.push({user_id:currentUser.id,run_id:args.p_run_id,created_at:new Date().toISOString()});saved.completed_sessions++;}
+        saved.updated_at=new NativeDate(clock+(++serial)).toISOString();result={data:clone(saved),error:null};
+      }else if(name==='save_health_checkin'){
         if(faults.health){result={data:null,error:faults.health};faults.health=null;}
         else{const record=args.p_record,old=tables.health_checkins.find(row=>row.user_id===currentUser.id&&row.checkin_date===record.checkin_date);if((old?.updated_at||null)!==args.p_expected_updated_at)result={data:null,error:{code:'PT409',message:'Conflit fictif QA'}};else{const saved={...old,...record,id:old?.id||id(++serial),user_id:currentUser.id,created_at:old?.created_at||new Date().toISOString(),updated_at:new NativeDate(clock+(++serial)).toISOString()};tables.health_checkins=tables.health_checkins.filter(row=>row.id!==saved.id);tables.health_checkins.push(saved);result={data:[clone(saved)],error:null};}}
       }else if(name==='save_journey_timeline'){
