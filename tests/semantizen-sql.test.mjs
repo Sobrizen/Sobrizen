@@ -1,0 +1,15 @@
+import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import {PGlite} from '@electric-sql/pglite';
+const A='11111111-1111-4111-8111-111111111111',B='22222222-2222-4222-8222-222222222222',R='99999999-9999-4999-8999-000000000001';
+test('SémantiZen additive migration: prior data, ownership, premium and monotone best attempts',async t=>{const db=new PGlite();try{
+ await db.exec(`create role anon;create role authenticated;create role service_role;create schema auth;create table auth.users(id uuid primary key);insert into auth.users values('${A}'),('${B}');create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('test.uid',true),'')::uuid$$;grant usage on schema auth to authenticated,anon;create function public.sobrizen_has_premium() returns boolean language sql stable as $$select coalesce(current_setting('test.premium',true),'false')='true'$$;`);
+ await db.exec(fs.readFileSync(new URL('../game-records.sql',import.meta.url),'utf8'));await db.exec(`insert into public.game_records(user_id,game_id,best_score) values('${A}','snake',12);`);
+ await db.exec(fs.readFileSync(new URL('../db/semantizen-records.sql',import.meta.url),'utf8'));
+ await db.exec(`set role authenticated;select set_config('test.uid','${A}',false);select set_config('test.premium','true',false);`);
+ const save=async(score=999990,completed=true,owner=A)=>(await db.query('select * from public.save_game_record($1,$2,0,null,$3,$4,$5)',['semantizen',score,completed,R,owner])).rows[0];
+ await t.test('existing record retained',async()=>assert.equal((await db.query("select best_score from public.game_records where game_id='snake'")).rows[0].best_score,12));
+ await t.test('best attempts improves and never worsens',async()=>{assert.equal((await save()).best_score,999990);assert.equal((await save(999998)).best_score,999998);assert.equal((await save(999980)).best_score,999998);});
+ await t.test('invalid direct and RPC results rejected',async()=>{await assert.rejects(save(1000000));await assert.rejects(save(999999,false));await assert.rejects(db.query("update public.game_records set best_level=1 where game_id='semantizen'"));});
+ await t.test('free accounts cannot write Premium record',async()=>{await db.exec("select set_config('test.premium','false',false)");await assert.rejects(save(999999));await assert.rejects(db.query("update public.game_records set best_score=999999 where game_id='semantizen'"));await db.exec("select set_config('test.premium','true',false)");});
+ await t.test('other account has no read or overwrite access',async()=>{await assert.rejects(save(999999,true,B));await db.exec(`select set_config('test.uid','${B}',false)`);assert.equal((await db.query('select * from public.game_records')).rows.length,0);await assert.rejects(db.query('insert into public.game_records(user_id,game_id,best_score) values($1,$2,$3)',[A,'semantizen',999999]));});
+ await t.test('anonymous cannot call or read records',async()=>{await db.exec('reset role;set role anon');await assert.rejects(save());await assert.rejects(db.query('select * from public.game_records'));});
+}finally{await db.close();}});

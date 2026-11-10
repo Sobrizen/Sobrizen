@@ -4,6 +4,7 @@ import {dirname,resolve,posix} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {execFileSync} from 'node:child_process';
 import {PUBLIC_ASSETS} from './public-assets.mjs';
+import {catalogCopy} from './catalog-copy.mjs';
 import {integrateApp,integrateWorker} from './integrate-community.mjs';
 import {integratePhotosApp,integratePhotosCommunity,integratePhotosWorker,integratePhotosIndex,integratePhotosLegal} from './integrate-profile-photos.mjs';
 
@@ -68,6 +69,7 @@ export function planPublic(sourceRoot=root){
   transform('sw.js',source=>integratePhotosWorker(integrateWorker(source)));
   transform('index.html',integratePhotosIndex);
   transform('legal.html',integratePhotosLegal);
+  for(const file of ['app.mjs','abonnement.html','legal.html'])transform(file,catalogCopy);
   const config=JSON.parse(readFileSync(resolve(sourceRoot,'vercel.json'),'utf8'));
   return {files,summary:validatePublic(files,config)};
 }

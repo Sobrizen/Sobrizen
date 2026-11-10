@@ -26,7 +26,7 @@ test('real game controllers: thirteen record displays, saved metrics, pause tran
   async function tapCell(i,n){await tapPoint((i%n+.5)*100/n,(Math.floor(i/n)+.5)*40/n);}
   async function scenario(name,fn){await t.test(name,async()=>{const before=env.errors.length;try{await fn();assert.deepEqual(env.errors.slice(before),[]);}finally{if($('#gaPlay'))await close();if($('#pzPlay'))await close(true);}});}
   try{
-    assert.equal(document.querySelectorAll('#gameZone [data-game-record]').length,13);
+    assert.equal(document.querySelectorAll('#gameZone [data-game-record]').length,GAME_IDS.length);
     await scenario('Snake: fruit record, pause/resume and close',async()=>{
       await launch('snake');await env.frames(170,16);assert.ok(Number(txt('.ga-score'))>=1);await pauseResume();await close();assert.ok(records.record('snake').best_score>=1);
     });
@@ -84,7 +84,7 @@ test('real game controllers: thirteen record displays, saved metrics, pause tran
       assert.ok(best.score>0);await tapPoint((171+Math.cos(best.angle)*100)/342*100,(432+Math.sin(best.angle)*100)/470*40);await env.frames(45,16);await pauseResume(true);await close(true);assert.ok(records.record('bubbles').best_score>0);
     });
     await scenario('all thirteen records appear on their cards',async()=>{
-      for(const id of GAME_IDS){assert.ok(records.record(id),id);assert.doesNotMatch(txt('#gameZone [data-game-record='+id+']'),/à découvrir|aucune séance/,id);}
+      for(const id of GAME_IDS.filter(id=>id!=='semantizen')){assert.ok(records.record(id),id);assert.doesNotMatch(txt('#gameZone [data-game-record='+id+']'),/à découvrir|aucune séance/,id);}
     });
     await scenario('Sequence: last-error pause/resume finishes at zero and cannot resume below zero',async()=>{
       await launch('sequence');await env.frames(140,16);
