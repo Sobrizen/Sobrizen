@@ -123,7 +123,7 @@ if(!group){
   }
   if(group==='blocked'){
     await check('blocked payment access remains free even when its previous paid period is in the future',async()=>{
-      assert.equal(document.documentElement.dataset.premium,'false');await route('games');assert.equal($$('#gameZone [data-game]').length,3);assert.equal($$('#gameZone [data-game-upgrade]').length,10);
+      assert.equal(document.documentElement.dataset.premium,'false');await route('games');assert.equal($$('#gameZone [data-game]').length,3);assert.equal($$('#gameZone [data-game-upgrade]').length,11);
       document.documentElement.dataset.premium='true';document.dispatchEvent(new CustomEvent('sobrizen-access-change',{detail:{premium:true,ready:true}}));
       const forged=document.createElement('button');forged.dataset.game='memory';document.body.append(forged);try{await click(forged);assert.equal($('#gaPlay'),null);}finally{forged.remove();}
       await click('#nav [data-move="open"]');await click('#mv-tab-moyen');assert.equal($('#mv-tab-doux').getAttribute('aria-selected'),'true');assert.equal($('#mv-tab-moyen').getAttribute('aria-selected'),'false');

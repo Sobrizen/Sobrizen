@@ -32,15 +32,15 @@ function fixture({demo=false}={}){
   };
 }
 
-test('all thirteen activities have a private, intelligible record metric',async()=>{
+test('all fourteen activities have a private, intelligible record metric',async()=>{
   const f=fixture();await f.records.load();
   for(const id of GAME_IDS){
-    const result=id==='ground'?{score:0,level:0,completed:true}:id==='memory'?{score:28,level:4,timeMs:120000,completed:true}:id==='reaction'?{score:12,level:5,timeMs:350,completed:true}:{score:42,level:2,completed:true};
+    const result=id==='semantizen'?{score:999958,level:0,completed:true}:id==='ground'?{score:0,level:0,completed:true}:id==='memory'?{score:28,level:4,timeMs:120000,completed:true}:id==='reaction'?{score:12,level:5,timeMs:350,completed:true}:{score:42,level:2,completed:true};
     assert.equal((await f.records.save(f.records.begin(id),result)).saved,true,id);
     assert.ok(f.records.record(id),id);
     assert.match(f.records.describe(id),id==='ground'?/séance terminée/:/Mon record/);
   }
-  assert.equal(f.rows.size,13);assert.equal(f.receipts.size,1);f.records.destroy();
+  assert.equal(f.rows.size,GAME_IDS.length);assert.equal(f.receipts.size,1);f.records.destroy();
 });
 test('maxima never decrease and best time never increases with out-of-order responses',()=>{
   const best=mergeGameRecord(null,'reaction',{score:14,level:5,timeMs:230},{userId:UID});
