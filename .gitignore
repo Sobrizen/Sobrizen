@@ -2,3 +2,5 @@ node_modules/
 dist/
 .public-build-*/
 supabase/.temp/
+semantizen-vocabulary.json
+semantizen-vectors.bin
