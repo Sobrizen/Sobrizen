@@ -34,3 +34,8 @@ export function restorePurchaseSelection(doc=globalThis.document,url=globalThis.
  const plan=selectedPlan(url,store),radio=doc?.querySelector('input[name=plan][value="'+plan+'"]');
  if(radio){radio.checked=true;rememberPlan(plan,store);}return plan;
 }
+/** Confirmation links must retain the plan even in a different browser tab. */
+export function purchaseEmailRedirect(origin=globalThis.location?.origin,store=storage(),now=Date.now()){
+ const plan=pendingPurchase(store,now);
+ return plan?'https://www.sobrizen.com/?subscribe='+plan:origin;
+}

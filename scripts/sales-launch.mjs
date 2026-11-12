@@ -6,9 +6,11 @@ function once(source,needle,replacement,label){
 }
 export function integrateSalesApp(source){
  if(source.includes('// sales-purchase-flow-v1'))return source;
- source="// sales-purchase-flow-v1\nimport {capturePurchaseIntent,completePurchaseLogin,clearPurchaseIntent} from './purchase-intent.mjs';\ncapturePurchaseIntent();\n"+source;
+ source="// sales-purchase-flow-v1\nimport {capturePurchaseIntent,completePurchaseLogin,clearPurchaseIntent,purchaseEmailRedirect} from './purchase-intent.mjs';\ncapturePurchaseIntent();\n"+source;
  source=once(source,"render();if(S.recovery)passwordModal();else if(!S.settings.privacy_ack_at)","render();if(!S.recovery&&completePurchaseLogin(S.user,S.demo))return;if(S.recovery)passwordModal();else if(!S.settings.privacy_ack_at)",'post-login');
  source=once(source,'function demo(){invalidateSession();','function demo(){clearPurchaseIntent();invalidateSession();','demo clears purchase');
+ if(source.split('emailRedirectTo:location.origin').length!==3)throw Error('Sales integration marker changed: email redirect');
+ source=source.replaceAll('emailRedirectTo:location.origin','emailRedirectTo:purchaseEmailRedirect()');
  return source;
 }
 export function integrateSalesSubscription(source){
