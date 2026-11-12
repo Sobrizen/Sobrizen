@@ -5,6 +5,7 @@ import {fileURLToPath} from 'node:url';
 import {execFileSync} from 'node:child_process';
 import {PUBLIC_ASSETS} from './public-assets.mjs';
 import {catalogCopy} from './catalog-copy.mjs';
+import {integrateSalesApp,integrateSalesSubscription,integrateSalesSubscriptionHtml,integrateSalesLegal} from './sales-launch.mjs';
 import {integrateApp,integrateWorker} from './integrate-community.mjs';
 import {integratePhotosApp,integratePhotosCommunity,integratePhotosWorker,integratePhotosIndex,integratePhotosLegal} from './integrate-profile-photos.mjs';
 
@@ -70,6 +71,10 @@ export function planPublic(sourceRoot=root){
   transform('index.html',integratePhotosIndex);
   transform('legal.html',integratePhotosLegal);
   for(const file of ['app.mjs','abonnement.html','legal.html'])transform(file,catalogCopy);
+  transform('app.mjs',integrateSalesApp);
+  transform('subscription.mjs',integrateSalesSubscription);
+  transform('abonnement.html',integrateSalesSubscriptionHtml);
+  transform('legal.html',integrateSalesLegal);
   const config=JSON.parse(readFileSync(resolve(sourceRoot,'vercel.json'),'utf8'));
   return {files,summary:validatePublic(files,config)};
 }
@@ -87,3 +92,4 @@ export function buildPublic(sourceRoot=root){
   return summary;
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url))buildPublic();
+

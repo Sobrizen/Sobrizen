@@ -14,7 +14,11 @@ export function planForPrice(p,{livemode=true,requireActive=false}={}){
  return Object.values(PLANS).find(plan=>p.unit_amount===plan.amount&&p.recurring.interval===plan.interval)||null;
 }
 export const validPrice=(p,options={})=>!!planForPrice(p,{requireActive:true,...options});
-export function launchReady(c){return !!c&&['sales_enabled','legal_ready','tax_ready','hosting_ready','premium_features_ready'].every(k=>c[k]===true)&&c.terms_version===CFG.termsVersion;}
+/** Commercial approval is distinct from legal verification. Only server-side admin configuration can authorize launch. */
+export function launchReady(c){
+ const authorized=c?.legal_ready===true||(c?.owner_launch_authorized===true&&typeof c.owner_launch_authorized_at==='string'&&Number.isFinite(Date.parse(c.owner_launch_authorized_at))&&Date.parse(c.owner_launch_authorized_at)<=Date.now());
+ return !!c&&authorized&&['sales_enabled','tax_ready','hosting_ready','premium_features_ready'].every(k=>c[k]===true)&&c.terms_version===CFG.termsVersion;
+}
 export function publicOffer(remaining){
  const count=Number.isInteger(remaining)&&remaining>=0&&remaining<=CFG.launchLimit?remaining:null;
  return {currency:CFG.currency,trial_days:CFG.trialDays,monthly:{...PLANS.monthly},annual:{...PLANS.annual},launch:{...PLANS.launch,limit:CFG.launchLimit,remaining:count,discount_percent:33,lifetime_while_active:true},terms_version:CFG.termsVersion};
@@ -51,7 +55,7 @@ export function checkoutParameters({userId,customerId,priceId,plan,trial=true,re
  if(plan==='launch'&&!isUuid(reservationId))throw Error('Launch reservation required');
  const chosen=PLANS[plan],price=(chosen.amount/100).toFixed(2).replace('.',','),period=chosen.interval==='month'?'mois':'an';
  const metadata={app:'sobrizen',user_id:userId,terms_version:CFG.termsVersion,plan,...(reservationId?{launch_reservation_id:reservationId}:{})};
- return {mode:'subscription',customer:customerId,client_reference_id:userId,line_items:[{price:priceId,quantity:1}],payment_method_collection:'always',locale:'fr',billing_address_collection:'required',customer_update:{address:'auto'},expires_at:Math.floor(now/1000)+CFG.checkoutSeconds,success_url:`${CFG.site}/abonnement?checkout=success&session_id={CHECKOUT_SESSION_ID}`,cancel_url:`${CFG.site}/abonnement?checkout=cancelled`,metadata,subscription_data:{metadata:{...metadata,tier:'premium'},...(trial?{trial_period_days:CFG.trialDays,trial_settings:{end_behavior:{missing_payment_method:'cancel'}}}:{})},...(integrationId?{integration_identifier:integrationId}:{}),custom_text:{submit:{message:`${trial?'7 jours gratuits, puis ':''}${price} €/${period}. Renouvellement automatique, désactivable dans ton compte.${plan==='launch'?' Tarif de lancement conservé tant que cet abonnement annuel reste actif.':''} Droit de rétractation : 14 jours.`}},automatic_tax:{enabled:false}};
+ return {mode:'subscription',adaptive_pricing:{enabled:false},branding_settings:{display_name:'SobriZen — JANNAH BOUTIQUE',button_color:'#21654f',background_color:'#f5f6f2'},customer:customerId,client_reference_id:userId,line_items:[{price:priceId,quantity:1}],payment_method_collection:'always',locale:'fr',billing_address_collection:'required',customer_update:{address:'auto'},expires_at:Math.floor(now/1000)+CFG.checkoutSeconds,success_url:`${CFG.site}/abonnement?checkout=success&session_id={CHECKOUT_SESSION_ID}`,cancel_url:`${CFG.site}/abonnement?checkout=cancelled`,metadata,subscription_data:{metadata:{...metadata,tier:'premium'},...(trial?{trial_period_days:CFG.trialDays,trial_settings:{end_behavior:{missing_payment_method:'cancel'}}}:{})},...(integrationId?{integration_identifier:integrationId}:{}),custom_text:{submit:{message:`${trial?'7 jours gratuits, puis ':''}${price} €/${period}. Renouvellement automatique, désactivable dans ton compte.${plan==='launch'?' Tarif de lancement conservé tant que cet abonnement annuel reste actif.':''} Droit de rétractation : 14 jours.`}},automatic_tax:{enabled:false}};
 }
 export async function verifySignature(raw,header,secret,now=Math.floor(Date.now()/1000),{livemode=true,account=CFG.account}={}){
  if(typeof secret!=='string'||!secret.startsWith('whsec_'))throw Error('Webhook secret unavailable');
