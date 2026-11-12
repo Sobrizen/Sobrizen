@@ -4,7 +4,8 @@ export function shuffle(values,random=Math.random){const a=[...values];for(let i
 export const snakeLevel=fruits=>Math.min(10,1+Math.floor(fruits/4));
 export const snakeDelay=level=>Math.max(85,Math.round(260*Math.pow(.88,level-1)));
 export const blocksLevel=lines=>Math.min(10,1+Math.floor(lines/4));
-export const blocksDelay=level=>Math.max(120,Math.round(1000*Math.pow(.8,level-1)));
+// Slightly brisker natural fall; level progression, lock grace and scoring stay unchanged.
+export const blocksDelay=level=>Math.max(120,Math.round(950*Math.pow(.8,level-1)));
 export function emptyCell(body,size,random=Math.random,height=size){const occupied=new Set(body.map(([x,y])=>y*size+x)),free=[];for(let i=0;i<size*height;i++)if(!occupied.has(i))free.push(i);if(!free.length)return null;const p=free[Math.floor(random()*free.length)];return [p%size,Math.floor(p/size)]}
 export function createSnake(size=18,height=size){const y=Math.floor(height/2);return {size,height,body:[[5,y],[4,y],[3,y]],previous:[[5,y],[4,y],[3,y]],direction:[1,0],queue:[],food:[9,y],fruits:0,level:1,over:false,won:false}}
 const DIRECTIONS={up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]};
