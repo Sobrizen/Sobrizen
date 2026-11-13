@@ -1,0 +1,27 @@
+/* Subtle, respectful motion for progress only. Never animates the meaning of a measurement. */
+#content .tl-chart-stat,#content .tl-achievement-grid>div,#content .tl-simple-metric,#content .tl-chart-savings{
+  position:relative;transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease;
+}
+@media (hover:hover) and (pointer:fine){
+ #content .tl-chart-stat:hover,#content .tl-simple-metric:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(33,96,130,.10)}
+}
+#content .tl-chart-stat:focus-visible,#content .tl-chart-point:focus-visible{outline:3px solid var(--sz-focus,#176b89);outline-offset:3px}
+#content .tl-achievement-grid strong,#content .tl-chart-stat strong,#content .tl-chart-savings strong{font-variant-numeric:tabular-nums;letter-spacing:-.035em}
+#content .tl-chart.is-motion-ready .tl-chart-stop-band{animation:sz-band-enter .55s ease-out both}
+#content .tl-chart.is-motion-ready .tl-chart-point{animation:sz-point-enter .38s cubic-bezier(.2,.7,.3,1) both;animation-delay:var(--sz-delay,0ms);transform-box:fill-box;transform-origin:center}
+#content .tl-chart.is-motion-ready .tl-chart-transition{animation:sz-marker-enter .45s ease-out both}
+#content .tl-chart.is-motion-ready .tl-chart-readout{animation:sz-readout-enter .32s ease-out both}
+#content .tl-chart.is-motion-ready .tl-chart-stat.is-selected{box-shadow:inset 0 -3px var(--sz-section,var(--green))}
+#content .tl-achievements.is-motion-ready .tl-achievement-grid>div{animation:sz-card-enter .42s ease-out both;animation-delay:var(--sz-delay,0ms)}
+#content .tl-chart.is-motion-ready .tl-chart-savings{animation:sz-card-enter .4s ease-out both}
+#content .tl-chart svg .tl-chart-point:is(:hover,:focus-visible) .tl-chart-dot{filter:drop-shadow(0 0 4px var(--sz-section,var(--green)))}
+@keyframes sz-point-enter{from{opacity:0;transform:scale(.55)}to{opacity:1;transform:scale(1)}}
+@keyframes sz-band-enter{from{opacity:0}to{opacity:1}}
+@keyframes sz-marker-enter{from{opacity:0}to{opacity:1}}
+@keyframes sz-card-enter{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
+@keyframes sz-readout-enter{from{opacity:.3;transform:translateY(3px)}to{opacity:1;transform:translateY(0)}}
+@media(prefers-reduced-motion:reduce){
+ #content .tl-chart.is-motion-ready :is(.tl-chart-point,.tl-chart-stop-band,.tl-chart-transition,.tl-chart-readout,.tl-chart-savings),
+ #content .tl-achievements.is-motion-ready .tl-achievement-grid>div{animation:none!important;transition:none!important}
+ #content :is(.tl-chart-stat,.tl-simple-metric,.tl-achievement-grid>div){transition:none!important;transform:none!important}
+}
