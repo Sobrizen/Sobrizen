@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Sobrizen — chemin vers un nouveau départ">
+<defs>
+<linearGradient id="ring" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#0780bf"/><stop offset=".46" stop-color="#159ac5"/><stop offset="1" stop-color="#79c75c"/></linearGradient>
+<linearGradient id="far" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#addcea"/><stop offset="1" stop-color="#b8e4eb"/></linearGradient>
+<linearGradient id="hill" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#2eabc8"/><stop offset=".42" stop-color="#40b7ac"/><stop offset="1" stop-color="#9bcf56"/></linearGradient>
+<radialGradient id="sun" cx="50%" cy="42%" r="65%"><stop offset="0" stop-color="#ffdfab" stop-opacity=".95"/><stop offset=".68" stop-color="#ffebca" stop-opacity=".78"/><stop offset="1" stop-color="#ffefd8" stop-opacity="0"/></radialGradient>
+<clipPath id="round"><circle cx="256" cy="256" r="230"/></clipPath>
+</defs>
+<g clip-path="url(#round)"><circle cx="355" cy="246" r="68" fill="url(#sun)"/>
+<path d="M10 351 C76 321 115 302 158 298 C224 290 261 334 313 338 C351 341 378 319 419 332 L512 369 512 512 0 512 Z" fill="url(#far)"/>
+<path d="M0 414 C87 398 156 378 217 348 C272 321 322 317 369 315 C425 315 472 352 516 399 L516 518 0 518 Z" fill="url(#hill)"/>
+<path d="M104 513 C135 468 174 439 225 409 C275 380 324 354 349 338 C365 328 362 318 345 314 C364 315 381 319 383 330 C385 349 350 361 317 380 C283 397 237 422 205 449 C179 471 166 492 155 513 Z" fill="#ffffff" opacity=".98"/></g>
+<path d="M88 423 C45 381 26 329 26 260 C26 132 129 26 256 26 C384 26 486 131 486 260 C486 302 476 344 453 376" fill="none" stroke="url(#ring)" stroke-width="18" stroke-linecap="round"/>
+</svg>

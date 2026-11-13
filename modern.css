@@ -290,7 +290,7 @@ body.ux-ready #workspace #appNav {
 }
 body.ux-ready #workspace #appNav > .brand { padding: 0 14px; }
 body.ux-ready #workspace #appNav > .brand .brand-wordmark { width: 142px; }
-body.ux-ready #workspace #appNav > .brand .brand-symbol { width: 25px; height: 36px; }
+body.ux-ready #workspace #appNav > .brand .brand-symbol { width: 30px; height: 30px; }
 body.ux-ready #workspace #appNav > .badge {
   margin: 13px 14px 11px;
   padding: 0;
