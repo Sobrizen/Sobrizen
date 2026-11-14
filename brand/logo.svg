@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="logoTitle">
+<title id="logoTitle">SobriZen</title><defs>
+<linearGradient id="outline" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#079ca9"/><stop offset=".55" stop-color="#057784"/><stop offset="1" stop-color="#075665"/></linearGradient>
+<linearGradient id="name" x1="0" x2="1"><stop offset="0" stop-color="#003d49"/><stop offset=".47" stop-color="#004d56"/><stop offset=".51" stop-color="#02ad9c"/><stop offset="1" stop-color="#048e85"/></linearGradient>
+<linearGradient id="trail" x1="0" x2="1"><stop offset="0" stop-color="#b9e4e6"/><stop offset=".58" stop-color="#65c8c6"/><stop offset="1" stop-color="#02998f"/></linearGradient>
+<linearGradient id="sprout" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#18baad"/><stop offset="1" stop-color="#058b84"/></linearGradient>
+</defs>
+<circle cx="512" cy="512" r="480" fill="#fff" stroke="url(#outline)" stroke-width="25"/>
+<text x="512" y="563" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="155" font-weight="700" letter-spacing="-4" textLength="760" lengthAdjust="spacingAndGlyphs" fill="url(#name)">SobriZen</text>
+<path d="M148 685 C300 620 449 631 563 640 C689 649 788 630 875 592 C774 662 655 670 543 665 C385 657 259 647 148 685Z" fill="url(#trail)"/>
+<g fill="url(#sprout)"><path d="M497 789 C464 760 425 752 413 697 C467 703 504 731 507 789 L505 813 C497 800 495 798 497 789Z"/><path d="M525 789 C538 730 565 698 609 693 C607 757 573 778 517 811 C522 795 523 791 525 789Z"/></g>
+<path d="M506 807 C496 781 479 763 462 754 M514 807 C525 771 542 757 555 747" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round"/>
+</svg>

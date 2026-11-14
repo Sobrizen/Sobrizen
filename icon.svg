@@ -1,14 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Sobrizen"><defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f8fcff"/><stop offset="1" stop-color="#e7f4f8"/></linearGradient></defs><rect width="512" height="512" rx="114" fill="url(#bg)"/><svg x="56" y="56" width="400" height="400" viewBox="0 0 512 512">
-<defs>
-<linearGradient id="ring" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#0780bf"/><stop offset=".46" stop-color="#159ac5"/><stop offset="1" stop-color="#79c75c"/></linearGradient>
-<linearGradient id="far" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#addcea"/><stop offset="1" stop-color="#b8e4eb"/></linearGradient>
-<linearGradient id="hill" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#2eabc8"/><stop offset=".42" stop-color="#40b7ac"/><stop offset="1" stop-color="#9bcf56"/></linearGradient>
-<radialGradient id="sun" cx="50%" cy="42%" r="65%"><stop offset="0" stop-color="#ffdfab" stop-opacity=".95"/><stop offset=".68" stop-color="#ffebca" stop-opacity=".78"/><stop offset="1" stop-color="#ffefd8" stop-opacity="0"/></radialGradient>
-<clipPath id="round"><circle cx="256" cy="256" r="230"/></clipPath>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="logoTitle">
+<title id="logoTitle">SobriZen</title><defs>
+<linearGradient id="outline" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#079ca9"/><stop offset=".55" stop-color="#057784"/><stop offset="1" stop-color="#075665"/></linearGradient>
+<linearGradient id="name" x1="0" x2="1"><stop offset="0" stop-color="#003d49"/><stop offset=".47" stop-color="#004d56"/><stop offset=".51" stop-color="#02ad9c"/><stop offset="1" stop-color="#048e85"/></linearGradient>
+<linearGradient id="trail" x1="0" x2="1"><stop offset="0" stop-color="#b9e4e6"/><stop offset=".58" stop-color="#65c8c6"/><stop offset="1" stop-color="#02998f"/></linearGradient>
+<linearGradient id="sprout" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#18baad"/><stop offset="1" stop-color="#058b84"/></linearGradient>
 </defs>
-<g clip-path="url(#round)"><circle cx="355" cy="246" r="68" fill="url(#sun)"/>
-<path d="M10 351 C76 321 115 302 158 298 C224 290 261 334 313 338 C351 341 378 319 419 332 L512 369 512 512 0 512 Z" fill="url(#far)"/>
-<path d="M0 414 C87 398 156 378 217 348 C272 321 322 317 369 315 C425 315 472 352 516 399 L516 518 0 518 Z" fill="url(#hill)"/>
-<path d="M104 513 C135 468 174 439 225 409 C275 380 324 354 349 338 C365 328 362 318 345 314 C364 315 381 319 383 330 C385 349 350 361 317 380 C283 397 237 422 205 449 C179 471 166 492 155 513 Z" fill="#ffffff" opacity=".98"/></g>
-<path d="M88 423 C45 381 26 329 26 260 C26 132 129 26 256 26 C384 26 486 131 486 260 C486 302 476 344 453 376" fill="none" stroke="url(#ring)" stroke-width="18" stroke-linecap="round"/>
-</svg></svg>
+<circle cx="512" cy="512" r="480" fill="#fff" stroke="url(#outline)" stroke-width="25"/>
+<text x="512" y="563" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="155" font-weight="700" letter-spacing="-4" textLength="760" lengthAdjust="spacingAndGlyphs" fill="url(#name)">SobriZen</text>
+<path d="M148 685 C300 620 449 631 563 640 C689 649 788 630 875 592 C774 662 655 670 543 665 C385 657 259 647 148 685Z" fill="url(#trail)"/>
+<g fill="url(#sprout)"><path d="M497 789 C464 760 425 752 413 697 C467 703 504 731 507 789 L505 813 C497 800 495 798 497 789Z"/><path d="M525 789 C538 730 565 698 609 693 C607 757 573 778 517 811 C522 795 523 791 525 789Z"/></g>
+<path d="M506 807 C496 781 479 763 462 754 M514 807 C525 771 542 757 555 747" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round"/>
+</svg>

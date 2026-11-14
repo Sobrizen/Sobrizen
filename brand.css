@@ -1,28 +1,10 @@
-/* Sobrizen: discreet landscape emblem, light wordmark, uniform responsive branding. */
-.brand{display:inline-flex;align-items:center;gap:9px;width:max-content;max-width:100%;flex-shrink:0;line-height:1;text-decoration:none}
-.brand-symbol{display:block;width:30px;height:30px;object-fit:contain;flex-shrink:0}
-.brand-wordmark{display:block;width:143px;height:auto;object-fit:contain;flex-shrink:1;min-width:0}
-.welcome-hero .brand{gap:13px;padding:9px 13px;border-radius:14px;background:rgba(249,252,255,.94);box-shadow:0 4px 22px rgba(5,39,65,.08)}
-.welcome-hero .brand-symbol{width:48px;height:48px}
-.welcome-hero .brand-wordmark{width:184px}
-.welcome-hero .brand img,body.dark #workspace .brand img{filter:none}
-body.dark #workspace .brand{background:rgba(244,250,253,.94);padding:5px 8px;border-radius:11px}
+/* SobriZen: unified circular identity, wordmark integrated inside the emblem */
+.brand{display:flex;align-items:center;gap:0;width:max-content;max-width:100%;flex-shrink:0;line-height:1}
+.brand-logo{display:block;width:84px;height:84px;object-fit:contain;flex-shrink:0;filter:none!important}
+.welcome-hero .brand{gap:0}
+.welcome-hero .brand-logo{width:148px;height:148px}
 .header-identity{display:flex;align-items:center;min-width:0}
 .brand--mobile{display:none}
-@media(max-width:1050px){
- aside .brand{gap:8px}
- aside .brand-symbol{width:28px;height:28px}
- aside .brand-wordmark{width:121px}
-}
-@media(max-width:700px){
- .brand--mobile{display:flex;gap:7px}
- .brand--mobile .brand-symbol{width:26px;height:26px}
- .brand--mobile .brand-wordmark{width:112px}
- #headerDate{display:none}
-}
-@media(max-width:380px){
- .brand--mobile .brand-symbol{width:24px;height:24px}
- .brand--mobile .brand-wordmark{width:92px}
- header>.row{gap:6px}
- header>.row .secondary{padding:9px 10px}
-}
+@media(max-width:1050px){aside .brand-logo{width:76px;height:76px}}
+@media(max-width:700px){.brand--mobile{display:flex}.brand--mobile .brand-logo{width:60px;height:60px}#headerDate{display:none}}
+@media(max-width:380px){.brand--mobile .brand-logo{width:52px;height:52px}header>.row{gap:6px}header>.row .secondary{padding:9px 10px}}
