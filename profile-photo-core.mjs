@@ -18,18 +18,24 @@ export function photoSignature(bytes){
   return null;
 }
 /** Canvas creates a new square JPEG; the original name and EXIF/GPS are not sent. */
-export async function prepareProfilePhoto(file){
+export async function prepareProfilePhoto(file,{signal}={}){
+  const checkAbort=()=>{if(signal?.aborted)throw signal.reason||new DOMException('Préparation annulée.','AbortError');};checkAbort();
   if(!file?.size)throw Error('Choisis une photo non vide.');
   if(file.size>MAX_PHOTO_SOURCE)throw Error('Cette photo est trop lourde. Choisis une image de 10 Mo maximum.');
   if(!photoSignature(new Uint8Array(await file.slice(0,12).arrayBuffer())))throw Error('Choisis une photo JPG, PNG ou WebP. Les autres formats ne sont pas acceptés.');
+  checkAbort();
   const url=URL.createObjectURL(file),image=new Image();
   try{
     await new Promise((resolve,reject)=>{
-      const timer=setTimeout(()=>{image.onload=image.onerror=null;image.src='';reject(Error('La photo est trop longue à ouvrir. Essaie une image plus petite.'));},15000);
-      image.onload=()=>{clearTimeout(timer);resolve();};
-      image.onerror=()=>{clearTimeout(timer);reject(Error('Cette photo est illisible. Choisis une autre image.'));};
+      const cleanup=()=>{clearTimeout(timer);image.onload=image.onerror=null;signal?.removeEventListener('abort',abort);};
+      const abort=()=>{cleanup();image.src='';reject(signal.reason||new DOMException('Préparation annulée.','AbortError'));};
+      const timer=setTimeout(()=>{cleanup();image.src='';reject(Error('La photo est trop longue à ouvrir. Essaie une image plus petite.'));},15000);
+      image.onload=()=>{cleanup();resolve();};
+      image.onerror=()=>{cleanup();reject(Error('Cette photo est illisible. Choisis une autre image.'));};
+      signal?.addEventListener('abort',abort,{once:true});
       image.src=url;
     });
+    checkAbort();
     const width=image.naturalWidth,height=image.naturalHeight;
     if(!width||!height||width*height>40000000)throw Error('Cette photo est trop grande. Choisis une version de moins de 40 mégapixels.');
     const side=Math.min(width,height),canvas=document.createElement('canvas');
@@ -39,10 +45,11 @@ export async function prepareProfilePhoto(file){
     ctx.drawImage(image,(width-side)/2,(height-side)/2,side,side,0,0,canvas.width,canvas.height);
     for(const quality of [.88,.75,.6]){
       const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',quality));
+      checkAbort();
       if(blob?.type==='image/jpeg'&&blob.size>0&&blob.size<=MAX_PHOTO_BYTES)return blob;
     }
     throw Error('La photo reste trop lourde. Essaie une image plus petite.');
-  }finally{image.onload=image.onerror=null;URL.revokeObjectURL(url);}
+  }finally{image.onload=image.onerror=null;image.src='';URL.revokeObjectURL(url);}
 }
 const data=result=>{if(result.error)throw result.error;return result.data;};
 const conflict=()=>Object.assign(Error('Ta photo a changé sur un autre écran. Ferme cette fenêtre puis rouvre-la pour réessayer.'),{code:'PHOTO_CONFLICT'});

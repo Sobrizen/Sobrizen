@@ -80,9 +80,9 @@ function showExercise(id,queue=null,index=0){
  const motion=sameSession?player.motion:!motionQuery?.matches;
  // Keep the original card/session button while navigating within the dialog.
  if(!dialog.open)origin=document.activeElement;
- cancelAnimationFrame(frame);player={exercise,queue,index,remaining:exercise.seconds,running:false,motion,phase:0,ended:false};
+ cancelAnimationFrame(frame);frame=0;player={exercise,queue,index,remaining:exercise.seconds,running:false,motion,phase:0,ended:false};
  renderPlayer();if(!dialog.open)dialog.showModal();$('#mv-play')?.focus({preventScroll:true});
- previousTime=performance.now();frame=requestAnimationFrame(tick);
+ schedulePlayer();
 }
 function renderPlayer(){if(!player)return;const {exercise:e,queue,index}=player;const dialog=playerDialog();dialog.innerHTML=`<div class="mv-player-inner"><div class="mv-player-top"><span class="tag">${LEVELS[e.level].label}${queue?' · Exercice '+(index+1)+' / '+queue.length:''}</span><button type="button" class="close" data-move="close" aria-label="Fermer la démonstration">×</button></div><h2 id="mv-player-title">${e.title}</h2><p class="muted">${e.equipment}</p><div class="mv-player-art">${illustration(e.id,0,true)}</div><div class="mv-demo-bar"><span class="small">${e.id==='plank'?'Position à maintenir en respirant':'Démonstration schématique · à ton rythme'}</span><button type="button" class="text" data-move="motion" aria-pressed="${player.motion}">${player.motion?'Figer l’animation':'Animer le geste'}</button></div><div class="mv-instructions"><ol>${e.steps.map(step=>`<li>${step}</li>`).join('')}</ol><p class="mv-tip">${e.tip}</p><details><summary>Une version plus facile</summary><p>${e.easy}</p></details></div><div class="mv-timer-box"><span class="mv-dose">Repère : ${e.goal}</span><div id="mv-clock" class="mv-clock" role="timer" aria-label="Temps restant">${formatTime(player.remaining)}</div><p id="mv-status" class="small" role="status" aria-live="polite">${queue&&index>0?'Prends le repos nécessaire avant de continuer.':'Installe-toi, puis démarre quand tu es prêt.'}</p><div class="mv-controls"><button type="button" class="primary" id="mv-play" data-move="play">Démarrer le minuteur</button><button type="button" class="secondary" data-move="reset" aria-label="Remettre le minuteur à zéro">Recommencer</button></div><p class="small">Tu peux t’arrêter avant la fin. Le minuteur ne compte pas tes répétitions.</p></div>${e.level!=='doux'?'<p class="mv-warning small">Échauffe-toi progressivement avant le renforcement. Ne cherche ni l’épuisement ni une amplitude douloureuse.</p>':''}<div class="mv-player-bottom">${playerNavigation(queue,index)}</div></div>`;}
 function playerNavigation(queue,index){
@@ -90,10 +90,11 @@ function playerNavigation(queue,index){
  return `<div class="mv-session-nav"><button type="button" class="secondary" data-move="previous"${index===0?' disabled':''}>← Mouvement précédent</button><button type="button" class="secondary" data-move="next">${index+1<queue.length?'Mouvement suivant →':'Terminer la séance'}</button></div>`;
 }
 function formatTime(seconds){const n=Math.max(0,Math.ceil(seconds));return `${String(Math.floor(n/60)).padStart(2,'0')}:${String(n%60).padStart(2,'0')}`;}
-function syncTimer(){if(!player)return;$('#mv-clock').textContent=formatTime(player.remaining);$('#mv-play').textContent=player.ended?'Minuteur terminé':player.running?'Pause':player.remaining<player.exercise.seconds?'Reprendre':'Démarrer le minuteur';$('#mv-play').disabled=player.ended;}
-function tick(now){if(!player||!$('#movement-player')?.open)return;const delta=(now-previousTime)/1000;previousTime=now;if(!document.hidden){if(player.running){player.remaining=Math.max(0,player.remaining-delta);if(player.remaining<=0){player.running=false;player.ended=true;$('#mv-status').textContent='Temps écoulé. Repose-toi ; aucune répétition n’est enregistrée automatiquement.';}syncTimer();}if(player.motion){player.phase=(player.phase+delta/player.exercise.cycle)%1;const svg=$('#movement-player [data-mv-person]');if(svg)svg.innerHTML=person(pose(player.exercise.id,player.phase));}}frame=requestAnimationFrame(tick);}
+function syncTimer(){if(!player)return;const clock=$('#mv-clock'),play=$('#mv-play'),time=formatTime(player.remaining),label=player.ended?'Minuteur terminé':player.running?'Pause':player.remaining<player.exercise.seconds?'Reprendre':'Démarrer le minuteur';if(clock.textContent!==time)clock.textContent=time;if(play.textContent!==label)play.textContent=label;play.disabled=player.ended;}
+function schedulePlayer(){const needed=player&&$('#movement-player')?.open&&!document.hidden&&!player.suspended&&(player.running||player.motion);if(!needed){cancelAnimationFrame(frame);frame=0;return;}if(!frame){previousTime=performance.now();frame=requestAnimationFrame(tick);}}
+function tick(now){frame=0;if(!player||!$('#movement-player')?.open||document.hidden||player.suspended)return;const delta=Math.max(0,(now-previousTime)/1000);previousTime=now;if(player.running){player.remaining=Math.max(0,player.remaining-delta);if(player.remaining<=0){player.running=false;player.ended=true;$('#mv-status').textContent='Temps écoulé. Repose-toi ; aucune répétition n’est enregistrée automatiquement.';}syncTimer();}if(player.motion){player.phase=(player.phase+delta/player.exercise.cycle)%1;if(player.drawnAt===undefined||now-player.drawnAt>=32){const svg=$('#movement-player [data-mv-person]');if(svg)svg.innerHTML=person(pose(player.exercise.id,player.phase));player.drawnAt=now;}}if(player.running||player.motion)frame=requestAnimationFrame(tick);}
 function closePlayer({restoreFocus=true}={}){const dialog=$('#movement-player');if(dialog?.open)dialog.close();clearPlayer(restoreFocus);}
-function pausePlayer(message){if(!player||!player.running)return;player.running=false;syncTimer();$('#mv-status').textContent=message;previousTime=performance.now();}
+function pausePlayer(message,suspend=false){if(!player)return;if(suspend)player.suspended=true;if(player.running){player.running=false;syncTimer();$('#mv-status').textContent=message;}previousTime=performance.now();schedulePlayer();}
 function onClick(event){
  // The body also has data-page. Only an actual navigation button leaves this
  // section; closest('[data-page]') would otherwise match every internal click.
@@ -117,16 +118,16 @@ function onClick(event){
   const queue=EXERCISES.filter(e=>e.level===level).map(e=>e.id);showExercise(queue[0],queue);return;
  }
  if(action==='close'){closePlayer();return;}
- if(action==='play'&&player&&!player.ended){
+ if(action==='play'&&player&&!player.ended&&!document.hidden&&!player.suspended){
   player.running=!player.running;previousTime=performance.now();
-  $('#mv-status').textContent=player.running?'Respire librement. Arrête avant la fin si nécessaire.':'Minuteur en pause. Prends ton temps.';syncTimer();return;
+  $('#mv-status').textContent=player.running?'Respire librement. Arrête avant la fin si nécessaire.':'Minuteur en pause. Prends ton temps.';syncTimer();schedulePlayer();return;
  }
  if(action==='reset'&&player){
   player.running=false;player.ended=false;player.remaining=player.exercise.seconds;player.phase=0;
   const drawing=$('#movement-player [data-mv-person]');if(drawing)drawing.innerHTML=person(pose(player.exercise.id,0));
-  $('#mv-status').textContent='Minuteur remis à zéro. Démarre lorsque tu es prêt.';syncTimer();return;
+  $('#mv-status').textContent='Minuteur remis à zéro. Démarre lorsque tu es prêt.';syncTimer();schedulePlayer();return;
  }
- if(action==='motion'&&player){player.motion=!player.motion;b.setAttribute('aria-pressed',String(player.motion));b.textContent=player.motion?'Figer l’animation':'Animer le geste';return;}
+ if(action==='motion'&&player){player.motion=!player.motion;b.setAttribute('aria-pressed',String(player.motion));b.textContent=player.motion?'Figer l’animation':'Animer le geste';schedulePlayer();return;}
  if((action==='next'||action==='previous')&&player){
   const {queue,index}=player;if(!queue)return;const next=index+(action==='next'?1:-1);
   if(next>=0&&next<queue.length)showExercise(queue[next],queue,next);
@@ -159,13 +160,14 @@ function init(){
   if(active&&premium!==renderedPremium)renderPage();
  });
  document.addEventListener('visibilitychange',()=>{
-  if(document.hidden)pausePlayer('Minuteur en pause pendant ton absence. Reprends à ton rythme.');
-  previousTime=performance.now();
+  if(document.hidden)pausePlayer('Minuteur en pause pendant ton absence. Reprends à ton rythme.',true);
+  else if(player){player.suspended=false;previousTime=performance.now();schedulePlayer();}
  });
- window.addEventListener('blur',()=>pausePlayer('Minuteur en pause. Reprends lorsque tu es prêt.'));
+ window.addEventListener('blur',()=>pausePlayer('Minuteur en pause. Reprends lorsque tu es prêt.',true));
+ window.addEventListener('focus',()=>{if(player&&!document.hidden){player.suspended=false;schedulePlayer();}});
  window.addEventListener('pagehide',()=>closePlayer({restoreFocus:false}));
  motionQuery?.addEventListener?.('change',event=>{
-  if(event.matches&&player){player.motion=false;const b=$('#movement-player [data-move="motion"]');if(b){b.textContent='Animer le geste';b.setAttribute('aria-pressed','false');}}
+  if(event.matches&&player){player.motion=false;const b=$('#movement-player [data-move="motion"]');if(b){b.textContent='Animer le geste';b.setAttribute('aria-pressed','false');}schedulePlayer();}
  });
  new MutationObserver(()=>{
   if(workspace.hidden){active=false;closePlayer({restoreFocus:false});const moveButton=$('#nav [data-move="open"]');moveButton?.classList.remove('selected');moveButton?.setAttribute('aria-current','false');}

@@ -93,6 +93,20 @@ async function openDate(date){await route('progress');await click(day(date,'#dy-
 try{
   await boot({mock});
 
+  await check('home','today shortcuts open their existing forms without recording answers or an automatic task',async()=>{
+    await reset();const before=writes(mock).length;
+    assert.equal($$('.dy-today-action').length,3);
+    assert.match(txt('#dy-today-actions-title'),/Un pas pour aujourd’hui/);
+    await click('.dy-today-action[data-daily-action="day"]');
+    assert.ok(form());assert.equal(form().elements.checkin_date.value,today);
+    assert.equal($$('input[name="sober_today"]:checked',form()).length,0);
+    await closeModal();await click('.dy-today-action[data-action="journal-new"]');
+    assert.ok($('#journalForm'));assert.equal($('#journalForm').elements.body.value,'');
+    await closeModal();await click('.dy-today-action[data-action="urge"]');
+    assert.equal($('#modal').open,true);assert.match(txt('#modalContent'),/envie/i);
+    assert.equal(writes(mock).length,before);assert.equal(row(mock),undefined);
+  });
+
   await check('home','home leads to benefits and its discreet day link opens an unanswered declaration',async()=>{
     await reset();const before=writes(mock).length;
     assert.equal($('.dy-main-action').dataset.page,'health');assert.match(txt('.dy-main-action'),/Voir mes bienfaits/);

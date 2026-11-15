@@ -1,8 +1,27 @@
-import {esc,dateLabel} from './core.mjs';
+import {esc,dateLabel,parseDay} from './core.mjs';
 import {MOTIVATION_QUOTES,MOTIVATION_TITLE,MOTIVATION_KIND,createQuoteRotation,isMotivationEntry,motivationEntryId,motivationEntryBody,motivationQuoteForEntry} from './journal-motivation.mjs';
 
 const $=selector=>document.querySelector(selector);
 const labels={reflection:'Réflexion',victory:'Victoire',difficult:'Moment difficile',plan:'Plan personnel'};
+const freshFilters=()=>({kind:'',from:'',to:'',sort:'newest'});
+const quotedFilter=value=>'"'+String(value).replace(/\\/g,'\\\\').replace(/"/g,'\\"')+'"';
+// PostgREST interprets * as a wildcard in ILIKE, even when it came from a
+// search field. A fully escaped regular expression keeps every search literal.
+export const journalLiteralPattern=value=>String(value).replace(/[\\^$.*+?()[\]{}|]/g,'\\$&');
+export function journalNotesQuery(db,userId,{search='',kind='',from='',to='',sort='newest',offset=0,limit=21}={}){
+  if(!userId||!Number.isSafeInteger(offset)||offset<0||!Number.isInteger(limit)||limit<1||limit>21)throw Error('Page du journal invalide.');
+  if(kind&&!Object.hasOwn(labels,kind)||!['newest','oldest'].includes(sort)||search.length>200||search.includes('\0'))throw Error('Filtre du journal invalide.');
+  for(const day of [from,to])if(day)parseDay(day);
+  if(from&&to&&from>to)throw Error('La date de début doit précéder la date de fin.');
+  const noteOnly=`or(kind.neq.reflection,title.neq.${quotedFilter(MOTIVATION_TITLE)})`;
+  const pattern=quotedFilter(journalLiteralPattern(search));
+  let request=db.from('journal_entries').select('*').eq('user_id',userId)
+    .or(search?`and(${noteOnly},or(title.imatch.${pattern},body.imatch.${pattern}))`:noteOnly.slice(3,-1));
+  if(kind)request=request.eq('kind',kind);
+  if(from)request=request.gte('entry_date',from);
+  if(to)request=request.lte('entry_date',to);
+  return request.order('entry_date',{ascending:sort==='oldest'}).order('created_at',{ascending:sort==='oldest'}).order('id',{ascending:sort==='oldest'}).range(offset,offset+limit-1);
+}
 const icon=(name)=>name==='quote'?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M10 6H5v7h5v-7ZM19 6h-5v7h5v-7ZM10 13c0 4-2 5-5 5M19 13c0 4-2 5-5 5" stroke-linecap="round" stroke-linejoin="round"/></svg>':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M5 3h14v18H5zM8 7h8M8 11h8M8 15h5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
 function quoteCredit(quote,{original=false}={}){
@@ -13,19 +32,24 @@ function quoteCredit(quote,{original=false}={}){
 export function createJournalMotivation({S,modal,closeModal,notify,privateWrite,healthConsentActive,accountRequest,message,sessionContext,sameSession,today,noteImage=()=>'',onNotesRendered=()=>{}}){
   const rotation=createQuoteRotation();
   const PAGE_SIZE=20;
-  const emptyPage=()=>({offset:0,more:false,loaded:false,loading:false,error:'',token:0});
+  const emptyPage=()=>({offset:0,more:false,loaded:false,loading:false,error:'',token:0,criteria:''});
   let pages={notes:emptyPage(),motivation:emptyPage()};
-  let lastPage=null,tab='notes',query='',popup=null,dataRevision=0,searchTimer=null;
+  let lastPage=null,tab='notes',query='',filters=freshFilters(),filterError='',popup=null,dataRevision=0,searchTimer=null;
   let inflight=new Map();
   const notes=()=>S.journal.filter(entry=>!isMotivationEntry(entry));
   const savedQuotes=()=>S.journal.filter(isMotivationEntry).sort((a,b)=>String(b.entry_date).localeCompare(String(a.entry_date))||String(b.created_at||'').localeCompare(String(a.created_at||'')));
   const currentPopup=state=>popup===state&&sameSession(state.context)&&$('#modal')?.open&&$('[data-journal-quote]')?.dataset.journalQuote===state.quote.id;
   const validContext=context=>sameSession(context)&&healthConsentActive();
 
-  function reset(){lastPage=null;tab='notes';query='';popup=null;dataRevision++;clearTimeout(searchTimer);searchTimer=null;pages={notes:emptyPage(),motivation:emptyPage()};inflight=new Map();rotation.reset();}
+  const advanced=()=>!!(filters.kind||filters.from||filters.to||filters.sort!=='newest');
+  const criteria=()=>JSON.stringify([query,filters]);
+  const hasCriteria=()=>!!query||advanced();
+  function reset(){lastPage=null;tab='notes';query='';filters=freshFilters();filterError='';popup=null;dataRevision++;clearTimeout(searchTimer);searchTimer=null;pages={notes:emptyPage(),motivation:emptyPage()};inflight=new Map();rotation.reset();}
 
   function visible(kind,search=query){
-    let rows=kind==='motivation'?savedQuotes():notes().filter(entry=>(entry.title+' '+entry.body).toLocaleLowerCase().includes(search.toLocaleLowerCase()));
+    let rows=kind==='motivation'?savedQuotes():notes().filter(entry=>(entry.title+' '+entry.body).toLocaleLowerCase().includes(search.toLocaleLowerCase())&&(!filters.kind||entry.kind===filters.kind)&&(!filters.from||entry.entry_date>=filters.from)&&(!filters.to||entry.entry_date<=filters.to));
+    if(kind==='notes')rows.sort((a,b)=>(String(a.entry_date).localeCompare(String(b.entry_date))||String(a.created_at||'').localeCompare(String(b.created_at||''))||String(a.id).localeCompare(String(b.id)))*(filters.sort==='oldest'?1:-1));
+    if(kind==='notes'&&!S.demo&&pages.notes.criteria&&pages.notes.criteria!==criteria())return [];
     if(S.demo){const page=pages[kind];page.more=rows.length>page.offset+PAGE_SIZE;rows=rows.slice(page.offset,page.offset+PAGE_SIZE);}
     return rows;
   }
@@ -38,8 +62,8 @@ export function createJournalMotivation({S,modal,closeModal,notify,privateWrite,
 
   function list(search=query){
     const filtered=visible('notes',search),page=pages.notes;
-    const content=filtered.length?filtered.map(entry=>`<article class="card jm-note"><div class="row between"><span class="tag">${labels[entry.kind]||'Réflexion'}</span><small>${dateLabel(entry.entry_date)}</small></div><h3>${esc(entry.title)}</h3><p class="entry-body">${esc(entry.body)}</p>${noteImage(entry)}<div class="jn-note-footer"><span class="jn-note-visibility${entry.shared_post_id?' is-shared':''}">${entry.shared_post_id?'Une copie partagée':'Dans mon journal personnel'}</span><div class="jn-note-actions"><button type="button" class="secondary jn-share-button" data-action="journal-share" data-id="${esc(entry.id)}">${entry.shared_post_id?'Partager une nouvelle copie':'Partager avec la communauté'}</button><button type="button" class="text" data-action="journal-edit" data-id="${esc(entry.id)}">Modifier</button><button type="button" class="text" data-action="journal-delete" data-id="${esc(entry.id)}">Supprimer</button></div>${entry.shared_post_id?'<p class="small">La copie publiée se modifie ou se supprime dans la communauté.</p>':''}</div></article>`).join(''):!page.loading&&!page.error?`<div class="card empty jm-empty">${search?'Aucune note ne correspond à ta recherche.':'Ton journal commence avec tes mots. Une phrase peut suffire.'}</div>`:'';
-    return pageError('notes')+content+pageControls('notes',filtered.length);
+    const content=filtered.length?filtered.map(entry=>`<article class="card jm-note"><div class="row between"><span class="tag jm-kind-${esc(entry.kind)}">${labels[entry.kind]||'Réflexion'}</span><time datetime="${esc(entry.entry_date)}">${dateLabel(entry.entry_date)}</time></div><h3>${esc(entry.title)}</h3><p class="entry-body">${esc(entry.body)}</p>${noteImage(entry)}<div class="jn-note-footer"><span class="jn-note-visibility${entry.shared_post_id?' is-shared':''}">${entry.shared_post_id?'Une copie partagée':'Dans mon journal personnel'}</span><div class="jn-note-actions"><button type="button" class="secondary jn-share-button" data-action="journal-share" data-id="${esc(entry.id)}">${entry.shared_post_id?'Partager une nouvelle copie':'Partager avec la communauté'}</button><button type="button" class="text" data-action="journal-edit" data-id="${esc(entry.id)}">Modifier</button><button type="button" class="text" data-action="journal-delete" data-id="${esc(entry.id)}">Supprimer</button></div>${entry.shared_post_id?'<p class="small">La copie publiée se modifie ou se supprime dans la communauté.</p>':''}</div></article>`).join(''):!page.loading&&!page.error&&!filterError?`<div class="card empty jm-empty"><span class="jm-empty-icon" aria-hidden="true">${icon('notes')}</span><h2>${hasCriteria()?'Aucune note pour ces critères.':'Une phrase peut suffire.'}</h2><p>${hasCriteria()?'Essaie un autre mot ou élargis les dates pour retrouver tes notes.':'Une victoire, une émotion ou une idée pour demain : cet espace est à toi.'}</p><button type="button" class="secondary" ${hasCriteria()?'data-jm-clear':'data-action="journal-new"'}>${hasCriteria()?'Effacer la recherche et les filtres':'Écrire ma première note'}</button></div>`:'';
+    return `${filterError?`<p class="jm-load-error" role="alert">${esc(filterError)}</p>`:''}${pageError('notes')}${page.loading?'<p class="jm-loading" role="status">Recherche dans ton journal…</p>':''}${content}${pageControls('notes',filtered.length)}`;
   }
 
   function savedQuoteCard(entry){
@@ -52,8 +76,20 @@ export function createJournalMotivation({S,modal,closeModal,notify,privateWrite,
     return `${pageError('motivation')}${entries.length?`<div class="jm-quote-grid">${entries.map(savedQuoteCard).join('')}</div>`:!page.loading&&!page.error?'<div class="card empty jm-empty"><span class="jm-empty-icon" aria-hidden="true">'+icon('quote')+'</span><h2>Des mots à retrouver.</h2><p>Garde les citations qui te parlent. Elles t’attendront ici, quand tu en auras besoin.</p><button type="button" class="secondary" data-action="journal-quote-open">Découvrir une citation</button></div>':''}${pageControls('motivation',entries.length)}`;
   }
 
+  function resultLabel(){
+    const count=visible('notes').length,page=pages.notes;
+    if(filterError)return 'Vérifie les dates pour afficher tes notes.';
+    if(page.loading)return 'Chargement des résultats…';
+    if(page.error)return 'Les résultats n’ont pas pu être actualisés.';
+    if(page.more||page.offset)return count?`${page.offset+1}–${page.offset+count} notes affichées${page.more?' · D’autres notes sur la page suivante':''}`:'Aucune note affichée';
+    return `${count} note${count===1?'':'s'}${hasCriteria()?' trouvée'+(count===1?'':'s'):' dans ton journal'}`;
+  }
+  function filterControls(){
+    return `<details class="jm-filters" ${advanced()?'open':''}><summary>Affiner mes notes <span>Catégorie, dates et ordre</span></summary><div class="jm-filter-grid"><label>Catégorie<select data-jm-filter="kind"><option value="">Toutes les catégories</option>${Object.entries(labels).map(([value,label])=>`<option value="${value}" ${filters.kind===value?'selected':''}>${label}</option>`).join('')}</select></label><label>À partir du<input type="date" data-jm-filter="from" min="1900-01-01" max="${today()}" value="${esc(filters.from)}"></label><label>Jusqu’au<input type="date" data-jm-filter="to" min="1900-01-01" max="${today()}" value="${esc(filters.to)}"></label><label>Ordre<select data-jm-filter="sort"><option value="newest" ${filters.sort==='newest'?'selected':''}>Les plus récentes</option><option value="oldest" ${filters.sort==='oldest'?'selected':''}>Les plus anciennes</option></select></label></div></details><div class="jm-results"><p data-jm-results role="status" aria-live="polite" aria-atomic="true">${esc(resultLabel())}</p><button type="button" class="text" data-jm-clear ${hasCriteria()?'':'hidden'}>Tout effacer</button></div>`;
+  }
+
   function view(){
-    return `<div class="jm-journal"><div class="jm-tabs" role="tablist" aria-label="Mon journal"><button type="button" id="jmNotesTab" role="tab" aria-controls="jmNotesPanel" aria-selected="${tab==='notes'}" tabindex="${tab==='notes'?0:-1}" data-action="journal-tab" data-tab="notes">${icon('notes')}<span>Mes notes</span><span class="jm-tab-count" data-jm-notes-count>${visible('notes').length} affichées</span></button><button type="button" id="jmMotivationTab" role="tab" aria-controls="jmMotivationPanel" aria-selected="${tab==='motivation'}" tabindex="${tab==='motivation'?0:-1}" data-action="journal-tab" data-tab="motivation">${icon('quote')}<span>Journal de motivation</span><span class="jm-tab-count" data-jm-quote-count>${visible('motivation').length} affichées</span></button></div><section id="jmNotesPanel" role="tabpanel" aria-labelledby="jmNotesTab" tabindex="0" ${tab==='notes'?'':'hidden'}><div class="jm-toolbar"><button type="button" class="primary" data-action="journal-new">+ Écrire une note</button><label class="search">Rechercher<input id="journalSearch" type="search" maxlength="200" placeholder="Un mot, un souvenir…" value="${esc(query)}"></label></div><p class="jn-journal-hint">Un espace personnel, avec ou sans image. Partage seulement les notes que tu choisis.</p><div id="journalList" class="posts jm-notes">${list()}</div></section><section id="jmMotivationPanel" role="tabpanel" aria-labelledby="jmMotivationTab" tabindex="0" ${tab==='motivation'?'':'hidden'}><div class="jm-motivation-intro"><div><span class="eyebrow">TES MOTS POUR AVANCER</span><h2>À relire, à ton rythme.</h2><p>${MOTIVATION_QUOTES.length} citations d’auteurs, avec leurs sources. Retrouve ici celles que tu gardes.</p></div><button type="button" class="secondary" data-action="journal-quote-open">Une nouvelle citation</button></div>${S.demo?'<p class="jm-demo">Mode démo · Ces ajouts sont fictifs et disparaissent en quittant la démonstration.</p>':''}<div id="journalMotivationList">${motivationList()}</div></section></div>`;
+    return `<div class="jm-journal" data-journal-server-filters><div class="jm-tabs" role="tablist" aria-label="Mon journal"><button type="button" id="jmNotesTab" role="tab" aria-controls="jmNotesPanel" aria-selected="${tab==='notes'}" tabindex="${tab==='notes'?0:-1}" data-action="journal-tab" data-tab="notes">${icon('notes')}<span>Mes notes</span><span class="jm-tab-count" data-jm-notes-count>${visible('notes').length} affichées</span></button><button type="button" id="jmMotivationTab" role="tab" aria-controls="jmMotivationPanel" aria-selected="${tab==='motivation'}" tabindex="${tab==='motivation'?0:-1}" data-action="journal-tab" data-tab="motivation">${icon('quote')}<span>Journal de motivation</span><span class="jm-tab-count" data-jm-quote-count>${visible('motivation').length} affichées</span></button></div><section id="jmNotesPanel" role="tabpanel" aria-labelledby="jmNotesTab" tabindex="0" ${tab==='notes'?'':'hidden'}><div class="jm-toolbar"><button type="button" class="primary" data-action="journal-new">+ Écrire une note</button><label class="search">Rechercher<input id="journalSearch" type="search" maxlength="200" placeholder="Un mot, un souvenir…" value="${esc(query)}"></label></div><p class="jn-journal-hint">Un espace personnel, avec ou sans image. Partage seulement les notes que tu choisis.</p>${filterControls()}<div id="journalList" class="posts jm-notes" aria-busy="${pages.notes.loading}">${list()}</div></section><section id="jmMotivationPanel" role="tabpanel" aria-labelledby="jmMotivationTab" tabindex="0" ${tab==='motivation'?'':'hidden'}><div class="jm-motivation-intro"><div><span class="eyebrow">TES MOTS POUR AVANCER</span><h2>À relire, à ton rythme.</h2><p>${MOTIVATION_QUOTES.length} citations d’auteurs, avec leurs sources. Retrouve ici celles que tu gardes.</p></div><button type="button" class="secondary" data-action="journal-quote-open">Une nouvelle citation</button></div>${S.demo?'<p class="jm-demo">Mode démo · Ces ajouts sont fictifs et disparaissent en quittant la démonstration.</p>':''}<div id="journalMotivationList">${motivationList()}</div></section></div>`;
   }
 
   function refreshPanels(){
@@ -62,23 +98,27 @@ export function createJournalMotivation({S,modal,closeModal,notify,privateWrite,
     const noteList=$('#journalList');if(noteList)noteList.innerHTML=list();
     const noteCount=$('[data-jm-notes-count]'),quoteCount=$('[data-jm-quote-count]');
     if(noteCount)noteCount.textContent=visible('notes').length+' affichées';if(quoteCount)quoteCount.textContent=visible('motivation').length+' affichées';
+    const result=$('[data-jm-results]');if(result)result.textContent=resultLabel();
+    const clear=$('.jm-results [data-jm-clear]');if(clear)clear.hidden=!hasCriteria();
+    if(noteList)noteList.setAttribute('aria-busy',String(pages.notes.loading));
     if(tab==='notes')queueMicrotask(onNotesRendered);
   }
 
   async function loadPage(kind,{offset=pages[kind].offset,force=false,focus=false}={}){
     const page=pages[kind];
+    if(kind==='notes'&&filterError)return;
     if(!force&&page.loaded&&page.offset===offset)return;
     if(!force&&page.loading&&page.offset===offset)return;
     if(S.demo){page.offset=offset;page.loaded=true;refreshPanels();return;}
-    const context=sessionContext(),token=++page.token,revision=dataRevision,search=kind==='notes'?query:'';
+    const context=sessionContext(),token=++page.token,revision=dataRevision,search=kind==='notes'?query:'',requestedCriteria=criteria(),requestedFilters={...filters},useAdvanced=kind==='notes'&&advanced();
     if(!context.user||!healthConsentActive())return;
     page.offset=offset;page.loading=true;page.error='';refreshPanels();
     try{
-      const rows=await accountRequest(db=>db.rpc('list_journal_entries',{p_search:search,p_offset:offset,p_limit:PAGE_SIZE+1,p_motivation:kind==='motivation'}),{sensitive:true});
-      if(!validContext(context)||pages[kind]!==page||token!==page.token||kind==='notes'&&search!==query)return;
+      const rows=await accountRequest((db,uid)=>useAdvanced?journalNotesQuery(db,uid,{search,...requestedFilters,offset,limit:PAGE_SIZE+1}):db.rpc('list_journal_entries',{p_search:search,p_offset:offset,p_limit:PAGE_SIZE+1,p_motivation:kind==='motivation'}),{sensitive:true});
+      if(!validContext(context)||pages[kind]!==page||token!==page.token||kind==='notes'&&requestedCriteria!==criteria())return;
       if(revision!==dataRevision){page.loading=false;return loadPage(kind,{offset,force:true,focus});}
       if(!Array.isArray(rows))throw Error('Le journal n’a pas pu être chargé. Réessaie.');
-      page.more=rows.length>PAGE_SIZE;page.loaded=true;
+      page.more=rows.length>PAGE_SIZE;page.loaded=true;page.criteria=requestedCriteria;
       S.journal=[...(kind==='notes'?savedQuotes():notes()),...rows.slice(0,PAGE_SIZE)];
       if(!rows.length&&offset>0){page.loading=false;return loadPage(kind,{offset:0,force:true,focus});}
     }catch(error){if(validContext(context)&&pages[kind]===page&&token===page.token)page.error=message(error);}
@@ -159,22 +199,41 @@ export function createJournalMotivation({S,modal,closeModal,notify,privateWrite,
   // The global loader requests only the first bounded notes page. Later pages
   // and literal full-journal searches are fetched on demand, never accumulated.
   function reloaded(rows=S.journal){
-    dataRevision++;clearTimeout(searchTimer);searchTimer=null;query='';
-    pages={notes:{...emptyPage(),loaded:true,more:rows.length>PAGE_SIZE},motivation:emptyPage()};
+    dataRevision++;clearTimeout(searchTimer);searchTimer=null;query='';filters=freshFilters();filterError='';
+    pages={notes:{...emptyPage(),loaded:true,more:rows.length>PAGE_SIZE,criteria:criteria()},motivation:emptyPage()};
     S.journal=rows.slice(0,PAGE_SIZE);
   }
-  function search(value){
-    query=String(value).slice(0,200);clearTimeout(searchTimer);pages.notes.offset=0;pages.notes.loaded=false;pages.notes.token++;
-    if(S.demo){refreshPanels();return;}
-    pages.notes.loading=true;refreshPanels();
-    searchTimer=setTimeout(()=>{searchTimer=null;void loadPage('notes',{offset:0,force:true});},180);
+  function updateNotes({debounce=false}={}){
+    clearTimeout(searchTimer);searchTimer=null;
+    const page=pages.notes;page.offset=0;page.loaded=false;page.error='';page.token++;
+    filterError=filters.from&&filters.to&&filters.from>filters.to?'La date de début doit précéder la date de fin.':'';
+    for(const day of [filters.from,filters.to])if(day){try{parseDay(day);if(day<'1900-01-01'||day>today())throw Error();}catch{filterError='Choisis des dates entre le 1er janvier 1900 et aujourd’hui.';}}
+    if(filterError||S.demo){page.loading=false;refreshPanels();return;}
+    page.loading=true;refreshPanels();
+    if(debounce)searchTimer=setTimeout(()=>{searchTimer=null;void loadPage('notes',{offset:0,force:true});},180);
+    else void loadPage('notes',{offset:0,force:true});
+  }
+  function search(value){query=String(value).replaceAll('\0','').slice(0,200);updateNotes({debounce:true});}
+  function setFilter(name,value){
+    if(!Object.hasOwn(filters,name))return;
+    if(name==='kind'&&value&&!Object.hasOwn(labels,value)||name==='sort'&&!['newest','oldest'].includes(value))return;
+    if(['from','to'].includes(name)&&value&&!/^\d{4}-\d{2}-\d{2}$/.test(value))return;
+    filters={...filters,[name]:value};updateNotes();
+  }
+  function clearSearch(){
+    query='';filters=freshFilters();
+    const input=$('#journalSearch');if(input)input.value='';
+    for(const control of document.querySelectorAll('[data-jm-filter]'))control.value=filters[control.dataset.jmFilter];
+    updateNotes();input?.focus({preventScroll:true});
   }
 
   document.addEventListener('click',event=>{
+    if(S.page==='journal'&&event.target.closest?.('[data-jm-clear]')){event.preventDefault();clearSearch();return;}
     const button=event.target.closest?.('[data-jm-page]');if(!button||button.disabled||S.page!=='journal')return;
     const kind=button.dataset.jmPage,offset=Number(button.dataset.jmOffset);if(!Object.hasOwn(pages,kind)||!Number.isSafeInteger(offset)||offset<0)return;
     event.preventDefault();void loadPage(kind,{offset,force:true,focus:true});
   });
+  document.addEventListener('change',event=>{const control=event.target.closest?.('[data-jm-filter]');if(control&&S.page==='journal')setFilter(control.dataset.jmFilter,control.value);});
 
   document.addEventListener('keydown',event=>{
     const button=event.target.closest?.('[data-action="journal-tab"]');
@@ -196,5 +255,5 @@ export function createJournalMotivation({S,modal,closeModal,notify,privateWrite,
   });
   const content=$('#modalContent');if(content)new MutationObserver(()=>{if(!$('[data-journal-quote]')){popup=null;$('#modal')?.removeAttribute('aria-describedby');}}).observe(content,{childList:true});
 
-  return {view,list,search,reset,pageRendered,openQuote,saveQuote,selectTab,changed,reloaded,retry:()=>loadQuotes(true)};
+  return {view,list,search,setFilter,clearSearch,reset,pageRendered,openQuote,saveQuote,selectTab,changed,reloaded,retry:()=>loadQuotes(true)};
 }

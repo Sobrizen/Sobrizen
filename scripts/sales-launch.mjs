@@ -31,8 +31,10 @@ export function integrateSalesSubscription(source){
 }
 export function integrateSalesSubscriptionHtml(source){
  source=source.replace('Les nouvelles souscriptions sont actuellement fermées. Vérification de la disponibilité en cours…','Vérification de la disponibilité des offres…').replace('>Souscriptions non ouvertes</button>','>Vérification des offres…</button>').replace('>Souscriptions actuellement fermées.</p>','>Choisis ton offre pour continuer.</p>');
- const account=source.match(/<section><h2>Mon accès actuel<\/h2>[\s\S]*?<\/section>/);
- if(account){source=source.replace(account[0],'');source=source.replace('<article class="card"><span class="eyebrow">Le socle',account[0]+'\n<article class="card"><span class="eyebrow">Le socle');}
+ const accounts=[...source.matchAll(/<section><h2>Mon accès actuel<\/h2>[\s\S]*?<\/section>/gu)];
+ if(accounts.length!==1)throw Error('Sales integration: missing or ambiguous current-account section.');
+ source=once(source,accounts[0][0],'','current-account section');
+ source=once(source,'<article class="card"><span class="eyebrow">Le socle',accounts[0][0]+'\n<article class="card"><span class="eyebrow">Le socle','current-account placement');
  return source;
 }
 export function integrateSalesLegal(source){

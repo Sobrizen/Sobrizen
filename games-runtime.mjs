@@ -10,6 +10,7 @@ export function configureGameRuntime(options={}){
   refreshGameRecords();
 }
 export function gamePremiumAllowed(){return api.isPremium()===true;}
+export function gameDialogOpen(){return typeof document!=='undefined'&&!!document.querySelector('#gaPlay[open],#pzPlay[open],#arcadePlay[open],#smPlay[open]');}
 export function gameSession(){return api.sessionContext();}
 export function sameGameSession(context){return api.sameSession(context);}
 export function beginGameRecord(id){return api.records?.begin(id)||null;}

@@ -3,6 +3,7 @@ import {readFileSync,writeFileSync,lstatSync,mkdirSync,mkdtempSync,rmSync,rename
 import {dirname,resolve,posix} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {execFileSync} from 'node:child_process';
+import {parse} from 'acorn';
 import {PUBLIC_ASSETS} from './public-assets.mjs';
 import {brandIconAssets} from './brand-icons.mjs';
 import {catalogCopy} from './catalog-copy.mjs';
@@ -13,6 +14,34 @@ import {integratePhotosApp,integratePhotosCommunity,integratePhotosWorker,integr
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 const PUBLIC_SET=new Set(PUBLIC_ASSETS);
 const textFiles=/\.(mjs|js|css|html|webmanifest|xml|txt)$/u;
+
+/** Parse real syntax: HTML attributes, comments and quoted examples are not imports. */
+function inspectJavaScript(source,file){
+  let tree;
+  try{tree=parse(source,{ecmaVersion:'latest',sourceType:file.endsWith('.mjs')?'module':'script'});}
+  catch(error){throw Error(`Public build: invalid JavaScript in ${file}: ${error.message}`,{cause:error});}
+  const references=[],pending=[tree];
+  while(pending.length){
+    const node=pending.pop();
+    if(['ImportDeclaration','ExportNamedDeclaration','ExportAllDeclaration'].includes(node.type)&&node.source){
+      references.push(node.source.value);
+    }else if(node.type==='ImportExpression'){
+      const value=node.source;
+      if(value.type==='Literal'&&typeof value.value==='string')references.push(value.value);
+      else if(value.type==='TemplateLiteral'&&!value.expressions.length&&value.quasis[0].value.cooked!==null)references.push(value.quasis[0].value.cooked);
+      else throw Error(`Public build: computed import cannot be verified in ${file}. Use a literal module path.`);
+    }
+    if((node.type==='CallExpression'&&node.callee.type==='Identifier'&&['eval','Function'].includes(node.callee.name))||
+      (node.type==='NewExpression'&&node.callee.type==='Identifier'&&node.callee.name==='Function')){
+      throw Error('Public build: eval-like execution is incompatible with CSP in '+file);
+    }
+    for(const value of Object.values(node)){
+      if(Array.isArray(value)){for(const child of value)if(child&&typeof child.type==='string')pending.push(child);}
+      else if(value&&typeof value.type==='string')pending.push(value);
+    }
+  }
+  return {references,tree};
+}
 
 export function validatePublic(files,config){
   if(files.size!==PUBLIC_ASSETS.length||PUBLIC_ASSETS.some(file=>!files.has(file)))throw Error('Public build: incomplete or expanded allowlist.');
@@ -25,6 +54,7 @@ export function validatePublic(files,config){
     const file=path==='/'?'index.html':path.startsWith('/')?path.slice(1):posix.normalize(posix.join(posix.dirname(from),path));
     if(!files.has(file)&&!(cleanUrl&&config.cleanUrls&&!posix.extname(file)&&files.has(file+'.html')))throw Error(`Public build: ${from} references unpublished ${ref}.`);
   };
+  let workerProgram;
   for(const [file,bytes] of files){
     if(!textFiles.test(file))continue;
     const source=bytes.toString('utf8');
@@ -38,10 +68,10 @@ export function validatePublic(files,config){
       if(/\son[a-z]+\s*=/iu.test(source)||/(?:href|src)\s*=\s*["']\s*javascript:/iu.test(source))throw Error('Public build: inline event handler in '+file);
       for(const match of source.matchAll(/\b(href|src)\s*=\s*["']([^"']+)["']/giu))reference(match[2],file,match[1].toLowerCase()==='href');
     }
-    if(file.endsWith('.mjs')){
-      if(/\beval\s*\(|\bnew\s+Function\s*\(/u.test(source))throw Error('Public build: eval-like execution is incompatible with CSP in '+file);
-      for(const match of source.matchAll(/(?:\bfrom\s*|\bimport\s*(?:\(\s*)?)['"]([^'"]+)['"]/gu)){
-        const specifier=match[1];
+    if(/\.(mjs|js)$/u.test(file)){
+      const inspected=inspectJavaScript(source,file);
+      if(file==='sw.js')workerProgram=inspected.tree;
+      for(const specifier of inspected.references){
         if(specifier.startsWith('https:')){
           if(new URL(specifier).origin!=='https://esm.sh'||!csp.includes('https://esm.sh'))throw Error('Public build: external module not allowed by CSP: '+specifier);
         }else if(specifier.startsWith('.')||specifier.startsWith('/'))reference(specifier,file);
@@ -50,9 +80,18 @@ export function validatePublic(files,config){
     }
     if(file.endsWith('.css'))for(const match of source.matchAll(/url\(\s*['"]?([^'"\s)]+)['"]?\s*\)/giu))reference(match[1],file);
   }
-  const worker=files.get('sw.js').toString('utf8'),assetList=/const ASSETS=\[([\s\S]*?)\];/u.exec(worker);
-  if(!assetList)throw Error('Public build: missing service-worker allowlist.');
-  for(const match of assetList[1].matchAll(/'([^']+)'/gu))reference(match[1],'sw.js');
+  const worker=files.get('sw.js').toString('utf8');
+  const declarations=workerProgram.body.filter(node=>node.type==='VariableDeclaration').flatMap(node=>node.declarations)
+    .filter(node=>node.id.type==='Identifier'&&node.id.name==='ASSETS');
+  if(declarations.length!==1||declarations[0].init?.type!=='ArrayExpression')throw Error('Public build: missing service-worker allowlist.');
+  const seenAssets=new Set(),assetReferences=[];
+  for(const entry of declarations[0].init.elements){
+    if(entry?.type!=='Literal'||typeof entry.value!=='string'||!entry.value)throw Error('Public build: service-worker assets must be literal URLs.');
+    const url=new URL(entry.value,'https://sobrizen.invalid/');url.hash='';
+    if(seenAssets.has(url.href))throw Error('Public build: duplicate service-worker URL '+entry.value);
+    seenAssets.add(url.href);assetReferences.push(entry.value);
+  }
+  for(const ref of assetReferences)reference(ref,'sw.js');
   const manifest=JSON.parse(files.get('manifest.webmanifest').toString('utf8'));
   for(const icon of manifest.icons||[])reference(icon.src,'manifest.webmanifest');
   return {files:files.size,bytes:[...files.values()].reduce((total,bytes)=>total+bytes.length,0),cache:/const CACHE='([^']+)';/u.exec(worker)?.[1],csp};

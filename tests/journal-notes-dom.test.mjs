@@ -227,6 +227,13 @@ try{
     assert.ok(storageCalls.some(call=>call.op==='remove'&&call.paths.includes(imagePath)));assert.equal(mock.calls.some(call=>call.table==='posts'&&call.op==='delete'),false);
   });
 
+  await check('deleting an old version cannot erase a newer note or its private image from another device',async()=>{
+    const imagePath=UID+'/'+crypto.randomUUID()+'.jpg';objects.set(key('journal-images',imagePath),JPEG);
+    const entry=seed(note({image_path:imagePath}));mock.tables.journal_entries[0].body='Texte plus récent sur mon autre appareil.';mock.tables.journal_entries[0].updated_at='2026-10-27T11:00:00.000Z';
+    await assert.rejects(()=>controller.remove(entry.id),/autre appareil/);assert.equal(mock.tables.journal_entries.length,1);assert.equal(mock.tables.journal_entries[0].body,'Texte plus récent sur mon autre appareil.');
+    assert.equal(storageCalls.some(call=>call.op==='remove'),false);assert.ok(objects.has(key('journal-images',imagePath)));assert.equal(changed,0);
+  });
+
   await check('logout during upload prevents the later note write and cannot open sharing in a new session',async()=>{
     await controller.open();await fillNote();await pickImage();await setVisibility('community');const gate=deferStorage('upload');await submit($('#journalForm'));assert.equal(gate.used,true);
     sessionRevision++;S.user={id:UID2};S.journal=[];controller.reset();closeModal();$('#modalContent').replaceChildren();const noticeCount=notices.length;
@@ -244,6 +251,36 @@ try{
     S.demo=true;S.user={id:'demo'};await controller.open();await fillNote('Note de démo','Souvenir fictif');await pickImage();await setVisibility('community');await submit($('#journalForm'));await settle(35);
     assert.equal(S.journal.length,1);assert.equal(shares.length,1);assert.equal(mock.calls.length,0);assert.equal(storageCalls.length,0);assert.ok(shares[0].imageBlob||shares[0].loadImage);
     controller.reset();S.journal=[];sessionRevision++;S.demo=false;S.user=null;render();assert.equal($('[data-jn-photo]'),null);assert.equal(shares[0].valid(),false);
+  });
+
+  await check('dirty note close, Escape and browser navigation preserve the draft until explicit discard',async()=>{
+    await controller.open();assert.equal(controller.canClose(),true);
+    await fillNote();await pickImage();const form=$('#journalForm'),previewURL=$('[data-jn-preview]').src;
+    assert.equal(controller.canClose(),false);assert.equal($('[data-jn-close-confirm]').hidden,false);
+    assert.equal(document.activeElement,$('[data-jn-continue]'));assert.equal(writes().length,0);
+    $('[data-jn-continue]').click();assert.equal($('[data-jn-close-confirm]').hidden,true);assert.equal(document.activeElement,form.elements.body);
+    const cancel=new Event('cancel',{cancelable:true});$('#modal').dispatchEvent(cancel);assert.equal(cancel.defaultPrevented,true);assert.equal($('#modal').open,true);
+    const leave=new Event('beforeunload',{cancelable:true});window.dispatchEvent(leave);assert.equal(leave.defaultPrevented,true);
+    assert.equal(form.elements.body.value,'J’ai pris du temps pour moi.');assert.equal(uploads().length,0);
+    $('[data-jn-discard]').click();await settle();assert.equal($('#modal').open,false);assert.ok(revokedURLs.has(previewURL));assert.equal(writes().length,0);
+  });
+
+  await check('a pending save cannot be dismissed or replaced, then closes after the confirmed single write',async()=>{
+    await controller.open();await fillNote();const form=$('#journalForm');
+    const gate=mock.defer(call=>call.table==='journal_entries'&&call.op==='insert');await submit(form);assert.equal(gate.used,true);
+    assert.equal(controller.canClose(),false);assert.match($('[data-jn-status]').textContent,/Enregistrement en cours/);assert.equal(form.getAttribute('aria-busy'),'true');
+    await controller.open();assert.equal($('#journalForm'),form);assert.equal(writes().length,1);
+    gate.release();await settle(35);assert.equal($('#modal').open,false);assert.equal(controller.canClose(),true);assert.equal(mock.tables.journal_entries.length,1);
+  });
+
+  await check('unchanged edits close freely while prefilled new notes cannot silently replace a dirty editor',async()=>{
+    const entry=seed(note());await controller.open(entry.id);assert.equal(controller.canClose(),true);closeModal();
+    await controller.open(null,{kind:'plan',title:'Mon prochain pas',body:'Si je suis stressé, je sors marcher.'});
+    const form=$('#journalForm');assert.equal(controller.canClose(),false);
+    await controller.open();assert.equal($('#journalForm'),form);assert.equal(form.elements.title.value,'Mon prochain pas');assert.equal(writes().length,0);
+    sessionRevision++;S.user={id:UID2};assert.equal(controller.canClose(),true);
+    const leave=new Event('beforeunload',{cancelable:true});window.dispatchEvent(leave);assert.equal(leave.defaultPrevented,false);
+    controller.reset();closeModal();assert.equal([...Array(localStorage.length)].map((_,i)=>localStorage.key(i)).some(name=>/journal|draft|note/i.test(name)),false);
   });
 }finally{
   controller.reset();globalThis.Image=originalImage;window.HTMLCanvasElement.prototype.toBlob=originalToBlob;URL.revokeObjectURL=originalRevoke;env.close();

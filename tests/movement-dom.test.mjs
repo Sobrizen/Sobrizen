@@ -140,6 +140,7 @@ test('guided previous/next keep manual starts and restore focus to the session b
   await a.click('#mv-play');await a.advance(1);await a.click('[data-move="next"]');
   assert.equal(a.get('#mv-player-title').textContent,'Cercles des épaules');
   assert.equal(a.get('#mv-play').textContent,'Démarrer le minuteur');
+  assert.equal(a.frames.size,1,'The previous exercise cannot leave a stale scheduler id');await a.click('#mv-play');await a.advance(2);assert.equal(a.get('#mv-clock').textContent,'00:38');
   await a.click('[data-move="previous"]');
   assert.equal(a.get('#mv-player-title').textContent,'Marche sur place');
   for(let i=0;i<3;i++)await a.click('[data-move="next"]');
@@ -180,6 +181,26 @@ test('a hidden page pauses the timer and reduced motion stays respected',options
   await a.click('#mv-play');await a.advance(1);assert.equal(a.get('#mv-clock').textContent,'00:57');
   await a.click('[data-move="motion"]');await a.advance(.5);
   assert.notEqual(a.get('[data-mv-person]').innerHTML,pose);
+ }finally{a.close();}
+});
+
+test('frozen demonstrations schedule no idle frame, and focus/visibility never resume a paused timer',options,async()=>{
+ const a=await app({reduced:true});try{
+  await a.click('#nav [data-move="open"]');await a.click('[data-id="march"]');assert.equal(a.frames.size,0);
+  await a.click('#mv-play');assert.equal(a.frames.size,1);await a.advance(1);await a.click('#mv-play');assert.equal(a.frames.size,0);
+  await a.click('[data-move="motion"]');assert.equal(a.frames.size,1);a.w.dispatchEvent(new a.w.Event('blur'));assert.equal(a.frames.size,0);
+  const time=a.get('#mv-clock').textContent;await a.advance(30);a.w.dispatchEvent(new a.w.Event('focus'));assert.equal(a.frames.size,1);assert.equal(a.get('#mv-clock').textContent,time);assert.equal(a.get('#mv-play').textContent,'Reprendre');
+  await a.visibility(true);assert.equal(a.frames.size,0);await a.click('#mv-play');assert.equal(a.frames.size,0);await a.visibility(false);assert.equal(a.get('#mv-play').textContent,'Reprendre');
+  await a.click('[data-move="motion"]');assert.equal(a.frames.size,0);await a.click('#mv-play');await a.advance(120);assert.equal(a.get('#mv-clock').textContent,'00:00');assert.equal(a.frames.size,0);
+ }finally{a.close();}
+});
+
+test('timer rendering avoids rewriting unchanged labels and live motion preference stops its RAF',options,async()=>{
+ const a=await app();try{
+  await a.click('#nav [data-move="open"]');await a.click('[data-id="march"]');await a.click('[data-move="motion"]');assert.equal(a.frames.size,0);await a.click('#mv-play');
+  const clock=a.get('#mv-clock'),label=a.get('#mv-play'),clockNode=clock.firstChild,labelNode=label.firstChild;await a.advance(.2);assert.equal(clock.firstChild,clockNode);assert.equal(label.firstChild,labelNode);
+  await a.click('#mv-play');await a.click('[data-move="motion"]');assert.equal(a.frames.size,1);
+  const q=a.queries.get('(prefers-reduced-motion: reduce)');for(const listener of q.listeners)listener({matches:true});assert.equal(a.frames.size,0);assert.equal(a.get('[data-move="motion"]').getAttribute('aria-pressed'),'false');
  }finally{a.close();}
 });
 

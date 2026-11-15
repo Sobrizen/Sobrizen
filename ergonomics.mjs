@@ -53,7 +53,7 @@ export function initErgonomics(){
  const formHash=f=>formFingerprint(formFields(f));
  const editable=f=>f.matches('form[data-tl-form],#journalForm,#profileForm,#settingsForm,#programForm,#journeyForm,#reasonForm,#postForm,#commentForm,#checkForm,#healthCheckinForm,form[data-health-form],#agendaItemForm');
  function isDirty(f){return forms.has(f)&&forms.get(f)!==formHash(f);}
- function dirtyForms(root=document){return $$('form',root).filter(f=>f.isConnected&&editable(f)&&!f.closest('#workspace[hidden]')&&(!f.closest('dialog')||f.closest('dialog').open)&&isDirty(f));}
+ function dirtyForms(root=document){return $$('form',root).filter(f=>f.dataset.journalGuard!=='true'&&f.isConnected&&editable(f)&&!f.closest('#workspace[hidden]')&&(!f.closest('dialog')||f.closest('dialog').open)&&isDirty(f));}
  function guard(root=document){if(!dirtyForms(root).length)return true;return confirm('Tes modifications ne sont pas encore enregistrées. Continuer sans les enregistrer ?');}
  function trackForms(root){for(const f of $$('form',root)){if(editable(f)&&!forms.has(f))forms.set(f,formHash(f));}
   for(const area of $$('textarea[maxlength]',root)){if(enhanced.has(area))continue;enhanced.add(area);const counter=element('span','ux-character-count');counter.dataset.uxCounter='true';area.after(counter);updateCounter(area);}
@@ -61,7 +61,7 @@ export function initErgonomics(){
   for(const input of $$('input[type="password"]',root)){if(enhanced.has(input))continue;enhanced.add(input);const label=input.closest('label');if(!label||label.querySelector('[data-action="password-visibility"]'))continue;const wrap=element('div','ux-password');label.before(wrap);wrap.append(label);if(!input.id)input.id='ux-password-'+crypto.randomUUID();const toggle=button('Afficher','password',input.id);toggle.className='ux-password-toggle';toggle.setAttribute('aria-controls',input.id);toggle.setAttribute('aria-label','Afficher le mot de passe');toggle.setAttribute('aria-pressed','false');wrap.append(toggle);}
  }
  function updateCounter(area){const out=area.nextElementSibling;if(out?.dataset.uxCounter)out.textContent=`${area.value.length} / ${area.maxLength} caractères`;}
- function updateDirty(f){if(!f||!editable(f))return;let note=$('[data-ux-unsaved]',f);if(isDirty(f)){if(!note){note=element('p','ux-unsaved','Modifications non enregistrées');note.dataset.uxUnsaved='true';f.append(note);}note.hidden=false;}else if(note)note.hidden=true;}
+ function updateDirty(f){if(!f||f.dataset.journalGuard==='true'||!editable(f))return;let note=$('[data-ux-unsaved]',f);if(isDirty(f)){if(!note){note=element('p','ux-unsaved','Modifications non enregistrées');note.dataset.uxUnsaved='true';f.append(note);}note.hidden=false;}else if(note)note.hidden=true;}
  function longText(root){for(const p of $$('.entry-body',root)){if(p.textContent.length<420||enhanced.has(p))continue;enhanced.add(p);p.classList.add('ux-folded-text');if(!p.id)p.id='ux-text-'+crypto.randomUUID();const b=button('Lire la suite','expand',p.id);b.className='text ux-read-more';b.setAttribute('aria-expanded','false');b.setAttribute('aria-controls',p.id);p.after(b);}}
  function filters(container,items,options,{limit=12,search=false,label='Filtrer',insertBefore=container}={}){
   if(!container||!items.length)return null;
@@ -82,6 +82,7 @@ export function initErgonomics(){
  function enhanceHistory(){const list=$('.tl-history-list',content);if(!list)return;filters(list,$$(':scope > li',list).map(node=>({node,category:$('.is-abstinent',node)?'sober':'drinking',text:node.textContent})),[['all','Tout'],['sober','Sans alcool'],['drinking','Consommations']],{search:true,label:'Historique'});}
  function enhanceJournal(){
   const list=$('#journalList',content);if(!list)return;
+  if(list.closest('[data-journal-server-filters]')){longText(list);return;}
   const types={'Victoire':'victory','Moment difficile':'difficult','Réflexion':'reflection','Plan personnel':'plan'};
   const items=()=>$$(':scope > article',list).map(node=>({node,category:types[$('.tag',node)?.textContent.trim()]||'reflection',text:node.textContent}));
   filterView=filters(list,items(),[['all','Tout'],['victory','Victoires'],['difficult','Difficultés'],['reflection','Réflexions'],['plan','Plans']],{limit:12,label:'Notes'});

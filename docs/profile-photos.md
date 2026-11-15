@@ -16,6 +16,6 @@ Demo images stay in memory and never access the backend. Profile photos are opti
 
 ## Build and verification
 
-`node scripts/integrate-community.mjs && node scripts/integrate-profile-photos.mjs` runs the existing integration followed by an idempotent, anchor-checked profile-photo bridge. It adds the photo field to profile joins, renders the profile control and avatars, resets state on session invalidation, and includes only static photo modules/styles in the service worker. Drift fails the build rather than partially patching the interface.
+Use `npm run build` for the production artifact; Vercel runs `npm run release:check` to test before building. The canonical build applies the community and profile-photo bridges in memory, checks their anchors and validates the result before publishing `dist/`, without rewriting source files. The bridge adds the photo field to profile joins, renders the profile control and avatars, resets state on session invalidation, and includes only static photo modules/styles in the service worker. The historical standalone integration CLIs rewrite sources and are not part of the recommended release process.
 
 `node --test tests/profile-photos.test.mjs` covers validation, path ownership, unchanged profile text, explicit saves, upload rejection, lost responses, replay, concurrent updates, removal, session changes and build transformations. Browser tests use a synthetic local account and real JPEG/PNG decoding against a simulated backend, not member data.

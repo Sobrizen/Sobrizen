@@ -14,10 +14,10 @@ const row=patch=>({id:ID,user_id:UID,version:1,created_at:NOW,updated_at:NOW,kin
 const settle=async()=>{for(let i=0;i<10;i++)await Promise.resolve();await new Promise(resolve=>setImmediate(resolve));};
 const deferred=()=>{let resolve;const promise=new Promise(r=>{resolve=r;});return {promise,resolve};};
 
-async function environment(initial=[],{premium=true,demo=false}={}) {
+async function environment(initial=[],{premium=true,demo=false,waitForLoad=true,read}={}) {
   const errors=[],virtualConsole=new VirtualConsole();virtualConsole.on('jsdomError',cause=>errors.push(cause));
   const dom=new JSDOM('<!doctype html><html lang="fr"><head></head><body><main id="content"></main><dialog id="modal"><div id="modalContent"></div></dialog></body></html>',{url:'https://example.test/',pretendToBeVisual:true,virtualConsole});
-  const {document:doc}=dom.window, S={user:{id:UID},demo,page:'agenda'}, data=initial.map(item=>({...item})), calls=[],hooks={},downloads=[],notices=[];
+  const {document:doc}=dom.window, S={user:{id:UID},demo,page:'agenda'}, data=initial.map(item=>({...item})), calls=[],hooks={read},downloads=[],notices=[];
   let revision=0,agenda;
   const db={
     from(){let owner,cursor=null;const query={select(){return query;},eq(key,value){assert.equal(key,'user_id');owner=value;return query;},order(){return query;},limit(){return query;},gt(key,value){cursor=value;return query;},then(resolve,reject){const batch=data.filter(item=>item.user_id===owner&&(!cursor||item.id>cursor)).sort((a,b)=>a.id.localeCompare(b.id)).slice(0,200).map(item=>({...item}));return Promise.resolve(hooks.read?.(batch)??batch).then(resolve,reject);}};return query;},
@@ -37,7 +37,7 @@ async function environment(initial=[],{premium=true,demo=false}={}) {
     download:(...args)=>downloads.push(args),
   };
   agenda=createAgenda(api);
-  if(demo)agenda.seedDemo();else await agenda.load();api.render();await settle();
+  if(demo)agenda.seedDemo();else if(waitForLoad)await agenda.load();api.render();await settle();
   const $=selector=>doc.querySelector(selector), $$=selector=>[...doc.querySelectorAll(selector)];
   const click=async selector=>{const node=typeof selector==='string'?$(selector):selector;assert.ok(node,`Missing ${selector}`);assert.equal(node.closest('[hidden]'),null,`Hidden ${selector}`);node.focus();node.click();await settle();};
   const value=(name,text)=>{const node=$(`[name="${name}"]`);assert.ok(node);node.value=text;node.dispatchEvent(new dom.window.Event('input',{bubbles:true}));node.dispatchEvent(new dom.window.Event('change',{bubbles:true}));};
@@ -58,6 +58,28 @@ domTest('reachable day/week/month controls preserve focus and expose unique ids'
     await h.click('#ag-next');assert.equal(h.doc.activeElement.id,'ag-next');assert.equal(h.$$('.ag-day').length,31);
     await h.click('#ag-today');assert.equal(h.$('#ag-day-2026-11-09').getAttribute('aria-pressed'),'true');
     await h.click('#ag-view-day');assert.equal(h.$$('.ag-day-list').length,1);
+  } finally {h.close();}
+});
+domTest('unloaded agenda counts stay unknown until the server confirms real values',async()=>{
+  const wait=deferred(),h=await environment([row()],{waitForLoad:false,read:()=>wait.promise});
+  try {
+    assert.deepEqual(h.$$('.ag-summary strong').map(node=>node.textContent),['—','—']);
+    assert.equal(h.$('.ag-summary').getAttribute('aria-busy'),'true');
+    assert.match(h.$('.ag-sidebar .ag-side-empty').textContent,/Chargement/);
+    wait.resolve([row()]);await settle();
+    assert.deepEqual(h.$$('.ag-summary strong').map(node=>node.textContent),['1','0']);
+    assert.equal(h.$('.ag-summary').getAttribute('aria-busy'),'false');
+  } finally {h.close();}
+});
+domTest('failed agenda load never masquerades as an empty list with zero goals',async()=>{
+  const h=await environment([],{waitForLoad:false,read:()=>Promise.reject(Error('Network request failed'))});
+  try {
+    assert.deepEqual(h.$$('.ag-summary strong').map(node=>node.textContent),['—','—']);
+    assert.match(h.$('.ag-error').textContent,/Connexion interrompue/);
+    assert.match(h.$('.ag-sidebar .ag-side-empty').textContent,/pas chargés/);
+    h.hooks.read=null;await h.click('#ag-reload');
+    assert.deepEqual(h.$$('.ag-summary strong').map(node=>node.textContent),['0','0']);
+    assert.equal(h.$('.ag-error'),null);
   } finally {h.close();}
 });
 domTest('create task, edit category and note, complete, reopen and delete with confirmation',async()=>{

@@ -1,4 +1,15 @@
 /* Daily dashboard and calendar. Deliberately scoped to their own surfaces. */
+.dy-today-actions{margin:24px 0;padding:20px;border:1px solid var(--dy-line);border-radius:18px;background:var(--dy-paper)}
+.dy-today-action-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:14px}
+.dy-page .dy-today-action{display:grid;grid-template-columns:22px minmax(0,1fr) 16px;align-items:center;gap:10px;min-height:84px;width:100%;padding:13px;border:1px solid var(--dy-line);border-radius:12px;background:var(--dy-paper);text-align:left;color:var(--dy-ink)}
+.dy-today-action>svg{width:22px;height:22px;color:var(--dy-accent)}
+.dy-today-action>svg:last-child{width:16px;height:16px}
+.dy-today-action>span{display:grid;gap:5px;min-width:0}
+.dy-today-action strong{font-size:.86rem;line-height:1.4;overflow-wrap:anywhere}
+.dy-today-action small{font-size:.73rem;line-height:1.5;font-weight:400;color:var(--dy-muted);overflow-wrap:anywhere}
+.dy-page .dy-today-action:focus-visible{outline:3px solid var(--dy-focus-ring);outline-offset:3px}
+@media(hover:hover){.dy-page .dy-today-action:hover{background:var(--dy-sage)}}
+@media(max-width:700px){.dy-today-actions{padding:16px}.dy-today-action-grid{grid-template-columns:minmax(0,1fr)}.dy-page .dy-today-action{min-height:68px}}
 .dy-page,.dy-calendar,#dailyEntryForm{
   --dy-paper:var(--card,#fff);
   --dy-ink:var(--text,#23332e);

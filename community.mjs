@@ -7,19 +7,25 @@ const displayDate=value=>{const date=new Date(value);return Number.isFinite(date
 const safeSignedURL=value=>{try{const u=new URL(value);return u.protocol==='https:'&&u.host==='lnvtowdbbagwfbewnchz.supabase.co'&&u.pathname.startsWith('/storage/v1/object/sign/community-images/')?u.href:'';}catch{return '';}};
 
 /** Re-encode locally: no original filename, EXIF or GPS metadata is uploaded. */
-export async function prepareImage(file){
+export async function prepareImage(file,{signal}={}){
+  const checkAbort=()=>{if(signal?.aborted)throw signal.reason||new DOMException('Préparation annulée.','AbortError');};checkAbort();
   if(!file || !file.size)throw Error('Choisis une image non vide.');
   if(file.size>MAX_SOURCE_BYTES)throw Error('Choisis une image de 10 Mo maximum.');
   const signature=imageSignature(new Uint8Array(await file.slice(0,12).arrayBuffer()));
+  checkAbort();
   if(!signature)throw Error('Formats acceptés : JPEG, PNG ou WebP.');
   const url=URL.createObjectURL(file), image=new Image();
   try{
     await new Promise((resolve,reject)=>{
-      const timer=setTimeout(()=>{image.onload=null;image.onerror=null;image.src='';reject(Error('Lecture de l’image trop lente. Essaie une image plus petite.'));},15000);
-      image.onload=()=>{clearTimeout(timer);resolve();};
-      image.onerror=()=>{clearTimeout(timer);reject(Error('Cette image est illisible. Essaie une autre photo.'));};
+      const cleanup=()=>{clearTimeout(timer);image.onload=image.onerror=null;signal?.removeEventListener('abort',abort);};
+      const abort=()=>{cleanup();image.src='';reject(signal.reason||new DOMException('Préparation annulée.','AbortError'));};
+      const timer=setTimeout(()=>{cleanup();image.src='';reject(Error('Lecture de l’image trop lente. Essaie une image plus petite.'));},15000);
+      image.onload=()=>{cleanup();resolve();};
+      image.onerror=()=>{cleanup();reject(Error('Cette image est illisible. Essaie une autre photo.'));};
+      signal?.addEventListener('abort',abort,{once:true});
       image.src=url;
     });
+    checkAbort();
     const w=image.naturalWidth,h=image.naturalHeight;
     if(!w||!h||w*h>40000000)throw Error('Cette image est trop grande. Choisis une version de moins de 40 mégapixels.');
     const ratio=Math.min(1,1600/Math.max(w,h));
@@ -28,19 +34,20 @@ export async function prepareImage(file){
     ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(image,0,0,canvas.width,canvas.height);
     for(const quality of [0.86,0.74,0.60]){
       const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',quality));
+      checkAbort();
       if(blob&&blob.type==='image/jpeg'&&blob.size>0&&blob.size<=MAX_IMAGE_BYTES)return blob;
     }
     throw Error('L’image reste trop lourde. Essaie une photo plus petite.');
-  }finally{URL.revokeObjectURL(url);image.onload=null;image.onerror=null;}
+  }finally{URL.revokeObjectURL(url);image.onload=null;image.onerror=null;image.src='';}
 }
 
 /** Native app integration; journal content is supplied only after an explicit share action. */
 export function createCommunity({S,getClient,checkResult,notify,message,modal,closeModal,render,greeting,sessionContext,sameSession,assertSession,getTrackingDuration=()=>({status:'unavailable',days:null,precision:'unknown'})}){
-  let filters=emptyFilters(),contextSeen=null,revision=0,loading=false,feedError='',draft=null,demoPool=[];
+  let filters=emptyFilters(),contextSeen=null,revision=0,imageRequest=0,loading=false,feedError='',draft=null,demoPool=[];
   const demoURLs=new Set();
   if(!document.querySelector('link[data-community-style]')){const link=document.createElement('link');link.rel='stylesheet';link.href='/community.css';link.dataset.communityStyle='';document.head.append(link);}
-  function releaseDraft(){if(draft){draft.sequence++;if(draft.previewURL)URL.revokeObjectURL(draft.previewURL);draft=null;}}
-  function reset(){revision++;filters=emptyFilters();loading=false;feedError='';releaseDraft();demoURLs.forEach(url=>URL.revokeObjectURL(url));demoURLs.clear();demoPool=[];contextSeen=null;}
+  function releaseDraft(){if(draft){draft.sequence++;draft.imageController?.abort();if(draft.previewURL)URL.revokeObjectURL(draft.previewURL);draft=null;}}
+  function reset(){revision++;imageRequest++;filters=emptyFilters();loading=false;feedError='';releaseDraft();demoURLs.forEach(url=>URL.revokeObjectURL(url));demoURLs.clear();demoPool=[];contextSeen=null;}
   function ensure(){const context=sessionContext();if(!contextSeen||!sameSession(contextSeen)){reset();contextSeen=context;}return context;}
   function active(context,token){return sameSession(context)&&revision===token;}
   const inCommunity=()=>S.user&&S.page==='community';
@@ -159,9 +166,9 @@ export function createCommunity({S,getClient,checkResult,notify,message,modal,cl
   }
   async function chooseImage(d,file){
     if(!draftCurrent(d)||d.busy||d.pendingWrite||!sourceAllowed(d))return;
-    const token=++d.sequence;d.processing=true;updateComposer(d);status(d,'Préparation de l’image…');
+    const token=++d.sequence;d.imageController?.abort();const controller=d.imageController=new AbortController();d.processing=true;updateComposer(d);status(d,'Préparation de l’image…');
     try{
-      const blob=await prepareImage(file);
+      const blob=await prepareImage(file,{signal:controller.signal});
       if(!draftCurrent(d)||d.sequence!==token||!sourceAllowed(d))return;
       if(d.previewURL)URL.revokeObjectURL(d.previewURL);
       d.blob=blob;d.previewURL=URL.createObjectURL(blob);d.removeImage=false;d.imageUnresolved=false;d.imageError='';updatePreview(d);status(d,'Image prête. Elle sera envoyée uniquement avec la publication.');
@@ -215,7 +222,7 @@ export function createCommunity({S,getClient,checkResult,notify,message,modal,cl
     updatePreview(d);updateComposer(d);
     form.elements.body.addEventListener('input',()=>updateComposer(d));
     form.querySelector('[name="image"]').addEventListener('change',event=>{const file=event.target.files?.[0];if(file)void chooseImage(d,file);});
-    form.querySelector('[data-community-remove]').addEventListener('click',()=>{if(!draftCurrent(d)||d.busy||d.pendingWrite)return;d.sequence++;d.processing=false;d.blob=null;d.removeImage=true;d.imageUnresolved=false;d.imageError='';if(d.previewURL)URL.revokeObjectURL(d.previewURL);d.previewURL='';form.querySelector('[name="image"]').value='';form.querySelector('[name="image_alt"]').value='';updateComposer(d);updatePreview(d);status(d,'Image retirée du brouillon.');});
+    form.querySelector('[data-community-remove]').addEventListener('click',()=>{if(!draftCurrent(d)||d.busy||d.pendingWrite)return;d.sequence++;d.imageController?.abort();d.processing=false;d.blob=null;d.removeImage=true;d.imageUnresolved=false;d.imageError='';if(d.previewURL)URL.revokeObjectURL(d.previewURL);d.previewURL='';form.querySelector('[name="image"]').value='';form.querySelector('[name="image_alt"]').value='';updateComposer(d);updatePreview(d);status(d,'Image retirée du brouillon.');});
     form.querySelector('[data-community-image-retry]')?.addEventListener('click',()=>void loadJournalImage(d));
     form.querySelector('[data-community-cancel]')?.addEventListener('click',()=>{if(draftCurrent(d)&&!d.busy)closeModal();});
     form.addEventListener('submit',event=>{event.preventDefault();event.stopImmediatePropagation();void savePost(d);},true);
@@ -268,6 +275,7 @@ export function createCommunity({S,getClient,checkResult,notify,message,modal,cl
         if(d.blob){imageURL=URL.createObjectURL(d.blob);demoURLs.add(imageURL);}
         saved={...d.original,...row,id:d.id,author_id:context.user.id,image_url:imageURL,created_at:d.original.created_at||new Date().toISOString(),profiles:{display_name:S.profile.display_name,username:S.profile.username},post_likes:d.original.post_likes||[{count:0}],comments:d.original.comments||[{count:0}]};
         demoPool=d.editing?demoPool.map(p=>p.id===d.id?saved:p):[saved,...demoPool];S.posts=demoPool;
+        const previous=d.original.image_url;if(previous&&previous!==imageURL&&demoURLs.has(previous)&&!demoPool.some(post=>post.image_url===previous)){URL.revokeObjectURL(previous);demoURLs.delete(previous);}
       }else{
         if(!navigator.onLine)throw Error('Hors connexion. Ton brouillon n’a pas été publié.');
         db||=await getClient();assertDraftContext(d);
@@ -341,11 +349,12 @@ export function createCommunity({S,getClient,checkResult,notify,message,modal,cl
     if(resetButton&&inCommunity()){event.preventDefault();ensure();filters=emptyFilters();S.feedKind='all';S.feedSearch='';void reload();return;}
     const button=event.target.closest?.('[data-community-image]');if(!button||!inCommunity())return;
     event.preventDefault();const context=ensure(),post=S.posts.find(p=>p.id===button.dataset.communityImage);if(!post)return;button.disabled=true;
+    const request=++imageRequest,dialog=document.getElementById('modal'),modalRoot=document.getElementById('modalContent'),previousContent=modalRoot?.firstChild,previousOpen=dialog?.open,pageRoot=document.getElementById('content')?.firstElementChild;
     try{
       let url=post.image_url;
       if(!context.demo){if(!validImagePath(post.image_path,post.author_id))throw Error('Image indisponible.');const db=await getClient();assertSession(context);url=safeSignedURL(checkResult(await db.storage.from(BUCKET).createSignedUrl(post.image_path,600)).signedUrl);assertSession(context);}
       if(!url)throw Error('Cette image est indisponible. Actualise le fil.');
-      if(!sameSession(context)||!inCommunity())return;
+      if(!sameSession(context)||!inCommunity()||request!==imageRequest||dialog?.open!==previousOpen||modalRoot?.firstChild!==previousContent||document.getElementById('content')?.firstElementChild!==pageRoot)return;
       releaseDraft();modal('Image partagée',`<img class="community-image-large" src="${esc(url)}" alt="${esc(post.image_alt||'Image jointe au message')}" referrerpolicy="no-referrer">${post.image_alt?`<p>${esc(post.image_alt)}</p>`:''}`);
     }catch(error){if(sameSession(context))notify(message(error));}finally{button.disabled=false;}
   });

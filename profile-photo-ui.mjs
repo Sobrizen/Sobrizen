@@ -7,7 +7,7 @@ export function createProfilePhotos({S,getClient,sessionContext,sameSession,asse
   const checked=result=>{if(result.error)throw result.error;return result.data;};
   const valid=context=>!!S.user&&sameSession(context);
   const active=d=>draft===d&&valid(d.context)&&d.form.isConnected;
-  function releaseDraft(){if(draft){draft.sequence++;if(draft.url)URL.revokeObjectURL(draft.url);draft=null;}}
+  function releaseDraft(){if(draft){draft.sequence++;draft.imageController?.abort();if(draft.url)URL.revokeObjectURL(draft.url);draft=null;}}
   function reset(){
     epoch++;releaseDraft();for(const item of cache.values())URL.revokeObjectURL(item.url);cache.clear();pending.clear();
     if(demoPhoto)URL.revokeObjectURL(demoPhoto.url);demoPhoto=null;
@@ -15,11 +15,15 @@ export function createProfilePhotos({S,getClient,sessionContext,sameSession,asse
   }
   function cachePhoto(path,blob){
     const old=cache.get(path);if(old)URL.revokeObjectURL(old.url);
-    const item={blob,url:URL.createObjectURL(blob)};cache.set(path,item);return item;
+    if(old)cache.delete(path);
+    const item={blob,url:URL.createObjectURL(blob)};cache.set(path,item);
+    // At most 32 MiB of encoded avatars, even after a long feed session.
+    while(cache.size>64){const [key,entry]=cache.entries().next().value;URL.revokeObjectURL(entry.url);cache.delete(key);}
+    return item;
   }
   async function loadPhoto(path,owner,context){
     assertSession(context);if(!validPhotoPath(path,owner))return null;
-    if(cache.has(path))return cache.get(path);if(pending.has(path))return pending.get(path);
+    if(cache.has(path)){const item=cache.get(path);cache.delete(path);cache.set(path,item);return item;}if(pending.has(path))return pending.get(path);
     const version=epoch;
     const request=(async()=>{
       const db=await getClient();assertSession(context);
@@ -43,7 +47,7 @@ export function createProfilePhotos({S,getClient,sessionContext,sameSession,asse
       if(!item||!valid(context)||!slot.isConnected||slot.dataset.photoLoading!==key)return;
       if(own&&(context.demo?demoPhoto!==item:(S.profile.avatar_path||'')!==path))return;
       const img=document.createElement('img');img.alt='';img.decoding='async';img.src=item.url;
-      img.addEventListener('error',()=>{img.remove();slot.classList.remove('has-photo');},{once:true});
+      img.addEventListener('error',()=>{if(slot.querySelector('img')!==img)return;img.remove();slot.classList.remove('has-photo');delete slot.dataset.photoLoaded;},{once:true});
       slot.querySelector('img')?.remove();slot.append(img);slot.classList.add('has-photo');slot.dataset.photoLoaded=key;
     }catch{/* Keep the initial if an avatar cannot be read. No post is hidden. */}
     finally{if(slot.dataset.photoLoading===key)delete slot.dataset.photoLoading;}
@@ -90,9 +94,9 @@ export function createProfilePhotos({S,getClient,sessionContext,sameSession,asse
   }
   async function choose(d,file){
     if(!active(d)||d.busy||d.attempt.writeStarted)return;
-    const seq=++d.sequence;d.processing=true;buttons(d);status(d,'Préparation de la photo…');
+    const seq=++d.sequence;d.imageController?.abort();const controller=d.imageController=new AbortController();d.processing=true;buttons(d);status(d,'Préparation de la photo…');
     try{
-      const blob=await prepareProfilePhoto(file);if(!active(d)||seq!==d.sequence)return;
+      const blob=await prepareProfilePhoto(file,{signal:controller.signal});if(!active(d)||seq!==d.sequence)return;
       if(d.url)URL.revokeObjectURL(d.url);
       d.blob=blob;d.url=URL.createObjectURL(blob);d.remove=false;d.changed=true;d.invalid=false;d.attempt={};preview(d);
       status(d,'Photo prête. Vérifie l’aperçu puis enregistre.');
@@ -119,7 +123,7 @@ export function createProfilePhotos({S,getClient,sessionContext,sameSession,asse
     form.elements.photo.addEventListener('change',event=>{const file=event.target.files?.[0];if(file)void choose(d,file);});
     form.querySelector('[data-photo-remove]').addEventListener('click',()=>{
       if(!active(d)||d.busy||d.attempt.writeStarted)return;
-      d.sequence++;d.processing=false;d.remove=true;d.changed=true;d.invalid=false;d.blob=null;d.attempt={};
+      d.sequence++;d.imageController?.abort();d.processing=false;d.remove=true;d.changed=true;d.invalid=false;d.blob=null;d.attempt={};
       if(d.url)URL.revokeObjectURL(d.url);d.url='';form.elements.photo.value='';preview(d);buttons(d);
       status(d,'Ton initiale remplacera la photo après enregistrement.');
     });

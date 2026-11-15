@@ -12,7 +12,25 @@
 .jm-toolbar .search{width:min(320px,50%);margin:0;min-width:0}
 .jm-toolbar .search input{width:100%;min-width:0}
 .jm-notes{margin-top:18px}
+.jm-filters{border:1px solid var(--jm-line);border-radius:16px;background:var(--sz-elevated,#fff);margin:18px 0 0;padding:0 18px}
+.jm-filters summary{cursor:pointer;min-height:52px;padding:15px 0;color:var(--jm-ink);font-size:.9rem;font-weight:650}
+.jm-filters summary span{font-weight:400;font-size:.78rem;color:var(--jm-muted);margin-left:9px}
+.jm-filter-grid{display:grid;grid-template-columns:1.3fr 1fr 1fr 1.25fr;gap:12px;padding:3px 0 18px}
+.jm-filter-grid label{margin:0;display:grid;gap:7px;font-size:.78rem;color:var(--jm-muted);min-width:0}
+.jm-filter-grid input,.jm-filter-grid select{width:100%;min-width:0;min-height:44px;font:inherit;color:var(--jm-ink);background:var(--sz-elevated,#fff);border:1px solid var(--jm-line);border-radius:10px;padding:10px}
+.jm-results{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:49px;border-bottom:1px solid var(--jm-line);font-size:.8rem;color:var(--jm-muted)}
+.jm-results p{margin:12px 0;line-height:1.5;font-variant-numeric:tabular-nums}
+.jm-results button{min-height:44px;flex-shrink:0;white-space:normal}
+.jm-loading{color:var(--jm-muted);padding:18px;text-align:center;border:1px dashed var(--jm-line);border-radius:14px;margin:0}
+.jm-pagination{gap:12px;margin:8px 0 0;padding:16px 0;flex-wrap:wrap}
+.jm-pagination>button{min-height:44px;min-width:112px}
+.jm-pagination>span{font-variant-numeric:tabular-nums;text-align:center;flex:1}
 .jm-note h3{margin-top:16px;line-height:1.4;overflow-wrap:anywhere}
+.jm-note{border:1px solid var(--jm-line);box-shadow:0 4px 18px #214b6005;min-width:0}
+.jm-note time{font-size:.78rem;color:var(--jm-muted);font-variant-numeric:tabular-nums}
+.jm-note .jm-kind-victory{color:#336d50;background:#edf7ef}
+.jm-note .jm-kind-difficult{color:#825b24;background:#fbf4e7}
+.jm-note .jm-kind-plan{color:#5f5396;background:#f2eefb}
 .jm-note .entry-body{overflow-wrap:anywhere}
 .jm-motivation-intro{display:flex;align-items:center;justify-content:space-between;gap:24px;margin-bottom:22px}
 .jm-motivation-intro h2{margin:5px 0 7px;font-size:clamp(1.3rem,2vw,1.7rem);letter-spacing:-.035em}
@@ -68,6 +86,10 @@ body.ux-ready #modal:has([data-journal-quote]) .close{display:grid;place-items:c
 .jm-quote-actions>button.text{color:#406476}
 .jm-quote-actions>button:disabled{opacity:.65;cursor:wait}
 .jm-journal button:focus-visible,.jm-quote button:focus-visible{outline:3px solid #237fba;outline-offset:3px}
+.jm-filters summary:focus-visible,.jm-filter-grid input:focus-visible,.jm-filter-grid select:focus-visible{outline:3px solid #237fba;outline-offset:3px}
+.dark .jm-note .jm-kind-victory{background:#243f35;color:#b4dec7}.dark .jm-note .jm-kind-difficult{background:#453d2b;color:#edd4a5}.dark .jm-note .jm-kind-plan{background:#39334f;color:#d6c9ef}
+@media(max-width:850px){.jm-filter-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:420px){.jm-filters{padding:0 12px}.jm-filters summary span{display:block;margin:5px 0 0}.jm-filter-grid{grid-template-columns:minmax(0,1fr)}.jm-results{align-items:flex-start}.jm-pagination{display:grid;grid-template-columns:1fr 1fr}.jm-pagination>span{grid-column:1/-1;grid-row:1}.jm-pagination>button{min-width:0}}
 .dark .jm-journal{--jm-ink:#e0f1f5;--jm-muted:#afc8d1;--jm-line:#38525e;--jm-tint:#203f48;--jm-accent:#83d9db}
 .dark .jm-tabs{background:#17333e}.dark .jm-tabs>[role=tab][aria-selected=true]{background:#284752;color:#c3f2f1;border-color:#46636e}
 .dark .jm-tab-count,.dark .jm-tabs [aria-selected=true] .jm-tab-count{background:#345763;color:#e0f5f5}

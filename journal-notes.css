@@ -31,6 +31,14 @@
 .jn-composer .jn-privacy-hint{font-size:.78rem;line-height:1.65;color:var(--jn-muted);margin:12px 0 8px}
 .jn-status{font-size:.85rem;line-height:1.65;margin:10px 0;color:var(--jn-muted);overflow-wrap:anywhere}
 .jn-status:empty{display:none}
+.jn-draft{margin:0;color:var(--jn-muted);font-size:.78rem;line-height:1.6;overflow-wrap:anywhere}
+.jn-close-confirm{border:1px solid #d9ba7d;border-radius:14px;background:#fff8e9;color:#634719;padding:16px;scroll-margin:30px}
+.jn-close-confirm strong{display:block;font-size:.94rem;line-height:1.45}
+.jn-close-confirm p{font-size:.86rem;line-height:1.65;margin:8px 0 12px}
+.jn-close-confirm>div{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.jn-close-confirm button{min-height:44px;white-space:normal;line-height:1.45}
+.jn-composer[aria-busy=true] .jn-draft{color:var(--jn-accent)}
+.dark .jn-close-confirm{background:#3c3526;border-color:#806c3e;color:#eed7a8}
 .jn-status.jn-error{color:#913d3b;background:#fff2ef;border:1px solid #edcac4;border-radius:12px;padding:12px}
 .jn-submit{position:sticky;bottom:0;margin:16px -28px -28px;padding:14px 28px 22px;background:var(--sz-surface,#fff);border-top:1px solid var(--jn-line);z-index:2}
 .jn-submit>button{min-height:48px;white-space:normal;line-height:1.5}

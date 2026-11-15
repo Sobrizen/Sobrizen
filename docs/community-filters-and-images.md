@@ -18,7 +18,7 @@ An uncommitted edit can retry its frozen payload only while the stored message s
 
 ## Integration and development
 
-Run `node scripts/integrate-community.mjs` before serving the static app. Vercel runs this via vercel.json. The idempotent script inserts a native context bridge into app.mjs before initGames, replaces only the community functions and post-delete action, and resets module state with the existing session invalidation. It also updates the service-worker asset list/version. It does not change authentication, billing, private health tracking, or games. Source-anchor checks fail the build on incompatible upstream changes. The generated app and worker receive Node syntax checks.
+Use `npm run build` to prepare the static app; Vercel runs `npm run release:check` to test before building. The canonical build applies the integration in memory and publishes only the validated `dist/` allowlist. Its bridge inserts the community context before initGames, replaces the community functions and post-delete action, connects voluntary journal sharing, and resets state on session invalidation. It adds public assets without replacing the release-owned cache version. Source-anchor and JavaScript syntax checks stop an incompatible build. The historical standalone `scripts/integrate-community.mjs` CLI rewrites sources and is not the recommended release path.
 
 The SQL in db/community-filters-and-images.sql records the already-applied named Supabase migration; it is not automatically executed by the build.
 
