@@ -41,9 +41,8 @@ body.ux-ready #workspace .main>header .ux-page-title{font-size:13px;font-weight:
 body.ux-ready #headerDate{font-size:12px}
 body.ux-ready .header-identity{gap:18px}
 body.ux-ready .brand{display:flex;align-items:center;gap:10px;text-decoration:none;flex-shrink:0;line-height:1}
-body.ux-ready .brand .brand-symbol{display:block;width:29px;height:40px;object-fit:contain;flex:none;filter:none}
-body.ux-ready .brand .brand-name{color:var(--text);font-size:26px;letter-spacing:-1px;font-weight:580}
-body.ux-ready .brand .brand-name>span{font-weight:380}
+body.ux-ready .brand .brand-logo{display:block;width:128px;height:auto;aspect-ratio:978/901;object-fit:contain;flex:none;filter:none!important;background:#fff;border-radius:16px}
+
 body.ux-ready #workspace #appNav>.brand{padding:0 12px;margin:0 0 3px;min-height:42px}
 body.ux-ready #appNav>.badge{background:transparent;color:var(--muted);font-size:10px;font-weight:450;padding:0;margin:8px 12px 23px;letter-spacing:.02em}
 body.ux-ready #nav{gap:3px}
@@ -158,9 +157,8 @@ body.ux-ready #content .sz-home-plan--pending{background:var(--card)!important;b
 body.ux-ready #welcome{max-width:1500px;grid-template-columns:1.15fr 1fr;background:var(--bg)}
 body.ux-ready #welcome .welcome-hero{padding:42px clamp(26px,5.5vw,80px) 46px;background:#edf2e7!important;color:#243f32!important;min-height:760px}
 body.ux-ready #welcome .welcome-hero::after{border-color:#365d3b17;box-shadow:0 0 0 55px #365d3b04,0 0 0 110px #365d3b03}
-body.ux-ready #welcome .welcome-hero .brand{margin:0 0 47px;padding:0}
-body.ux-ready #welcome .welcome-hero .brand-name{color:#243f32;font-size:30px}
-body.ux-ready #welcome .welcome-hero .brand-symbol{width:32px;height:44px}
+body.ux-ready #welcome .welcome-hero .brand{margin:0 0 24px;padding:0}
+body.ux-ready #welcome .welcome-hero .brand-logo{width:152px;height:auto}
 body.ux-ready #welcome .welcome-hero h1{font-size:clamp(39px,4.6vw,66px);font-weight:550;line-height:1.1;letter-spacing:-.055em}
 body.ux-ready #welcome .welcome-hero em{font-family:Georgia,serif;color:#416b49!important;font-weight:400}
 body.ux-ready #welcome .welcome-hero .eyebrow{color:#506d50!important;font-size:10px;letter-spacing:.13em}
@@ -183,7 +181,7 @@ body.ux-ready #welcome .launch-offers{background:var(--sz-home-soft);border-colo
 body.ux-ready #welcome .launch-offers a{color:var(--sz-home);background:var(--card);border-color:var(--sz-home-edge)}
 body.ux-ready #welcome :is(.launch-section-title p,.launch-features p,.launch-offers p,.launch-faq p){color:var(--muted)}
 body.ux-ready.dark #welcome .welcome-hero{background:#233a2c!important}
-body.ux-ready.dark #welcome .welcome-hero :is(h1,.brand-name){color:#eff5e6!important}
+body.ux-ready.dark #welcome .welcome-hero h1{color:#eff5e6!important}
 body.ux-ready.dark #welcome .welcome-hero em{color:#c6d8a6!important}
 body.ux-ready.dark #welcome .welcome-hero :is(p,.eyebrow){color:#bccfb4!important}
 body.ux-ready.dark #welcome .launch-preview{background:#1c3024;border-color:#536a4d}
@@ -206,8 +204,8 @@ body.ux-ready.dark #welcome .launch-actions .secondary{color:#d7e7c6!important;b
  body.ux-ready #workspace .header-identity{gap:9px}
  body.ux-ready #workspace .header-identity .brand--mobile{display:flex}
  body.ux-ready #workspace .header-identity :is(#headerDate,.ux-page-title){display:none}
- body.ux-ready .brand--mobile .brand-symbol{width:20px;height:29px}
- body.ux-ready .brand--mobile .brand-name{font-size:22px;letter-spacing:-.8px}
+ body.ux-ready .brand--mobile .brand-logo{width:66px;height:auto;border-radius:8px}
+
  body.ux-ready #workspace .main>header .secondary{font-size:11px;padding:8px 10px;min-height:37px}
  body.ux-ready #workspace .main>header>.row{gap:7px}
  body.ux-ready #workspace .main>header>.row>.text{font-size:18px;min-width:28px}
@@ -248,15 +246,15 @@ body.ux-ready.dark #welcome .launch-actions .secondary{color:#d7e7c6!important;b
  body.ux-ready .ux-bottom-nav button>svg{width:20px;height:20px;stroke-width:1.6}
  body.ux-ready #welcome{grid-template-columns:1fr}
  body.ux-ready #welcome .welcome-hero{min-height:0;padding:30px 25px 28px}
- body.ux-ready #welcome .welcome-hero .brand{margin-bottom:33px}
+ body.ux-ready #welcome .welcome-hero .brand{margin-bottom:24px}
  body.ux-ready #welcome .welcome-hero h1{font-size:45px}
  body.ux-ready #welcome .welcome-form{padding:34px 25px 40px}
  body.ux-ready #welcome .launch-preview{max-width:100%}
 }
 @media(max-width:380px){
  body.ux-ready #workspace .main{padding:0 13px}
- body.ux-ready .brand--mobile .brand-name{font-size:19px}
- body.ux-ready .brand--mobile .brand-symbol{width:17px;height:25px}
+
+ body.ux-ready .brand--mobile .brand-logo{width:58px;height:auto}
  body.ux-ready #workspace .header-identity{gap:5px}
  body.ux-ready #workspace .main>header>.row{gap:4px}
  body.ux-ready #workspace .main>header .secondary{padding:8px 6px;font-size:10px}

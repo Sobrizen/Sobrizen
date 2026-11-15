@@ -105,7 +105,7 @@ export function planPublic(sourceRoot=root){
     if(!lstatSync(path).isFile()||lstatSync(path).isSymbolicLink())throw Error('Public build: expected a regular file: '+file);
     files.set(file,readFileSync(path));
   }
-  for(const [file,png] of brandIconAssets())files.set(file,png);
+  for(const [file,png] of brandIconAssets(sourceRoot))files.set(file,png);
   const transform=(file,fn)=>files.set(file,Buffer.from(fn(files.get(file).toString('utf8'))));
   transform('app.mjs',source=>integratePhotosApp(integrateApp(source)));
   transform('community.mjs',integratePhotosCommunity);
