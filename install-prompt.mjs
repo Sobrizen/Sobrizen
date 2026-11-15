@@ -59,7 +59,7 @@ export function createInstallExperience(win = window, doc = win.document, {delay
     if(landing)landing.hidden=!visible;
     const content=doc.getElementById('content');let account=content?.querySelector('[data-pwa-banner]');
     const onHome=doc.body.dataset.page==='home'&&!doc.getElementById('workspace')?.hidden;
-    if(visible&&onHome&&content&&!account){account=banner();const heading=content.querySelector('.dy-heading,.greeting');heading?heading.after(account):content.prepend(account);}
+    if(visible&&onHome&&content&&!account){account=banner();content.append(account);}
     if(account)account.hidden=!visible||!onHome;
     updateButtons();
     if(installed()||accepted){cancelTimer();closeSheet();return;}

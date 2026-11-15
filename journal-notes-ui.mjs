@@ -20,7 +20,22 @@ export function createJournalNotes({S,getClient,checkResult,notify,message,modal
   function reset(){revision++;releaseDraft();observer?.disconnect();observer=null;for(const item of [...images.values(),...demoImages.values()])URL.revokeObjectURL(item.url);images.clear();pendingImages.clear();demoImages.clear();removing.clear();}
   function forgetImage(path){const image=images.get(path);if(image)URL.revokeObjectURL(image.url);images.delete(path);}
   function status(d,text,error=false){if(current(d)){const node=d.form.querySelector('[data-jn-status]');node.textContent=text;node.classList.toggle('jn-error',error);node.setAttribute('role',error?'alert':'status');}}
-  function syncSubmit(d){if(!current(d))return;const button=d.form.querySelector('[type="submit"]');button.disabled=d.processing||d.busy;button.textContent=d.form.elements.visibility.value==='community'?'Enregistrer et préparer le partage':'Enregistrer pour moi';}
+  const fingerprint=form=>JSON.stringify(['entry_date','kind','title','body','image_alt','visibility'].map(name=>form.elements.namedItem(name)?.value||''));
+  const dirty=d=>!!d&&(d.prefilled||!!d.blob||d.removeImage&&hasImage(d.original)||fingerprint(d.form)!==d.initialFingerprint);
+  function updateDraft(d){
+    if(!current(d))return;
+    const node=d.form.querySelector('[data-jn-draft]');
+    if(node)node.textContent=dirty(d)?'Modifications non enregistrées · Garde cette fenêtre ouverte jusqu’à la confirmation.':'Rien n’est envoyé avant que tu enregistres ta note.';
+  }
+  function canClose(){
+    const d=draft;if(!d||!current(d)||!document.getElementById('modal')?.open||d.saved||d.discarded)return true;
+    if(d.busy||d.processing){status(d,d.busy?'Enregistrement en cours. Attends la confirmation avant de fermer.':'L’image est en cours de préparation. Attends un instant avant de fermer.');return false;}
+    if(!dirty(d))return true;
+    const decision=d.form.querySelector('[data-jn-close-confirm]');
+    if(decision){decision.hidden=false;decision.querySelector('[data-jn-continue]')?.focus({preventScroll:true});}
+    return false;
+  }
+  function syncSubmit(d){if(!current(d))return;d.form.setAttribute('aria-busy',String(d.busy||d.processing));const button=d.form.querySelector('[type="submit"]');button.disabled=d.processing||d.busy;button.textContent=d.busy?'Enregistrement…':d.processing?'Préparation de l’image…':d.form.elements.visibility.value==='community'?'Enregistrer et préparer le partage':'Enregistrer pour moi';}
   function preview(d){
     if(!current(d))return;
     const image=d.form.querySelector('[data-jn-preview]'),present=!!d.blob||(!d.removeImage&&hasImage(d.original));
@@ -86,15 +101,15 @@ export function createJournalNotes({S,getClient,checkResult,notify,message,modal
     try{
       const blob=await prepareImage(file);if(!current(d)||sequence!==d.sequence)return;
       if(d.previewURL)URL.revokeObjectURL(d.previewURL);
-      d.blob=blob;d.previewURL=URL.createObjectURL(blob);d.removeImage=false;d.uploadedPath='';preview(d);status(d,'Image prête. Elle sera enregistrée avec ta note.');
+      d.blob=blob;d.previewURL=URL.createObjectURL(blob);d.removeImage=false;d.uploadedPath='';preview(d);updateDraft(d);status(d,'Image prête. Elle sera enregistrée avec ta note.');
     }catch(error){if(current(d)&&sequence===d.sequence){d.form.elements.image.value='';status(d,message(error),true);}}
     finally{if(current(d)&&sequence===d.sequence){d.processing=false;syncSubmit(d);}}
   }
   function open(id,prefill={}){
-    privateWrite();const context=sessionContext();assert(context);releaseDraft();
+    privateWrite();const context=sessionContext();assert(context);if(draft&&!canClose())return;releaseDraft();
     const n=id?entryFor(id):prefill;if(!n)throw Error('Cette note n’est plus disponible. Actualise ton journal.');
     if(id&&isMotivationEntry(n))throw Error('Retrouve cette citation dans ton journal de motivation.');
-    modal(id?'Ma note, à ma façon':n.kind==='plan'?'Préparer ma journée':'Un moment pour écrire',`<form id="journalForm" class="jn-composer">
+    modal(id?'Ma note, à ma façon':n.kind==='plan'?'Préparer ma journée':'Un moment pour écrire',`<form id="journalForm" class="jn-composer" data-journal-guard="true">
       <p class="jn-intro">Quelques mots, une image, un petit pas. Choisis ce que tu gardes pour toi et ce que tu souhaites partager.</p>
       <input type="hidden" name="id" value="${esc(n.id||'')}">
       <div class="two-fields"><label>Date<input name="entry_date" type="date" required min="1900-01-01" max="${today()}" value="${esc(n.entry_date||today())}"></label><label>Type<select name="kind">${KINDS.map(([key,label])=>`<option value="${key}" ${(n.kind||'reflection')===key?'selected':''}>${label}</option>`).join('')}</select></label></div>
@@ -111,18 +126,23 @@ export function createJournalNotes({S,getClient,checkResult,notify,message,modal
       <label><input name="visibility" type="radio" value="community"><span>${icon('share')}<span><strong>Partager avec la communauté</strong><small>Relire et valider une copie avant de publier.</small></span></span></label></fieldset>
       <p class="jn-privacy-hint">Ton original et son image restent dans ton journal. ${n.shared_post_id?'Une copie a déjà été partagée. Les modifications ici ne changent pas cette publication.':'Rien n’est publié sans ta validation.'}</p>
       ${context.demo?'<p class="jm-demo">Mode démo · Tes notes et images restent fictives, uniquement pendant cette démonstration.</p>':''}
+      <p class="jn-draft" data-jn-draft>Rien n’est envoyé avant que tu enregistres ta note.</p>
       <p class="jn-status" data-jn-status role="status" aria-live="polite"></p>
+      <div class="jn-close-confirm" data-jn-close-confirm role="group" aria-label="Note non enregistrée" hidden><strong>Garder tes mots avant de partir ?</strong><p>Ces modifications ne sont pas encore enregistrées. Si tu fermes, ce brouillon sera effacé.</p><div><button type="button" class="secondary" data-jn-continue>Continuer à écrire</button><button type="button" class="text" data-jn-discard>Fermer sans enregistrer</button></div></div>
       <div class="jn-submit"><button type="submit" class="primary full">Enregistrer pour moi</button></div></form>`);
     const form=document.getElementById('journalForm');
-    const d=draft={form,context,id:n.id||crypto.randomUUID(),editing:!!id,original:{...n},blob:null,previewURL:'',uploadedPath:'',removeImage:false,sequence:0,processing:false,busy:false};
-    preview(d);
+    const d=draft={form,context,id:n.id||crypto.randomUUID(),editing:!!id,original:{...n},blob:null,previewURL:'',uploadedPath:'',removeImage:false,sequence:0,processing:false,busy:false,saved:false,discarded:false,prefilled:!id&&!!(n.title||n.body),initialFingerprint:fingerprint(form)};
+    preview(d);updateDraft(d);
     if(hasImage(n))void readImage(n,context).then(()=>preview(d)).catch(()=>{if(current(d))status(d,'L’aperçu est indisponible. Ton image reste jointe à la note.');});
     form.elements.image.addEventListener('change',event=>{const file=event.target.files?.[0];if(file)void chooseImage(d,file);});
     form.querySelector('[data-jn-remove]').addEventListener('click',()=>{
       if(!current(d)||d.busy)return;d.sequence++;d.processing=false;d.blob=null;d.removeImage=true;d.uploadedPath='';
-      if(d.previewURL)URL.revokeObjectURL(d.previewURL);d.previewURL='';form.elements.image.value='';form.elements.image_alt.value='';preview(d);syncSubmit(d);status(d,'L’image sera retirée lorsque tu enregistreras la note.');
+      if(d.previewURL)URL.revokeObjectURL(d.previewURL);d.previewURL='';form.elements.image.value='';form.elements.image_alt.value='';preview(d);syncSubmit(d);updateDraft(d);status(d,'L’image sera retirée lorsque tu enregistreras la note.');
     });
     form.querySelectorAll('[name="visibility"]').forEach(input=>input.addEventListener('change',()=>syncSubmit(d)));
+    for(const type of ['input','change'])form.addEventListener(type,()=>{if(!current(d)||d.busy)return;form.querySelector('[data-jn-close-confirm]').hidden=true;updateDraft(d);});
+    form.querySelector('[data-jn-continue]').addEventListener('click',()=>{if(!current(d))return;form.querySelector('[data-jn-close-confirm]').hidden=true;form.elements.body.focus({preventScroll:true});});
+    form.querySelector('[data-jn-discard]').addEventListener('click',()=>{if(!current(d)||d.busy||d.processing)return;d.discarded=true;closeModal();});
     form.addEventListener('submit',event=>{event.preventDefault();event.stopImmediatePropagation();void save(d);},true);
   }
   async function removeUnusedImage(db,path,context){
@@ -137,7 +157,7 @@ export function createJournalNotes({S,getClient,checkResult,notify,message,modal
     if(!current(d)||d.busy||d.processing||!d.form.reportValidity())return;
     const values=new FormData(d.form),v=name=>String(values.get(name)||'').trim(),context=d.context;
     const sharing=v('visibility')==='community';let db,saved=null,writeStarted=false,definiteRejection=false,cleanupFailed=false;
-    d.busy=true;const controls=[...d.form.querySelectorAll('input,textarea,select,button')];controls.forEach(control=>control.disabled=true);status(d,'Enregistrement de ta note…');
+    d.busy=true;d.form.querySelector('[data-jn-close-confirm]').hidden=true;const controls=[...d.form.querySelectorAll('input,textarea,select,button')];controls.forEach(control=>control.disabled=true);syncSubmit(d);status(d,'Enregistrement de ta note…');
     try{
       privateWrite();assert(context);
       const date=v('entry_date');parseDay(date);if(date<'1900-01-01'||date>today())throw Error('Choisis une date passée ou aujourd’hui.');
@@ -190,9 +210,10 @@ export function createJournalNotes({S,getClient,checkResult,notify,message,modal
       }
     }catch(error){
       if(d.uploadedPath&&db&&!saved&&(!writeStarted||definiteRejection)){if(await removeUnusedImage(db,d.uploadedPath,context))d.uploadedPath='';}
-      if(current(d)){status(d,message(error)+' Ton brouillon reste ouvert.',true);d.busy=false;controls.forEach(control=>control.disabled=false);syncSubmit(d);}return;
+      if(current(d)){status(d,message(error)+' Ton brouillon reste ouvert.',true);d.busy=false;controls.forEach(control=>control.disabled=false);syncSubmit(d);updateDraft(d);}return;
     }
     if(!valid(context))return;
+    d.saved=true;
     S.journal=[saved,...S.journal.filter(entry=>entry.id!==saved.id)].sort((a,b)=>String(b.entry_date).localeCompare(String(a.entry_date))||String(b.created_at||'').localeCompare(String(a.created_at||'')));
     onChanged();
     if(!context.demo&&d.original.image_path&&d.original.image_path!==saved.image_path)cleanupFailed=!await removeUnusedImage(db,d.original.image_path,context);
@@ -226,8 +247,9 @@ export function createJournalNotes({S,getClient,checkResult,notify,message,modal
     try{
       if(!context.demo){
         const db=await getClient();assert(context);
-        const rows=checkResult(await db.from('journal_entries').delete().eq('id',id).eq('user_id',context.user.id).select('id,image_path'));assert(context);
-        if(!rows.length)throw Error('Cette note n’est plus disponible. Actualise ton journal.');
+        if(!entry.updated_at)throw Error('Recharge ton journal avant de supprimer cette note.');
+        const rows=checkResult(await db.from('journal_entries').delete().eq('id',id).eq('user_id',context.user.id).eq('updated_at',entry.updated_at).select('id,image_path'));assert(context);
+        if(!rows.length)throw Error('Cette note a changé sur un autre appareil ou a déjà été supprimée. Recharge ton journal avant de réessayer.');
         if(rows[0].image_path)cleanupFailed=!await removeUnusedImage(db,rows[0].image_path,context);
       }else{const image=demoImages.get(id);if(image){URL.revokeObjectURL(image.url);demoImages.delete(id);}}
       assert(context);S.journal=S.journal.filter(note=>note.id!==id);onChanged();if(S.page==='journal')render();
@@ -244,6 +266,8 @@ export function createJournalNotes({S,getClient,checkResult,notify,message,modal
     }catch(error){if(valid(context))notify(message(error));}finally{button.disabled=false;}
   });
   document.getElementById('modal')?.addEventListener('close',()=>{if(!document.getElementById('modal').open)releaseDraft();});
+  document.getElementById('modal')?.addEventListener('cancel',event=>{if(!canClose())event.preventDefault();});
+  window.addEventListener('beforeunload',event=>{const d=draft;if(!d||!current(d)||d.saved||d.discarded||!dirty(d)&&!d.busy&&!d.processing)return;event.preventDefault();event.returnValue='';});
   const root=document.getElementById('modalContent');if(root)new MutationObserver(()=>{if(draft&&!document.contains(draft.form))releaseDraft();}).observe(root,{childList:true});
-  return {open,remove,share,imageMarkup,pageRendered,reset,reloaded};
+  return {open,remove,share,imageMarkup,pageRendered,reset,reloaded,canClose,canReplaceModal:canClose};
 }

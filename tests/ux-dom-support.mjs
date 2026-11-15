@@ -193,6 +193,6 @@ export async function mockService({consent=true,premium=false}={}){
   };
   return{client,calls,tables,faults,defer,
     async signOut(){await client.auth.signOut();await settle();},
-    async signIn(user={id:UID2}){currentUser=user;authCallback('SIGNED_IN',{user});await settle(35);},
+    async signIn(user={id:UID2},{event='SIGNED_IN'}={}){currentUser=user;authCallback(event,{user});await settle(35);},
   };
 }

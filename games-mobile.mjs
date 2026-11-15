@@ -1,7 +1,7 @@
 import {clamp,shuffle,createSnake,turnSnake,stepSnake,snakeDelay,createBlocks,moveBlock,rotateBlock,collides,ghostY,lockBlock,dropBlock,blocksDelay,SHAPES,BLOCK_COLORS,memoryPairs,targetSize,targetWindow,reactionWindow} from './games-core.mjs';
 import {create2048,slide2048,spawn2048,canMove2048,level2048,sequenceTiming,extendSequence} from './games-brain-core.mjs';
 import {HeldControls,fitBoard,memoryGrid,boundedTarget} from './games-mobile-core.mjs';
-import {gamePremiumAllowed,gameSession,sameGameSession,beginGameRecord,saveGameRecord,gameRecordMarkup,gameRecordStatusMarkup} from './games-runtime.mjs';
+import {gameDialogOpen,gamePremiumAllowed,gameSession,sameGameSession,beginGameRecord,saveGameRecord,gameRecordMarkup,gameRecordStatusMarkup} from './games-runtime.mjs';
 const FREE=new Set(['snake','blocks','ground']);
 const GAMES={
   snake:['🐍','Snake Zen','Un fruit, un virage. Trouve ton rythme.','Attrape les fruits. Évite les murs et ta queue. Glisse ou utilise les flèches.'],
@@ -40,13 +40,16 @@ function hud(a){
   setText(a.unitEl,{snake:'fruits',blocks:`${a.game?.lines||0} lignes`,merge:'points',sequence:`${a.lives} chances`,memory:'paires',reaction:'succès',taps:`${a.score} cibles`,ground:'étapes'}[a.id]);
 }
 function status(a,text){setText(a.statusEl,text);}
+function clearMotion(a){a.motionRevision=(a.motionRevision||0)+1;for(const animation of a.animations||[])animation.cancel();a.animations?.clear();a.stage.querySelectorAll('.ga-moving-tile').forEach(node=>node.remove());}
+function setBoardInert(a,value){$('.ga-main',a.root).inert=value;}
 function launch(id){
-  if(!GAMES[id])return;if(!FREE.has(id)&&!gamePremiumAllowed()){location.href='/abonnement.html';return;}
+  if(!GAMES[id]||gameDialogOpen())return;if(!FREE.has(id)&&!gamePremiumAllowed()){location.href='/abonnement.html';return;}
   close();styles();const root=document.createElement('dialog');root.className='ga-play ga-theme-'+id;root.id='gaPlay';root.dataset.game=id;root.setAttribute('aria-labelledby','gaTitle');
   root.innerHTML=`<header class="ga-top"><h2 id="gaTitle">${GAMES[id][1]}</h2><div>${button('help','Règles du jeu')}${button('pause','Mettre en pause')}${button('close','Quitter le jeu')}</div></header><div class="ga-hud"><b class="ga-level"></b><div class="ga-preview" aria-label="Prochain bloc" hidden></div><div class="ga-stat"><b class="ga-score"></b><span class="ga-unit"></span>${gameRecordMarkup(id)}</div></div><div class="ga-main"><div class="ga-stage" tabindex="0"></div><div class="ga-dock"><div class="ga-move"></div><div class="ga-actions"></div></div></div><p class="ga-status" role="status" aria-live="polite"></p><div class="ga-cover" hidden></div>`;
   const a={id,root,source:$('#gameZone'),session:gameSession(),origin:document.activeElement,controller:new AbortController(),state:'playing',score:0,level:1,earned:0,time:0,last:0,raf:0,jobs:[],pressed:new Map(),holds:new HeldControls(),gestures:new Map(),suppressed:new WeakMap(),particles:[],reduced:matchMedia('(prefers-reduced-motion:reduce)').matches,previousOverflow:document.body.style.overflow,ownsFullscreen:false};active=a;
   for(const [key,selector] of Object.entries({stage:'.ga-stage',move:'.ga-move',actions:'.ga-actions',statusEl:'.ga-status',scoreEl:'.ga-score',unitEl:'.ga-unit',levelEl:'.ga-level',cover:'.ga-cover'}))a[key]=$(selector,root);
   document.body.append(root);document.body.style.overflow='hidden';root.showModal();const signal=a.controller.signal;
+  a.animations=new Set();const motion=matchMedia('(prefers-reduced-motion:reduce)');motion.addEventListener?.('change',event=>{a.reduced=event.matches;if(a.reduced){a.particles=[];clearMotion(a);draw(a);}},{signal});
   root.addEventListener('click',click,{signal});root.addEventListener('pointerdown',pointerDown,{signal});root.addEventListener('pointermove',pointerMove,{signal});root.addEventListener('pointerup',pointerUp,{signal});root.addEventListener('pointercancel',e=>release(a,e.pointerId),{signal});root.addEventListener('lostpointercapture',e=>release(a,e.pointerId),{signal});
   root.addEventListener('keydown',keydown,{signal});root.addEventListener('keyup',e=>release(a,'key:'+e.code),{signal});root.addEventListener('contextmenu',e=>{if(e.target.closest('.ga-stage,.ga-dock'))e.preventDefault();},{signal});
   root.addEventListener('cancel',e=>{e.preventDefault();if(a.state==='paused')resume(a);else if(a.state==='result')close();else pause(a);},{signal});
@@ -59,19 +62,21 @@ function launch(id){
   viewport(a);reset(a);a.stage.focus({preventScroll:true});run(a);
 }
 function viewport(a){if(active!==a)return;if(!window.visualViewport||window.visualViewport.scale===1)a.root.style.setProperty('--ga-height',(window.visualViewport?.height||window.innerHeight)+'px');fit(a);}
-function close(){const a=active;if(!a)return;active=null;record(a);cancelAnimationFrame(a.raf);clearInput(a);a.jobs=[];a.controller.abort();a.resize.disconnect();a.observer.disconnect();a.root.close();a.root.remove();document.body.style.overflow=a.previousOverflow;if(a.ownsFullscreen&&document.fullscreenElement)document.exitFullscreen().catch(()=>{});if(a.origin?.isConnected)a.origin.focus({preventScroll:true});}
+function close(){const a=active;if(!a)return;active=null;record(a);cancelAnimationFrame(a.raf);clearInput(a);clearMotion(a);a.jobs=[];a.controller.abort();a.resize.disconnect();a.observer.disconnect();a.root.close();a.root.remove();document.body.style.overflow=a.previousOverflow;if(a.ownsFullscreen&&document.fullscreenElement)document.exitFullscreen().catch(()=>{});if(a.origin?.isConnected)a.origin.focus({preventScroll:true});}
 function cover(a,title,text,action='resume',label='Reprendre'){
+  setBoardInert(a,true);clearMotion(a);
   a.cover.hidden=false;a.cover.innerHTML=`<section class="ga-modal"><h3>${esc(title)}</h3><p>${esc(text)}</p>${gameRecordMarkup(a.id)}${a.state==='result'?gameRecordStatusMarkup():''}${button(action,label,label,'ga-primary')}${a.state==='result'?(action==='undo'?button('restart','Nouvelle partie','Nouvelle partie'):''):button('fullscreen','Plein écran du navigateur',icon('fullscreen')+' Plein écran')}${button('close','Retour aux jeux','Retour aux jeux','ga-quiet')}</section>`;
   a.cover.querySelector('button:not([hidden])').focus({preventScroll:true});
 }
 function pause(a,help=false){if(active!==a||a.state==='result')return;if(a.state!=='paused'){a.pauseStarted=performance.now();a.beforePause=a.state;a.state='paused';a.root.dataset.state='paused';cancelAnimationFrame(a.raf);a.raf=0;clearInput(a);a.root.classList.add('ga-paused');}
   cover(a,help?'Comment jouer ?':'En pause',help?GAMES[a.id][3]:'Ta partie est conservée.');
 }
-function resume(a){if(a.state!=='paused')return;a.pausedDuration+=performance.now()-a.pauseStarted;a.pauseStarted=null;a.state=a.beforePause||'playing';a.cover.hidden=true;a.root.classList.remove('ga-paused');a.stage.focus({preventScroll:true});if(a.id==='reaction'&&a.phase!=='feedback'){a.jobs=[];reactionRound(a);}run(a);}
+function resume(a){if(a.state!=='paused'||document.hidden)return;a.pausedDuration+=performance.now()-a.pauseStarted;a.pauseStarted=null;a.state=a.beforePause||'playing';a.root.dataset.state=a.state;a.cover.hidden=true;setBoardInert(a,false);a.root.classList.remove('ga-paused');a.stage.focus({preventScroll:true});if(a.id==='reaction'&&a.phase!=='feedback'){a.jobs=[];reactionRound(a);}run(a);}
 function finish(a,title,text,undo=false){a.state='result';a.root.dataset.state='result';cancelAnimationFrame(a.raf);a.raf=0;a.jobs=[];clearInput(a);record(a);draw(a);hud(a);cover(a,title,text,undo?'undo':'restart',undo?'Annuler le dernier coup':'Rejouer');}
 function schedule(a,delay,fn){a.jobs.push({at:a.time+delay,fn});run(a);}
 function run(a){if(active===a&&!a.raf&&!a.inFrame&&a.state!=='paused'&&a.state!=='result'){a.last=0;a.raf=requestAnimationFrame(frame);}}
 function reset(a){
+  clearMotion(a);setBoardInert(a,false);
   record(a);clearInput(a);Object.assign(a,{state:'playing',score:0,level:1,earned:0,time:0,jobs:[],particles:[],accumulator:0,canvas:null,ctx:null,mergeQueue:[],mergeUntil:0,attempts:0,step:0,countdown:0,recordRun:beginGameRecord(a.id),recordStarted:performance.now(),pausedDuration:0,pauseStarted:null,completedLevels:0,fastestReaction:null});a.root.classList.remove('ga-paused');a.cover.hidden=true;a.stage.replaceChildren();a.move.replaceChildren();a.actions.replaceChildren();$('.ga-preview',a.root).hidden=true;
   if(a.id==='snake'||a.id==='blocks'){
     a.game=a.id==='snake'?createSnake(18,22):createBlocks();a.stage.innerHTML='<canvas class="ga-canvas" role="img" aria-label="Plateau de jeu"></canvas>';a.canvas=$('canvas',a.stage);a.ctx=a.canvas.getContext('2d');
@@ -185,9 +190,10 @@ function placeTarget(a,resizeOnly=false){
   const p=a.targetPosition;Object.assign(el.style,{left:p.x+'px',top:p.y+'px',width:p.size+'px',height:p.size+'px'});el.firstElementChild.style.transform=`scale(${Math.max(.68,targetSize(a.level)/p.size)})`;
 }
 function renderMerge(a,change){
+  clearMotion(a);
   const grid=$('.ga-merge',a.stage);grid.innerHTML=a.board.map((v,i)=>`<div class="ga-tile ${v?'ga-filled':''}" data-value="${v}" style="--tile:${Math.min(11,Math.log2(v||1))}" aria-label="Ligne ${1+Math.floor(i/4)}, colonne ${1+i%4} : ${v||'vide'}">${v||''}</div>`).join('');$('[data-ga="undo"]',a.actions).disabled=!a.undo;
-  if(change&&!a.reduced){const cells=[...grid.children],box=grid.getBoundingClientRect();for(const p of change.motion){if(p.from===p.to)continue;const from=cells[p.from].getBoundingClientRect(),to=cells[p.to].getBoundingClientRect(),tile=document.createElement('i');tile.className='ga-moving-tile';tile.textContent=p.value;tile.style.cssText=`left:${from.x-box.x}px;top:${from.y-box.y}px;width:${from.width}px;height:${from.height}px;--tile:${Math.min(11,Math.log2(p.value))}`;grid.append(tile);tile.animate?.([{transform:'translate(0,0)'},{transform:`translate(${to.x-from.x}px,${to.y-from.y}px)`}],{duration:110,easing:'ease-out',fill:'forwards'});}
-    schedule(a,120,()=>grid.querySelectorAll('.ga-moving-tile').forEach(x=>x.remove()));
+  if(change&&!a.reduced){const cells=[...grid.children],box=grid.getBoundingClientRect();for(const p of change.motion){if(p.from===p.to)continue;const from=cells[p.from].getBoundingClientRect(),to=cells[p.to].getBoundingClientRect(),tile=document.createElement('i');tile.className='ga-moving-tile';tile.setAttribute('aria-hidden','true');tile.textContent=p.value;tile.style.cssText=`left:${from.x-box.x}px;top:${from.y-box.y}px;width:${from.width}px;height:${from.height}px;--tile:${Math.min(11,Math.log2(p.value))}`;grid.append(tile);const animation=tile.animate?.([{transform:'translate(0,0)'},{transform:`translate(${to.x-from.x}px,${to.y-from.y}px)`}],{duration:110,easing:'ease-out',fill:'forwards'});if(animation)a.animations.add(animation);}
+    const revision=a.motionRevision;schedule(a,120,()=>{if(a.motionRevision===revision)clearMotion(a);});
   }hud(a);
 }
 function mergeMove(a,direction){
@@ -196,11 +202,11 @@ function mergeMove(a,direction){
   if(!a.won&&a.board.some(x=>x>=2048)){a.won=true;status(a,'2048 atteint ! Continue vers 4096.');}
   if(!canMove2048(a.board)){a.mergeQueue=[];finish(a,'Belle réflexion !',`${a.score} points. Tu peux annuler le dernier coup.`,true);}
 }
-function undo(a){if(!a.undo)return;if(a.state==='result')a.recordRun=beginGameRecord(a.id);Object.assign(a,{board:[...a.undo.board],score:a.undo.score,won:a.undo.won,undo:null,mergeQueue:[],mergeUntil:0,state:'playing'});a.level=level2048(a.board);a.cover.hidden=true;renderMerge(a);status(a,'Dernier coup annulé.');a.stage.focus({preventScroll:true});run(a);}
+function undo(a){if(!a.undo)return;if(a.state==='result')a.recordRun=beginGameRecord(a.id);Object.assign(a,{board:[...a.undo.board],score:a.undo.score,won:a.undo.won,undo:null,mergeQueue:[],mergeUntil:0,state:'playing'});a.level=level2048(a.board);a.cover.hidden=true;setBoardInert(a,false);renderMerge(a);status(a,'Dernier coup annulé.');a.stage.focus({preventScroll:true});run(a);}
 function light(a,index){a.stage.querySelectorAll('.ga-sequence-key').forEach((el,i)=>el.classList.toggle('ga-lit',i===index));}
 function playSequence(a){
   a.jobs=[];a.input=0;a.phase='watch';light(a,-1);a.stage.querySelectorAll('.ga-sequence-key').forEach(b=>b.setAttribute('aria-disabled','true'));$('[data-ga="replay"]',a.actions).disabled=true;status(a,'Observe…');hud(a);const {on,gap}=sequenceTiming(a.sequence.length);let delay=450;
-  for(const [i,pad] of a.sequence.entries()){schedule(a,delay,()=>{light(a,pad);status(a,`Observe : ${i+1} / ${a.sequence.length}`);});delay+=on;schedule(a,delay,()=>light(a,-1));delay+=gap;}
+  for(const [i,pad] of a.sequence.entries()){schedule(a,delay,()=>{light(a,pad);status(a,`Touche ${pad+1} · étape ${i+1} sur ${a.sequence.length}.`);});delay+=on;schedule(a,delay,()=>light(a,-1));delay+=gap;}
   schedule(a,delay,()=>{a.phase='input';a.stage.querySelectorAll('.ga-sequence-key').forEach(b=>b.setAttribute('aria-disabled','false'));$('[data-ga="replay"]',a.actions).disabled=false;status(a,'À toi !');});
 }
 function sequenceHit(a,index){

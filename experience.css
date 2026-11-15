@@ -1,0 +1,105 @@
+/* Cohesive application surfaces. Existing section colours remain meaningful. */
+body.ux-ready #workspace{max-width:1600px;grid-template-columns:238px minmax(0,1fr)}
+body.ux-ready #workspace .main{padding:0 clamp(20px,3vw,48px)}
+body.ux-ready #content{max-width:1180px;margin:0 auto;padding-bottom:24px;min-height:50svh}
+body.ux-ready #appNav{padding:26px 16px 18px;background:var(--card);border-right:1px solid var(--line)}
+body.ux-ready #appNav>.brand{margin:0 9px}
+body.ux-ready #appNav>.badge{margin:14px 10px 20px;font-size:11px}
+body.ux-ready #nav{gap:4px}
+body.ux-ready #nav button{position:relative;min-height:57px;border-radius:15px;padding:11px 13px;gap:12px;border:1px solid transparent}
+body.ux-ready #nav button.selected{border-color:var(--sz-section-edge,var(--line));background:var(--sz-section-soft,var(--soft))}
+body.ux-ready #nav button.selected::before{content:'';position:absolute;left:-1px;top:16px;bottom:16px;width:3px;background:var(--sz-section,var(--green));border-radius:3px}
+body.ux-ready #nav .ux-nav-label{font-size:13px;font-weight:730}
+body.ux-ready #nav .ux-nav-hint{font-size:10.5px;line-height:1.45}
+body.ux-ready #nav .ux-nav-group{padding:14px 13px 6px;font-size:9px;letter-spacing:.15em}
+body.ux-ready #appNav .aside-bottom{padding:15px 10px 0}
+body.ux-ready #workspace .main>header{height:76px;min-height:76px;position:sticky;top:0;z-index:12;background:var(--bg);backdrop-filter:none}
+body.ux-ready #workspace .main>header .ux-page-title{font-size:14px;letter-spacing:-.025em;font-weight:750}
+body.ux-ready #workspace .main>header .secondary{border:1px solid var(--line);background:var(--card);font-size:12px;min-height:42px}
+body.ux-ready .demo-banner{margin:0 auto 18px;max-width:1180px;border:1px dashed var(--sz-section-edge,var(--line));background:var(--soft);font-size:11px;border-radius:12px;padding:8px 14px}
+body.ux-ready .demo-banner button{white-space:nowrap;flex-shrink:0}
+body.ux-ready #content .greeting,body.ux-ready .dy-heading{margin:12px 0 25px}
+body.ux-ready #content h1{font-size:clamp(29px,3.2vw,39px);font-weight:760;letter-spacing:-.045em}
+body.ux-ready #content h2{letter-spacing:-.035em;font-weight:720}
+body.ux-ready #content .greeting>p,body.ux-ready .dy-heading p{font-size:14px;max-width:64ch;line-height:1.65}
+body.ux-ready #content>.card,body.ux-ready #content>.grid>.card{border-radius:22px;box-shadow:0 3px 15px #163c4b05}
+body.ux-ready .dy-primary-grid{gap:18px}
+body.ux-ready .dy-focus,body.ux-ready .dy-benefit{border-radius:24px;box-shadow:0 4px 22px #163c4b06}
+body.ux-ready .dy-focus{padding:clamp(22px,3vw,34px);background:linear-gradient(135deg,var(--card),var(--soft))}
+body.ux-ready .dy-counter{margin:20px 0 10px;gap:13px;align-items:baseline}
+body.ux-ready .dy-counter>strong{font-size:clamp(58px,7vw,86px);line-height:1.08;letter-spacing:-.07em;font-variant-numeric:tabular-nums}
+body.ux-ready .dy-counter>span{font-size:16px;font-weight:650}
+body.ux-ready .dy-focus .dy-clock-detail{font-size:12px;line-height:1.6}
+body.ux-ready .dy-next-cap{margin-top:22px;padding-top:18px}
+body.ux-ready .dy-earned{font-size:10px;padding:6px 10px}
+body.ux-ready .dy-start-edit{margin-top:24px;padding-top:16px}
+body.ux-ready .dy-week,body.ux-ready .dy-calendar,body.ux-ready .dy-today-actions{border-radius:22px;box-shadow:0 3px 15px #163c4b05}
+body.ux-ready .dy-week-days{gap:8px}
+body.ux-ready .dy-day-button{border-radius:14px}
+body.ux-ready .dy-day-button.is-today{box-shadow:0 0 0 2px var(--card),0 0 0 3px var(--sz-section,var(--green))}
+body.ux-ready .dy-shortcut{border-radius:17px;min-height:94px}
+body.ux-ready .tl-history-event{border-radius:15px}
+body.ux-ready .tl-simple-summary,body.ux-ready .tl-chart,body.ux-ready .hz-hero{border-radius:23px}
+body.ux-ready .stats .stat{border-radius:18px;background:var(--card)}
+body.ux-ready .stat b,body.ux-ready .tl-achievement-grid strong{font-variant-numeric:tabular-nums;letter-spacing:-.045em}
+body.ux-ready .posts>.card{border-radius:21px}
+body.ux-ready .post-actions{gap:9px;padding-top:12px;border-top:1px solid var(--line)}
+body.ux-ready .post-actions>button{min-height:38px;font-size:12px}
+body.ux-ready .ux-filter-panel{border-radius:16px;background:var(--card);border:1px solid var(--line)}
+.jm-tab-count{white-space:nowrap;flex-shrink:0}
+body.ux-ready #content :is(input:not([type=checkbox]):not([type=radio]):not([type=range]),textarea,select){border-radius:12px;box-shadow:none}
+body.ux-ready #content input[type=search]{min-height:45px}
+body.ux-ready #content textarea{line-height:1.65}
+body.ux-ready #modal{border-radius:25px;padding:0;box-shadow:0 24px 80px #102c4c29}
+body.ux-ready #modalContent{padding:clamp(21px,4vw,34px)}
+body.ux-ready #modal .modal-top{gap:20px;padding-bottom:17px;margin-bottom:18px;border-bottom:1px solid var(--line)}
+body.ux-ready #modal .modal-top h2{font-size:24px;line-height:1.25;margin:0;max-width:30ch}
+body.ux-ready #modal .close{width:40px;height:40px;min-width:40px;padding:0;border-radius:50%;background:var(--soft);font-size:23px}
+body.ux-ready #modal::backdrop{background:#112c3b70;backdrop-filter:none}
+.exp-form-state{display:flex;align-items:center;gap:9px;color:var(--muted);font-size:12px;margin:13px 0 0}
+.exp-form-state::before{content:'';width:7px;height:7px;flex:0 0 7px;border-radius:50%;background:var(--sz-section,var(--green))}
+.exp-urge-card{padding:22px;border-radius:20px;border:1px solid var(--line);background:var(--soft);text-align:center;margin:19px 0}
+.exp-urge-card .timer{margin:10px 0;font-size:clamp(48px,12vw,70px);font-variant-numeric:tabular-nums;letter-spacing:-.055em;line-height:1.1}
+.exp-urge-card .small{margin:12px 0 0}
+.exp-urge-track{height:5px;overflow:hidden;border-radius:6px;background:var(--line);margin:18px 0}
+.exp-urge-track>span{display:block;height:100%;background:var(--green);transform:scaleX(var(--urge-progress,0));transform-origin:left}
+body.ux-ready #net{position:relative;z-index:40;border-bottom:1px solid var(--warn);background:var(--peach);padding:11px 18px;font-size:12px}
+body.ux-ready #notice{max-width:min(480px,calc(100vw - 28px));border-radius:15px;box-shadow:0 10px 35px #102c4c24}
+body.ux-ready #workspace .main>footer{max-width:1180px;margin:10px auto 0;border-top:1px solid var(--line);padding:22px 0 30px;font-size:11px;line-height:1.7}
+@media(hover:hover) and (prefers-reduced-motion:no-preference){
+ #nav button,.dy-shortcut,.dy-today-action,.dy-day-button,.sz-library-card{transition:transform 140ms ease,background-color 140ms ease,border-color 140ms ease}
+ #nav button:not(.selected):hover,.dy-shortcut:hover,.dy-today-action:hover,.sz-library-card:hover{transform:translateY(-2px)}
+}
+@media(max-width:1100px) and (min-width:801px){
+ body.ux-ready #workspace{grid-template-columns:211px minmax(0,1fr)}
+ body.ux-ready #workspace .main{padding:0 24px}
+ body.ux-ready #appNav{padding-left:10px;padding-right:10px}
+ body.ux-ready .dy-counter>strong{font-size:67px}
+}
+@media(max-width:800px){
+ body.ux-ready #workspace{display:block}
+ body.ux-ready #workspace .main{padding:0 16px}
+ body.ux-ready #workspace .main>header{min-height:67px;height:67px;gap:8px}
+ body.ux-ready #workspace .main>header>.row{gap:7px}
+ body.ux-ready #workspace .main>header .secondary{min-height:39px;padding:8px 10px}
+ body.ux-ready #content{padding-bottom:15px}
+ body.ux-ready #content .greeting,body.ux-ready .dy-heading{margin:14px 0 22px}
+ body.ux-ready .dy-focus,body.ux-ready .dy-benefit{padding:23px;border-radius:21px}
+ body.ux-ready .dy-counter>strong{font-size:70px}
+ body.ux-ready .dy-counter>span{font-size:15px}
+ body.ux-ready .dy-week-days{gap:5px}
+ body.ux-ready .dy-day-button{border-radius:11px;min-width:0}
+ body.ux-ready .dy-week,body.ux-ready .dy-calendar,body.ux-ready .dy-today-actions{border-radius:20px}
+ body.ux-ready .dy-shortcut{min-height:82px}
+ body.ux-ready .jm-tabs>[role=tab]{flex-direction:column;gap:5px}
+ body.ux-ready .jm-tab-count{height:20px;font-size:10px}
+ body.ux-ready #modal{width:calc(100% - 20px);max-height:calc(100dvh - 24px);border-radius:22px}
+ body.ux-ready #modalContent{padding:23px 20px}
+ body.ux-ready #modal .modal-top h2{font-size:22px}
+ body.ux-ready .ux-bottom-nav{padding:8px 8px max(8px,env(safe-area-inset-bottom));border:1px solid var(--line);border-bottom:0;border-radius:20px 20px 0 0;background:var(--card);box-shadow:0 -5px 25px #102c4c08;backdrop-filter:none}
+ body.ux-ready .ux-bottom-nav button{border-radius:13px;min-height:49px}
+ body.ux-ready .ux-bottom-nav button.selected{background:var(--soft)}
+ body.ux-ready #workspace .main>footer{padding-bottom:22px}
+}
+@media(max-width:380px){body.ux-ready #workspace .main{padding:0 12px}body.ux-ready .dy-focus{padding:19px}body.ux-ready .dy-counter>strong{font-size:61px}body.ux-ready .dy-counter>span{font-size:14px}body.ux-ready .dy-week-days{gap:3px}}
+@media(prefers-reduced-motion:reduce){#workspace *,#modal *{scroll-behavior:auto!important}.exp-urge-track>span{transition:none!important}}

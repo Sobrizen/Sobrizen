@@ -1,0 +1,644 @@
+{
+  "checkedAt": "2026-11-15T01:11:45.528Z",
+  "baseCommit": "63c43bee9a6c7e26641b925281b2d5b160b569b8",
+  "command": "npm run release:check",
+  "tests": {
+    "total": 764,
+    "passed": 764,
+    "failed": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "duration_ms": 238136.4065
+  },
+  "build": {
+    "files": 118,
+    "bytes": 7998774,
+    "cache": "sobrizen-v23-20261115-experience",
+    "assets": [
+      {
+        "path": "launch.css",
+        "bytes": 7944,
+        "sha256": "70ab5a2ed6940931ef7fae57ec9ff054f97563558295c07d1465711998b1ce24"
+      },
+      {
+        "path": "experience.css",
+        "bytes": 8937,
+        "sha256": "ae7c075cf5e2076fe7a9089b6d1e5a1de7d7f731f6ec31a5d5e2eeb657dcdcdd"
+      },
+      {
+        "path": "app-experience.mjs",
+        "bytes": 2164,
+        "sha256": "b656d26401f7409f3a68aaa046b1b3f96ec88bad9428790b5fbe1fb4d696ed26"
+      },
+      {
+        "path": "abonnement.html",
+        "bytes": 10471,
+        "sha256": "f30cd0b380b7ccdf4fa9328fc36c4b298a59fdfc5f35a61871d806e7fa6d2082"
+      },
+      {
+        "path": "purchase-intent.mjs",
+        "bytes": 2636,
+        "sha256": "d1cf85454b9d0abedaf8c59f7661fa174b3d8fe1f6687255cc2167a024b48798"
+      },
+      {
+        "path": "agenda-core.mjs",
+        "bytes": 21044,
+        "sha256": "ccef43e9449af1f3d576c6aa5f83defdf7b476ab1585cb8ac839392e47abd6c0"
+      },
+      {
+        "path": "agenda-ui.mjs",
+        "bytes": 31307,
+        "sha256": "609ef8cd004c3fd6bc2eb1ea2b8017068024185c7a40095ca807e7fbd6385d6f"
+      },
+      {
+        "path": "agenda.css",
+        "bytes": 15105,
+        "sha256": "403237667d58f07acb7da9104825723cbbe9b0f3c416d8a99b2f1f9f8f3e964e"
+      },
+      {
+        "path": "app.mjs",
+        "bytes": 88584,
+        "sha256": "cb73020a3d80cfb8b988961302f55f5b9e3989e99c9d54a16ada4a0c20b1f0ab"
+      },
+      {
+        "path": "apple-touch-icon.png",
+        "bytes": 4790,
+        "sha256": "4fba68363b31fc3345944918e6b372f0cf188695610173e0383d6d1da608de90"
+      },
+      {
+        "path": "billing/core.mjs",
+        "bytes": 8883,
+        "sha256": "4959cb99e92bd87b2a7c8153ab8001c7e0584fddac004996cfe170efdc2175dd"
+      },
+      {
+        "path": "brand.css",
+        "bytes": 797,
+        "sha256": "972fbf4f5936e17d37373f7840a3c8d13e8065a14f560de5ada4502b3afd8cce"
+      },
+      {
+        "path": "brand/symbol.png",
+        "bytes": 6090,
+        "sha256": "868c5e7b6a8b3f64dfda67cc2856982aed3270d1395b9ff27529a2def613de88"
+      },
+      {
+        "path": "brand/logo.svg",
+        "bytes": 1731,
+        "sha256": "5c165cb3f8fd383a6f46fd10127664e0d70698739e18f787766de0293a6281bd"
+      },
+      {
+        "path": "brand/symbol.svg",
+        "bytes": 1754,
+        "sha256": "17de38df9309c1271785e1d92c31048b7fbb3095121744879e403b0c5a388074"
+      },
+      {
+        "path": "brand/wordmark.png",
+        "bytes": 20109,
+        "sha256": "6e648e5a27b44379d9f5ab6ed3be88c68ff80bbace0ff2c4e0e33ff1803ace4e"
+      },
+      {
+        "path": "brand/wordmark.svg",
+        "bytes": 540,
+        "sha256": "2676f78558f1a2bff9c8dd902bad331e22526c58c9ee0760fe3d46f3717d1829"
+      },
+      {
+        "path": "clinical.css",
+        "bytes": 26055,
+        "sha256": "1ab965daabd43803510b31d5eea2dbd4ed46c3122f284b945e10b171c609b385"
+      },
+      {
+        "path": "community-core.mjs",
+        "bytes": 5937,
+        "sha256": "cbb8acbd933d9f64ac7b9bf6c1c24540bea5c636d73ae14d9f2adb2e8fe1bd2f"
+      },
+      {
+        "path": "community-duration-ui.mjs",
+        "bytes": 1404,
+        "sha256": "4501b9c4d9725d3dcba27559960d3949f7f48883ff086cea624ecbb8e4b3272d"
+      },
+      {
+        "path": "community-tracking.mjs",
+        "bytes": 936,
+        "sha256": "9665db9cc6da7bd009e3970cfd725aaa7f5a846424b60bd6d9f88dd339cdd223"
+      },
+      {
+        "path": "community.css",
+        "bytes": 6325,
+        "sha256": "70f463a154744f43f32d6837d8016ea86af08fa935c6f8e4e9c449c67ffd6d96"
+      },
+      {
+        "path": "community.mjs",
+        "bytes": 37263,
+        "sha256": "efd834ddaa1db69ea8ed10ea9b7ca0f7f18e2b2f4b74d0a31588d956e61ce12a"
+      },
+      {
+        "path": "consumption-calculator.css",
+        "bytes": 6186,
+        "sha256": "3db97584bc31ef98d76da345674b484f28cb647ce0089c352100ccfaac9b6517"
+      },
+      {
+        "path": "consumption-calculator.mjs",
+        "bytes": 21503,
+        "sha256": "a6e7a8ef7beb548f24fba0f819a4ca04ed03b0f776b5adf0220af21b8ffd66db"
+      },
+      {
+        "path": "consumption-core.mjs",
+        "bytes": 5926,
+        "sha256": "43b45e4dccbb8539f3de1f278fcd4e1e3836f098212d15c2442d1b4433f03015"
+      },
+      {
+        "path": "core.mjs",
+        "bytes": 2983,
+        "sha256": "98c378af3f96ae5a8e84249694fb76817d0461a43683b4982f6e62db65db1dbf"
+      },
+      {
+        "path": "daily-core.mjs",
+        "bytes": 14097,
+        "sha256": "7e4bfccc60b62757ec39cc875c479286e6e7befa21ca82744d04438321111c71"
+      },
+      {
+        "path": "daily-entry.mjs",
+        "bytes": 22318,
+        "sha256": "0e8b2402392e879331123e90f54b7da3ba11449ec2fd0fc77ec5844405061d32"
+      },
+      {
+        "path": "daily-ui.mjs",
+        "bytes": 18845,
+        "sha256": "d72714c29a8de92d2bd3af5611531bb948621f99fbd183b352c7b3435a8683d0"
+      },
+      {
+        "path": "daily.css",
+        "bytes": 29952,
+        "sha256": "16fef6008c5f5a40f878420facd87747f12a676eb788ccd1a3b6677d24d0b08c"
+      },
+      {
+        "path": "ergonomics-core.mjs",
+        "bytes": 1717,
+        "sha256": "cd01ca4fac0b780b74f80fc5ff5b4f6ee1da59693bd8ddf28407dc1c904c3542"
+      },
+      {
+        "path": "ergonomics.css",
+        "bytes": 37485,
+        "sha256": "461cef82766ebee0cacd6fc296386f14f74d962e1ebdf23aa784dfe2e7281ad9"
+      },
+      {
+        "path": "ergonomics.mjs",
+        "bytes": 26726,
+        "sha256": "5ceacc6fb0feee2457eb21884cc3cacd1d1f90704e63ee3abe05e8ede8332684"
+      },
+      {
+        "path": "favicon-32.png",
+        "bytes": 751,
+        "sha256": "8497fe1a95bf79bfdf724eec32371f6b8f24096f1e18b4c198944625d4745a3d"
+      },
+      {
+        "path": "form-validation.css",
+        "bytes": 1742,
+        "sha256": "5453e956df01879a500222079056d822e0b73603f261ec2c45f91e1e6bddcc63"
+      },
+      {
+        "path": "form-validation.mjs",
+        "bytes": 14470,
+        "sha256": "411eb50e8078cf67fd99a875b9e5a90945e60925cd280fc42ba5c653a4c2f4c7"
+      },
+      {
+        "path": "game-records-core.mjs",
+        "bytes": 6249,
+        "sha256": "7c80e0b07744c1b51b8964358ff55f5a23a711a0da7395dcbda32652d14f850f"
+      },
+      {
+        "path": "game-records.css",
+        "bytes": 1441,
+        "sha256": "32d8c418b49fc4e1520cde03a41a269345cea3aa57c213e05121ecb387d94bc2"
+      },
+      {
+        "path": "game-records.mjs",
+        "bytes": 6114,
+        "sha256": "010964b6d09c82c45ac0227ff950dfe2493e8948e05d7318ca7862249ec79ccb"
+      },
+      {
+        "path": "games-arcade.mjs",
+        "bytes": 28861,
+        "sha256": "35f0d88ea6e0a2d614ab872c44efd5ba460f16e03eb7645a0fdabb4c29895391"
+      },
+      {
+        "path": "games-brain-core.mjs",
+        "bytes": 2247,
+        "sha256": "c428595b071debea55550e1c87027d91c9e3054521c227290a5526f837ba3687"
+      },
+      {
+        "path": "games-brain.mjs",
+        "bytes": 17380,
+        "sha256": "f4e21175d2eee7dab20bb2c7a840fbaa8553e73d22e341fd5361f3ee342d39c1"
+      },
+      {
+        "path": "games-classic.mjs",
+        "bytes": 27455,
+        "sha256": "06c4692a9a34a9ec10a82eb8f1e1ac478c06076c845c277e7a3971ef8af1a64e"
+      },
+      {
+        "path": "games-core.mjs",
+        "bytes": 4844,
+        "sha256": "4c80e0e0bfb6f2ec2b6af7e23b7db4b89bf2af93af0afef465fdd3b3dd1af0d8"
+      },
+      {
+        "path": "games-mobile-core.mjs",
+        "bytes": 1482,
+        "sha256": "e632d18bab788d2d44deae62cd30822f9b0853637579611d830cfb8943ddcfdc"
+      },
+      {
+        "path": "games-mobile.css",
+        "bytes": 18637,
+        "sha256": "6a0558ec8af01cded27aa591f2f4bced863be1c57fab3a8f73dfd1c210c2d735"
+      },
+      {
+        "path": "games-mobile.mjs",
+        "bytes": 36356,
+        "sha256": "836df74428ef765c6773eb72154dcdcf91e6da8dbc7a88d966bc6a7875f8cd49"
+      },
+      {
+        "path": "games-puzzles-core.mjs",
+        "bytes": 11442,
+        "sha256": "ead18b3868f442d6f5bd908746510e034a72e9f299703d6e9535728bf2736b96"
+      },
+      {
+        "path": "games-puzzles.css",
+        "bytes": 7850,
+        "sha256": "9f578bffed175628e99e8581e7e77434b2a364fc60fbd8289c8f730fc52f2552"
+      },
+      {
+        "path": "games-puzzles.mjs",
+        "bytes": 30153,
+        "sha256": "608679f8fbef3a36ba190aaddab66523c78cf37469802f7acd48eae1bcfefb6c"
+      },
+      {
+        "path": "games-runtime.mjs",
+        "bytes": 2521,
+        "sha256": "6e049df6589a8496f82dae2f212cec791f7a306b5f330a692040083038a5182b"
+      },
+      {
+        "path": "games-touch.css",
+        "bytes": 13836,
+        "sha256": "60313c3fc7772d34f5f28e8a25865e9fd0f4046402949375b59693c14b7e3fac"
+      },
+      {
+        "path": "games-touch.mjs",
+        "bytes": 4668,
+        "sha256": "5c8cd1b3d5baabb2f9d5eae52b219cb97515dad80cad24bc5705dd2185dd81c0"
+      },
+      {
+        "path": "games.css",
+        "bytes": 17599,
+        "sha256": "eb31fa239fc23fd0eb7e64e76ede9e52e4bb7faac227d2460705806ebb62585c"
+      },
+      {
+        "path": "games.mjs",
+        "bytes": 2470,
+        "sha256": "7fb915c22c7e018339469775610cb0a74eeafdd834e7abd06a55c31a2a59a32e"
+      },
+      {
+        "path": "health-core.mjs",
+        "bytes": 10493,
+        "sha256": "58e3dd5a2abe2267b9abbec498c3f04441be0651ebb902db7925ce44cb10e980"
+      },
+      {
+        "path": "health-encouragement.mjs",
+        "bytes": 6390,
+        "sha256": "b210dd3520fe0f2ee8902594fe874361c1eee9c8260e33676082474c4bc7b778"
+      },
+      {
+        "path": "health-evidence.mjs",
+        "bytes": 27314,
+        "sha256": "a23958f25e45ccb59beb105b8f1edc18dfe6387d9c59c891d7de6b76205c68ec"
+      },
+      {
+        "path": "health-ui.mjs",
+        "bytes": 47355,
+        "sha256": "14ef23dfb40a507c3f0057db3daf36eff38e3f7c95d715d25251e6b19c693b36"
+      },
+      {
+        "path": "health.css",
+        "bytes": 31655,
+        "sha256": "261538962d5c569bfb52b6dbdaef018f7e5f3a022e6507df3319121d63eb5e41"
+      },
+      {
+        "path": "icon-192.png",
+        "bytes": 5261,
+        "sha256": "4c28a096b2f0f4fdfcf21d15830c3959cdc380e0afcf1649750a1bad5d490bf9"
+      },
+      {
+        "path": "icon-512.png",
+        "bytes": 12499,
+        "sha256": "238afef44784c4fd32c15f7eafeea97a60d2bc13f03950d31f83f347856417ff"
+      },
+      {
+        "path": "icon-maskable-512.png",
+        "bytes": 10780,
+        "sha256": "137e5cb167a26228c3e89deb341745d635e584df8e77db2ce6d93343c672fd83"
+      },
+      {
+        "path": "icon.svg",
+        "bytes": 1731,
+        "sha256": "5c165cb3f8fd383a6f46fd10127664e0d70698739e18f787766de0293a6281bd"
+      },
+      {
+        "path": "index.html",
+        "bytes": 12459,
+        "sha256": "9b187003eef7b6bbaa6412a7f5a4d0d9dfd672fb398eb4d17fb8c7ef992b873d"
+      },
+      {
+        "path": "install-prompt.css",
+        "bytes": 7041,
+        "sha256": "7f51fccbe47544bc242b22cf4febe5b6e0383f69e2688a9f607508360effad98"
+      },
+      {
+        "path": "install-prompt.mjs",
+        "bytes": 13761,
+        "sha256": "82a6b9b479f89cebcd59d36d74ceb50177af1ed784eb83bac1a7fc4df31891df"
+      },
+      {
+        "path": "journal-motivation-quotes.mjs",
+        "bytes": 105963,
+        "sha256": "5923718e809a72e16ea22fd47ea956834770459aed5f7bad412b7c7a88fccf4a"
+      },
+      {
+        "path": "journal-motivation-ui.mjs",
+        "bytes": 26846,
+        "sha256": "ebf14f2cb0e32c37af1de6ffa9583d4383e6ccb091dfd29b00dcf1b056dffd9d"
+      },
+      {
+        "path": "journal-motivation.css",
+        "bytes": 12815,
+        "sha256": "b06683985f988f694aa2e82b74851f05de2b82c4b9b9a681ca24e9ccc8473453"
+      },
+      {
+        "path": "journal-motivation.mjs",
+        "bytes": 3007,
+        "sha256": "7a39d465dcbc0472227cd8070f9846817e610d1d60c63bd90013039de691beca"
+      },
+      {
+        "path": "journal-notes-ui.mjs",
+        "bytes": 25736,
+        "sha256": "7b4ac756a71761ff6f9a782d41586780248c5176a274b296cf18fb1eaaf7ce83"
+      },
+      {
+        "path": "journal-notes.css",
+        "bytes": 7443,
+        "sha256": "718839f4c38cf05f3e89916557b0afffbf48a913988a1d6c012d6025928a0dd3"
+      },
+      {
+        "path": "journey-reference.mjs",
+        "bytes": 3307,
+        "sha256": "b0145e7a3e076bc1c964dcb94babcfffe489515574d2420d132334b65e1699e5"
+      },
+      {
+        "path": "legal.html",
+        "bytes": 19518,
+        "sha256": "68333a03fbca20f9ed25a380b1a74b199ff271c5e31caac505dd9094eb7e2e78"
+      },
+      {
+        "path": "legal.mjs",
+        "bytes": 85,
+        "sha256": "2b9e5bb200880ed9223ba081d725a66de060ec57cd83125f87177a4f16a7fd07"
+      },
+      {
+        "path": "manifest.webmanifest",
+        "bytes": 644,
+        "sha256": "2bec8ed3d1cfe0d9d13de86732be9b905efcea5cff9ec4a277da54b83554521f"
+      },
+      {
+        "path": "modern.css",
+        "bytes": 71396,
+        "sha256": "3a0b8b824bfeeb969b439ea65a5613f6d70651d96d2943a8b7e10231f37f823a"
+      },
+      {
+        "path": "movement.css",
+        "bytes": 7279,
+        "sha256": "8281c5cab856540b3975de2df1c474b98d7e91d62532df4e950232045b033664"
+      },
+      {
+        "path": "movement.mjs",
+        "bytes": 31252,
+        "sha256": "063759edfb1c119b93603257bdda5796f1c8d60fc8a8005db56af49dffacc78f"
+      },
+      {
+        "path": "profile-photo-core.mjs",
+        "bytes": 7434,
+        "sha256": "c91fb8ee7f58f6fae987e7a068ae8ab1fbdd049a13461fe00d009e965339e5c3"
+      },
+      {
+        "path": "profile-photo-ui.mjs",
+        "bytes": 12570,
+        "sha256": "56be88efbb1d8c2e2c0151d46eeb99e0e84ee0df957bb045b4a352ce7b404f3a"
+      },
+      {
+        "path": "profile-photo.css",
+        "bytes": 3456,
+        "sha256": "fe35ec91fa8d39b287ebea6bdf1dc843cd3104383f54fad9ecce2f6c5a1b72e5"
+      },
+      {
+        "path": "program.mjs",
+        "bytes": 8418,
+        "sha256": "0d5d97eef3bc66792e24e09709ff6867bfc305e966c71d7e61440b2a3699854a"
+      },
+      {
+        "path": "progress-core.mjs",
+        "bytes": 9339,
+        "sha256": "4eb2f841832ecf71414e1cd9f6f85884896af12ab1c32257c43df9aa28e68278"
+      },
+      {
+        "path": "progress.css",
+        "bytes": 14457,
+        "sha256": "32ad30156b9d289b318a531940cee29db71915e139bac29adc6ffc60095a7dc5"
+      },
+      {
+        "path": "progress-motion.css",
+        "bytes": 1574,
+        "sha256": "7f7147faf3afd20a9d2a2f11684002c5605e6d19ed231865be6c75d0d00afc2e"
+      },
+      {
+        "path": "progress-motion.mjs",
+        "bytes": 5733,
+        "sha256": "0fe272a0f86552bf445010b14e24e625d1dd32fe7ba235fab25c624a69ef4a49"
+      },
+      {
+        "path": "progress.mjs",
+        "bytes": 13331,
+        "sha256": "20fe055bccfac2c9af67229575dbbab0ec23aee99f7f3e1e7aab149d8f25f002"
+      },
+      {
+        "path": "renewal.css",
+        "bytes": 11516,
+        "sha256": "d1ac0004942c13e1ce15cfe70bc4bc494de03d5df9c6a22702da84d1b66d2c0e"
+      },
+      {
+        "path": "robots.txt",
+        "bytes": 70,
+        "sha256": "d4ff77d21fea3181b26addb8ee8d34221a9cdee76215a0c740e0accd20a35ef3"
+      },
+      {
+        "path": "section-colors.css",
+        "bytes": 19808,
+        "sha256": "97689f9f008ae0ce27b1d8e01b1e0f81e3972f6cbd5d131da281b8b7ed6f3f68"
+      },
+      {
+        "path": "section-navigation.mjs",
+        "bytes": 7401,
+        "sha256": "cb25733d4bbb01f0a9523c845b523a9e8c03d09b740b1690b5e204331d5ff4b1"
+      },
+      {
+        "path": "sitemap.xml",
+        "bytes": 362,
+        "sha256": "5bba627d4f06b232fcd26950b0f530dcacd885d1b2134fc1f2fc97428630cd3a"
+      },
+      {
+        "path": "subscription.mjs",
+        "bytes": 16865,
+        "sha256": "7c1ea93372d5f8c758f2f38034e735439f20f2ccbd0745cbf27311a4de7fd593"
+      },
+      {
+        "path": "sw.js",
+        "bytes": 3894,
+        "sha256": "ccf86ed37ab0851ab48f2b1321dce0708ff215488a6af0ea8f9989e081e4127c"
+      },
+      {
+        "path": "time-core.mjs",
+        "bytes": 7295,
+        "sha256": "62f2dc8f9f7b6a0382db016a3b79d1b8d81e9a93f09ce736f1ee91e3d24ba4d0"
+      },
+      {
+        "path": "timeline-chart.css",
+        "bytes": 9350,
+        "sha256": "acadea13ccd25a652b408825ecfb3547d70ad5e4a8a8654e996246038dcba0c4"
+      },
+      {
+        "path": "timeline-chart.mjs",
+        "bytes": 29448,
+        "sha256": "f9598e576396f7adcd0de6a668f7df41db6309b5f12f7019ef1f3d3143d39233"
+      },
+      {
+        "path": "timeline-core.mjs",
+        "bytes": 32095,
+        "sha256": "6e5ccff801dae7d04beab352f6c32a3669edd2566a4ca21d30adc1a41acf0b35"
+      },
+      {
+        "path": "timeline-summary.css",
+        "bytes": 5917,
+        "sha256": "94c327b6ffe3926c2ddfce5f705594709aee2cdebfc452cae38e5a2ac4d3cc9c"
+      },
+      {
+        "path": "timeline-summary.mjs",
+        "bytes": 9524,
+        "sha256": "f589223a1a03e2da40b7b04ca8ed84a5c2f3c4138e1409ad4352db91d13d4225"
+      },
+      {
+        "path": "timeline-ui.css",
+        "bytes": 31348,
+        "sha256": "31d0ab2f6a56ad9a35c902d76d48638daa5e489038d5d8f690eaf03f67a4271f"
+      },
+      {
+        "path": "timeline-ui.mjs",
+        "bytes": 67561,
+        "sha256": "06aee02b15383eac9849453bfbd658ccd4bddeb380f23f341a0698e8a1712add"
+      },
+      {
+        "path": "tracking-core.mjs",
+        "bytes": 7543,
+        "sha256": "403c7fb069f46d7175d5c7daebc8486f7141eca2a3dfb7233cab6ca7f0417389"
+      },
+      {
+        "path": "tracking-ui.mjs",
+        "bytes": 13710,
+        "sha256": "0bb37a91d98a77488924938e73cb9db54a2db99d9a8202b523e34a7292cb43c8"
+      },
+      {
+        "path": "username.mjs",
+        "bytes": 956,
+        "sha256": "414e60c0842a3f5ad99e31a0c86912cb3cc4404e9c82a8af4cb689f159c17eca"
+      },
+      {
+        "path": "v2.css",
+        "bytes": 14162,
+        "sha256": "ffdfb4f32aad5fd97669dba5e50dd361a17254824dd57ab35489f59e89f36072"
+      },
+      {
+        "path": "semantizen-core.mjs",
+        "bytes": 6509,
+        "sha256": "2bf01a7813d1003c5a876aa2b73af372cb3be4ff7fed3d02f348bd7f064bc18b"
+      },
+      {
+        "path": "semantizen-data.mjs",
+        "bytes": 1710,
+        "sha256": "5daa2a34726a6e9d213d46f266ca8735875b16ebc53f9fd38d40e74835b5f8c0"
+      },
+      {
+        "path": "semantizen.mjs",
+        "bytes": 15069,
+        "sha256": "9ac03225e073cdae4b0564759d62c0cd22510d6751372ae0ae9fba6085059c70"
+      },
+      {
+        "path": "semantizen.css",
+        "bytes": 7125,
+        "sha256": "b6fa084d170322443718cc3ea925e27edf47bd0da163f2ac7462171fee1aec28"
+      },
+      {
+        "path": "semantizen-vocabulary.json",
+        "bytes": 334406,
+        "sha256": "abd67e2613a1e409b5e7aa40d98b3c5f7cfb9c377cfd0e00b23eaffd75714e78"
+      },
+      {
+        "path": "semantizen-vectors.bin",
+        "bytes": 6000000,
+        "sha256": "1c362e7e779a1611af82674291b21a58f73b7e839d9976f818c6eeb0465b382a"
+      },
+      {
+        "path": "semantizen-credits.html",
+        "bytes": 2441,
+        "sha256": "e6f82e023b5b06dd685b12d68c67f254c7df361fb05910b83931314633f9415e"
+      },
+      {
+        "path": "program-progress.mjs",
+        "bytes": 1825,
+        "sha256": "4b9277d8b8c9fdaadd67ac3511c7943f74f76ffcd7858bd67081e1a2b9e0dbd4"
+      },
+      {
+        "path": "bootstrap.mjs",
+        "bytes": 5410,
+        "sha256": "2967d1638ba97b4854bd642cc93e42bb44bce1f952101631997f2cd9f9991ef6"
+      }
+    ]
+  },
+  "credentialScan": {
+    "findings": 0
+  },
+  "browser": {
+    "mode": "fictional demo only",
+    "widths": [
+      320,
+      390,
+      768,
+      1280
+    ],
+    "themes": [
+      "light",
+      "dark"
+    ],
+    "flows": [
+      "home",
+      "mobile navigation",
+      "journal save",
+      "journal draft protection",
+      "journal category filter",
+      "report period navigation",
+      "Snake pause and close",
+      "urge timer pause/resume"
+    ],
+    "horizontalOverflowObserved": false,
+    "consoleErrorsObserved": 0
+  },
+  "limits": [
+    "No real account/payment/email mutation",
+    "No physical Android or iPhone",
+    "No load test or exhaustive penetration test",
+    "Source line inventory is not a claim of exhaustive manual review"
+  ]
+}

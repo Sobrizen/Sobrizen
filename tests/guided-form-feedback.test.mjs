@@ -100,6 +100,10 @@ try{
     assert.equal($$('[data-form-field-error]',form).length,0);
     assert.equal(writes().length,before,'Correcting a note is not an instruction to save it');
     await closeModal();
+    assert.equal($('#modal').open,true,'Leaving a corrected draft must require an explicit discard');
+    assert.equal($('[data-jn-close-confirm]').hidden,false);
+    await click('[data-jn-discard]');
+    assert.equal($('#modal').open,false);assert.equal(writes().length,before);
   });
 
   await check('community native consent checkbox explains the missing confirmation before any publication',async()=>{
