@@ -6,6 +6,7 @@ import {execFileSync} from 'node:child_process';
 import {parse} from 'acorn';
 import {PUBLIC_ASSETS} from './public-assets.mjs';
 import {brandIconAssets} from './brand-icons.mjs';
+import {bundleEntryStyles} from './bundle-entry-styles.mjs';
 import {catalogCopy} from './catalog-copy.mjs';
 import {integrateSalesApp,integrateSalesSubscription,integrateSalesSubscriptionHtml,integrateSalesLegal} from './sales-launch.mjs';
 import {integrateApp,integrateWorker} from './integrate-community.mjs';
@@ -116,6 +117,7 @@ export function planPublic(sourceRoot=root){
   transform('subscription.mjs',integrateSalesSubscription);
   transform('abonnement.html',integrateSalesSubscriptionHtml);
   transform('legal.html',integrateSalesLegal);
+  bundleEntryStyles(files);
   const config=JSON.parse(readFileSync(resolve(sourceRoot,'vercel.json'),'utf8'));
   return {files,summary:validatePublic(files,config)};
 }
