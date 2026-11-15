@@ -22,10 +22,10 @@ const copy=value=>structuredClone(value);
 const settle=async()=>{await Promise.resolve();await new Promise(resolve=>setTimeout(resolve,5));};
 async function until(predicate,label){for(let i=0;i<100;i++){if(predicate())return;await settle();}assert.fail(`Timed out: ${label}`);}
 
-async function page(t,{signedIn=true,salesOpen=false,premiumA=true,grantA=null,remaining=100,url='https://sobrizen.test/abonnement.html'}={}){
+async function page(t,{signedIn=true,salesOpen=false,premiumA=true,grantA=null,remaining=100,billingPolicy='immediate-v1',url='https://sobrizen.test/abonnement.html'}={}){
   const html=await readFile(new URL('../abonnement.html',import.meta.url),'utf8');
   assert.match(html,/<script type="module" src="\/subscription\.mjs"><\/script>/);
-  const source=await readFile(new URL('../subscription.mjs',import.meta.url),'utf8');
+  const source=(await readFile(new URL('../subscription.mjs',import.meta.url),'utf8')).replace(/\r\n/g,'\n');
   assert.ok(source,'The real subscription module must remain present');
   const sdkImport=/import\((['"])https:\/\/esm\.sh\/@supabase\/supabase-js@[^'"]+\1\)/g;
   assert.equal([...source.matchAll(sdkImport)].length,1,'Replace only the external SDK import');
@@ -107,7 +107,7 @@ async function page(t,{signedIn=true,salesOpen=false,premiumA=true,grantA=null,r
     const fault=faults.get(route);faults.delete(route);
     let data;
     if(fault)data=fault.data;
-    else if(route==='health')data={sales_open:salesOpen,stripe_key_configured:true,terms_version:'qa-terms-v1',offer:{launch:{remaining}}};
+    else if(route==='health')data={sales_open:salesOpen,stripe_key_configured:true,terms_version:'qa-terms-v1',offer:{billing_policy:billingPolicy,trial_days:0,launch:{remaining}}};
     else if(route==='status'||route==='sync')data=copy(statuses[uid]);
     else if(route==='request'){
       assert.equal(body.confirm,true);assert.ok(['withdrawal','account_deletion'].includes(body.kind));
@@ -286,11 +286,11 @@ test('subscription: a delayed payment-return sync for A cannot confirm Premium f
 });
 
 
-test('subscription: the first monthly subscription sends an explicit 299-cent plan and the seven-day trial',async t=>{
+test('subscription: the first monthly subscription explains immediate payment and sends an explicit 299-cent plan without a trial',async t=>{
  const h=await page(t,{salesOpen:true,premiumA:false});h.start();await h.ready();
- assert.match(h.text('#checkout'),/7 jours gratuits/);assert.match(h.text('#planSummary'),/7 jours.*2,99 € \/ mois/);
+ assert.match(h.text('#checkout'),/Souscrire/);assert.match(h.text('#planSummary'),/Premier paiement à la confirmation.*2,99 € \/ mois/);assert.match(h.text('#planSummary'),/Aucun essai gratuit/);
  await h.checked('#terms',true);await h.click('#checkout');
- const call=h.calls.find(c=>c.route==='checkout');assert.ok(call);assert.equal(call.body.plan,'monthly');assert.equal(call.body.expected_unit_amount,299);assert.equal(call.body.expected_trial,true);
+ const call=h.calls.find(c=>c.route==='checkout');assert.ok(call);assert.equal(call.body.plan,'monthly');assert.equal(call.body.expected_unit_amount,299);assert.equal(call.body.expected_trial,false);assert.equal(call.body.billing_policy,'immediate-v1');
 });
 test('subscription: launch selection displays lifetime conditions and sends 1999 cents',async t=>{
  const h=await page(t,{salesOpen:true,premiumA:false,remaining:7});h.start();await h.ready();
@@ -309,12 +309,29 @@ for(const remaining of [0,null,101])test(`subscription: launch cannot be selecte
  if(remaining===0)assert.match(h.text('#launchCounter'),/100 places.*attribuées ou réservées/);else assert.match(h.text('#launchCounter'),/indisponible/);
  await h.checked('input[value=launch]',true);await h.checked('#terms',true);assert.equal(h.$('#checkout').disabled,true);assert.equal(h.calls.filter(c=>c.route==='checkout').length,0);
 });
-test('subscription: a returning customer is told there is no second trial before checkout',async t=>{
+test('subscription: a returning customer receives the same clear immediate-payment offer',async t=>{
  const h=await page(t,{salesOpen:true,premiumA:false});h.statuses[A].trial_eligible=false;h.start();await h.ready();
- assert.match(h.text('#planSummary'),/déjà bénéficié de son essai/);assert.doesNotMatch(h.text('#checkout'),/gratuits/);
+ assert.match(h.text('#planSummary'),/Aucun essai gratuit/);assert.doesNotMatch(h.text('#checkout'),/gratuits/);
  await h.checked('#terms',true);await h.click('#checkout');assert.equal(h.calls.find(c=>c.route==='checkout').body.expected_trial,false);
 });
 test('subscription: an active trial is dated correctly and cannot start a duplicate subscription',async t=>{
  const h=await page(t,{salesOpen:true,premiumA:false});h.statuses[A]={premium:true,trial:true,trial_until:'2026-11-01T12:30:00Z',access_until:'2026-11-01T12:30:00Z',paid_until:null,plan:'launch',trial_eligible:false};h.start();await h.ready();
- assert.match(h.text('#membership'),/Essai Premium gratuit.*01\/11\/2026/);assert.match(h.text('#membership'),/19,99/);assert.equal(h.$('#checkout').disabled,true);assert.equal(h.$('#cancelSubscription').hidden,false);
+ assert.match(h.text('#membership'),/Essai Premium déjà accordé.*01\/11\/2026/);assert.match(h.text('#membership'),/19,99/);assert.equal(h.$('#checkout').disabled,true);assert.equal(h.$('#cancelSubscription').hidden,false);
+});
+
+
+test('subscription: stale backend offer cannot enable immediate payment',async t=>{
+ const h=await page(t,{salesOpen:true,premiumA:false,billingPolicy:'old'});h.start();await h.ready();await h.checked('#terms',true);assert.equal(h.$('#checkout').disabled,true);assert.equal(h.calls.some(c=>c.route==='checkout'),false);
+});
+
+for(const status of ['past_due','unpaid','paused'])test('subscription: managing and cancelling '+status+' does not require Premium',async t=>{
+ const h=await page(t,{salesOpen:true,premiumA:false});h.statuses[A]={premium:false,can_cancel:true,management_available:true,subscriptions:[{status}]};h.start();await h.ready();
+ assert.equal(h.$('#cancelSubscription').hidden,false);assert.equal(h.$('#portal').hidden,false);assert.equal(h.$('#checkout').disabled,true);assert.match(h.text('#membership'),/nécessite une action/);
+ await h.click('#cancelSubscription');assert.equal(h.calls.find(c=>c.route==='portal').body.intent,'cancel');
+});
+
+for(const plan of ['monthly','launch'])test('subscription: incomplete '+plan+' resumes with clear immediate price even when launch sold out',async t=>{
+ const h=await page(t,{salesOpen:true,premiumA:false,remaining:0});h.statuses[A]={premium:false,management_available:true,can_cancel:false,checkout_pending:true,checkout_plan:plan,subscriptions:[{status:'incomplete'}]};h.start();await h.ready();
+ await h.checked('input[value='+plan+']',true);await h.checked('#terms',true);assert.equal(h.$('#checkout').disabled,false);assert.match(h.text('#checkout'),/Reprendre mon paiement/);assert.match(h.text('#membership'),/Paiement à finaliser/);
+ await h.click('#checkout');const call=h.calls.find(c=>c.route==='checkout');assert.equal(call.body.plan,plan);assert.equal(call.body.expected_trial,false);assert.equal(call.body.billing_policy,'immediate-v1');
 });

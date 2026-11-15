@@ -1,6 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
 import {environment,click,$,txt,settle,submit,setNow} from './ux-dom-support.mjs';
 import {createGameRecords} from '../game-records.mjs';
+import {GAME_IDS} from '../game-records-core.mjs';
 import {createLexicon,dailyTarget,parisDay,randomTarget} from '../semantizen-core.mjs';
 const manifest=JSON.parse(fs.readFileSync(new URL('../semantizen-vocabulary.json',import.meta.url))),bytes=fs.readFileSync(new URL('../semantizen-vectors.bin',import.meta.url));
 const lexicon=createLexicon(manifest,new Int8Array(bytes));
@@ -18,7 +19,7 @@ test('real semantic controller: loading, guesses, hints, records, isolation and 
  const close=async()=>{await click('[data-sm=close]');assert.equal($('#smPlay'),null);};
  const originalRandom=Math.random;Math.random=()=>0;
  try{
- await t.test('fourteen cards and explicit loading retry',async()=>{assert.equal(document.querySelectorAll('#gameZone [data-game-record]').length,14);await click('[data-semantic-game]');await settle();assert.equal($('[data-sm=retry]').hidden,false);assert.match(txt('#smStatus'),/Connexion/);});
+ await t.test('all catalog cards and explicit loading retry',async()=>{assert.equal(document.querySelectorAll('#gameZone [data-game-record]').length,GAME_IDS.length);await click('[data-semantic-game]');await settle();assert.equal($('[data-sm=retry]').hidden,false);assert.match(txt('#smStatus'),/Connexion/);});
  await t.test('closing during a pending public download cannot reopen a stale dialog',async()=>{let release;hold=new Promise(r=>release=r);await click('[data-sm=retry]');await close();release();await settle(100);assert.equal($('#smPlay'),null);await open();assert.equal($('[data-sm=free]').disabled,true);});
  await t.test('invalid words and duplicates leave attempt count unchanged',async()=>{await guess('<img src=x onerror=alert(1)>');assert.equal(txt('[data-sm-attempts]'),'0');assert.equal($('#smWord').getAttribute('aria-invalid'),'true');await guess('zzzzqvxyz');assert.equal(txt('[data-sm-attempts]'),'0');await guess('maison');await guess('MAISON');assert.equal(txt('[data-sm-attempts]'),'1');assert.match(txt('#smStatus'),/déjà proposé/);assert.equal($('#smPlay img'),null);});
  await t.test('closing and reopening preserves current private round in memory',async()=>{await close();await open();assert.equal(txt('[data-sm-attempts]'),'1');assert.equal(document.querySelectorAll('[data-sm-list] tr').length,1);});

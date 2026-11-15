@@ -83,8 +83,8 @@ test('real game controllers: thirteen record displays, saved metrics, pause tran
       for(let k=0;k<=120;k++){const angle=-Math.PI+.22+k*(Math.PI-.44)/120,result=C.shootBubble(game,angle,C.rng(12345));if(result&&(!best||result.state.score>best.score))best={angle,score:result.state.score};}
       assert.ok(best.score>0);await tapPoint((171+Math.cos(best.angle)*100)/342*100,(432+Math.sin(best.angle)*100)/470*40);await env.frames(45,16);await pauseResume(true);await close(true);assert.ok(records.record('bubbles').best_score>0);
     });
-    await scenario('all thirteen records appear on their cards',async()=>{
-      for(const id of GAME_IDS.filter(id=>id!=='semantizen')){assert.ok(records.record(id),id);assert.doesNotMatch(txt('#gameZone [data-game-record='+id+']'),/à découvrir|aucune séance/,id);}
+    await scenario('all historical controller records appear on their cards',async()=>{
+      for(const id of GAME_IDS.filter(id=>!['semantizen','maze','solitaire'].includes(id))){assert.ok(records.record(id),id);assert.doesNotMatch(txt('#gameZone [data-game-record='+id+']'),/à découvrir|aucune séance/,id);}
     });
     await scenario('Sequence: last-error pause/resume finishes at zero and cannot resume below zero',async()=>{
       await launch('sequence');await env.frames(140,16);

@@ -1,5 +1,5 @@
 /** Public offer constants and pure validation. Never put credentials here. */
-export const CFG=Object.freeze({account:'acct_1ULRv6B6h4U0FlMo',price:'price_1ULSYDB6h4U0FlMoAnD7zybM',product:'prod_VMAu4k8wMdvkAu',portal:'bpc_1ULSYkB6h4U0FlMoFFlXmdcr',site:'https://www.sobrizen.com',apiVersion:'2026-10-28.endive',termsVersion:'2026-11-09',amount:2999,currency:'eur',trialDays:7,launchLimit:100,checkoutSeconds:3600});
+export const CFG=Object.freeze({account:'acct_1ULRv6B6h4U0FlMo',price:'price_1ULSYDB6h4U0FlMoAnD7zybM',product:'prod_VMAu4k8wMdvkAu',portal:'bpc_1ULSYkB6h4U0FlMoFFlXmdcr',site:'https://www.sobrizen.com',apiVersion:'2026-10-28.endive',termsVersion:'2026-11-09',billingPolicy:'immediate-v1',amount:2999,currency:'eur',trialDays:0,legacyTrialDays:7,launchLimit:100,checkoutSeconds:3600});
 export const PLANS=Object.freeze({
  monthly:Object.freeze({id:'monthly',stripePriceId:'price_1UZzodB6h4U0FlMoqyWxNKjy',amount:299,interval:'month',label:'Mensuel',lookupKey:'sobrizen_premium_monthly_299_v1'}),
  annual:Object.freeze({id:'annual',stripePriceId:'price_1ULSYDB6h4U0FlMoAnD7zybM',amount:2999,interval:'year',label:'Annuel',lookupKey:'sobrizen_premium_annual_2999_v1'}),
@@ -21,7 +21,7 @@ export function launchReady(c){
 }
 export function publicOffer(remaining){
  const count=Number.isInteger(remaining)&&remaining>=0&&remaining<=CFG.launchLimit?remaining:null;
- return {currency:CFG.currency,trial_days:CFG.trialDays,monthly:{...PLANS.monthly},annual:{...PLANS.annual},launch:{...PLANS.launch,limit:CFG.launchLimit,remaining:count,discount_percent:33,lifetime_while_active:true},terms_version:CFG.termsVersion};
+ return {currency:CFG.currency,trial_days:CFG.trialDays,billing_policy:CFG.billingPolicy,monthly:{...PLANS.monthly},annual:{...PLANS.annual},launch:{...PLANS.launch,limit:CFG.launchLimit,remaining:count,discount_percent:33,lifetime_while_active:true},terms_version:CFG.termsVersion};
 }
 export function membership(rows=[],now=Date.now()){
  const valid=rows.map(r=>{const paid=['active','past_due'].includes(r.status)&&Date.parse(r.paid_until)>now,trial=r.status==='trialing'&&Date.parse(r.trial_until)>now;return {...r,eligible:r.access_blocked!==true&&(paid||trial),trial:trial&&!paid,until:trial?r.trial_until:r.paid_until};}).filter(r=>r.eligible).sort((a,b)=>Date.parse(b.until)-Date.parse(a.until));
@@ -46,16 +46,18 @@ export function snapshot(sub,invoices=[],now=Date.now(),{livemode=true,blocked=f
    paidUntil=paidUntil===null?end:Math.max(paidUntil,end);
   }
  }
- const start=stamp(sub.trial_start),end=stamp(sub.trial_end),trialUntil=start&&end&&end>start&&end-start<=CFG.trialDays*86400+60?end:null;
+ // Previously granted trials keep their original seven-day entitlement. Changing
+ // the public offer must never end or invoice an existing trial early.
+ const start=stamp(sub.trial_start),end=stamp(sub.trial_end),trialUntil=start&&end&&end>start&&end-start<=CFG.legacyTrialDays*86400+60?end:null;
  const row={stripe_subscription_id:sub.id,stripe_customer_id:objectId(sub.customer),status:sub.status,plan:plan.id,unit_amount:plan.amount,stripe_price_id:item.price.id,paid_until:iso(paidUntil),trial_until:iso(trialUntil),access_blocked:blocked===true,cancel_at_period_end:sub.cancel_at_period_end===true,original_started_at:iso(sub.start_date)};
  return {...row,premium:membership([row],now).premium};
 }
-export function checkoutParameters({userId,customerId,priceId,plan,trial=true,reservationId,now=Date.now(),integrationId}){
+export function checkoutParameters({userId,customerId,priceId,plan,reservationId,now=Date.now(),integrationId}){
  if(!isUuid(userId)||!/^cus_[A-Za-z0-9]+$/.test(customerId||'')||!/^price_[A-Za-z0-9]+$/.test(priceId||'')||typeof plan!=='string'||!Object.hasOwn(PLANS,plan))throw Error('Invalid checkout context');
  if(plan==='launch'&&!isUuid(reservationId))throw Error('Launch reservation required');
  const chosen=PLANS[plan],price=(chosen.amount/100).toFixed(2).replace('.',','),period=chosen.interval==='month'?'mois':'an';
- const metadata={app:'sobrizen',user_id:userId,terms_version:CFG.termsVersion,plan,...(reservationId?{launch_reservation_id:reservationId}:{})};
- return {mode:'subscription',adaptive_pricing:{enabled:false},branding_settings:{display_name:'SobriZen — JANNAH BOUTIQUE',button_color:'#21654f',background_color:'#f5f6f2'},customer:customerId,client_reference_id:userId,line_items:[{price:priceId,quantity:1}],payment_method_collection:'always',locale:'fr',billing_address_collection:'required',customer_update:{address:'auto'},expires_at:Math.floor(now/1000)+CFG.checkoutSeconds,success_url:`${CFG.site}/abonnement?checkout=success&session_id={CHECKOUT_SESSION_ID}`,cancel_url:`${CFG.site}/abonnement?checkout=cancelled`,metadata,subscription_data:{metadata:{...metadata,tier:'premium'},...(trial?{trial_period_days:CFG.trialDays,trial_settings:{end_behavior:{missing_payment_method:'cancel'}}}:{})},...(integrationId?{integration_identifier:integrationId}:{}),custom_text:{submit:{message:`${trial?'7 jours gratuits, puis ':''}${price} €/${period}. Renouvellement automatique, désactivable dans ton compte.${plan==='launch'?' Tarif de lancement conservé tant que cet abonnement annuel reste actif.':''} Droit de rétractation : 14 jours.`}},automatic_tax:{enabled:false}};
+ const metadata={app:'sobrizen',user_id:userId,terms_version:CFG.termsVersion,billing_policy:CFG.billingPolicy,plan,...(reservationId?{launch_reservation_id:reservationId}:{})};
+ return {mode:'subscription',adaptive_pricing:{enabled:false},branding_settings:{display_name:'SobriZen — JANNAH BOUTIQUE',button_color:'#21654f',background_color:'#f5f6f2'},customer:customerId,client_reference_id:userId,line_items:[{price:priceId,quantity:1}],payment_method_collection:'always',locale:'fr',billing_address_collection:'required',customer_update:{address:'auto'},expires_at:Math.floor(now/1000)+CFG.checkoutSeconds,success_url:`${CFG.site}/abonnement?checkout=success&session_id={CHECKOUT_SESSION_ID}`,cancel_url:`${CFG.site}/abonnement?checkout=cancelled`,metadata,subscription_data:{metadata:{...metadata,tier:'premium'}},...(integrationId?{integration_identifier:integrationId}:{}),custom_text:{submit:{message:`${price} €/${period}, premier paiement à la confirmation. Aucun essai gratuit. Renouvellement automatique, désactivable dans ton compte.${plan==='launch'?' Tarif de lancement conservé tant que cet abonnement annuel reste actif.':''} Droit de rétractation : 14 jours.`}},automatic_tax:{enabled:false}};
 }
 export async function verifySignature(raw,header,secret,now=Math.floor(Date.now()/1000),{livemode=true,account=CFG.account}={}){
  if(typeof secret!=='string'||!secret.startsWith('whsec_'))throw Error('Webhook secret unavailable');

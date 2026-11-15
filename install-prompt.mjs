@@ -22,7 +22,7 @@ export function createInstallExperience(win = window, doc = win.document, {delay
   let deferred=null, confirmed=!!media?.matches||win.navigator.standalone===true;
   let installedHint=recent(KEYS.installed,90*86400000), accepted=false, busy=false, stopped=false;
   let shown=read('sessionStorage',KEYS.shown)==='1', dismissed=recent(KEYS.later,WEEK);
-  let timer=0, deadline=0, queued=false, sheet=null, origin=null;
+  let timer=0, deadline=0, queued=false, sheet=null, origin=null, engaged=false;
   const observers=[];
   const installed=()=>confirmed||installedHint||!!media?.matches||win.navigator.standalone===true;
   const ready=()=>!!deferred||nativeAPI();
@@ -67,13 +67,13 @@ export function createInstallExperience(win = window, doc = win.document, {delay
   }
   function queueSync(){if(queued||stopped)return;queued=true;win.queueMicrotask(()=>{queued=false;sync();});}
   function schedule(){
-    if(timer||shown||dismissed||installed()||accepted||busy||!home()||sensitive()||doc.visibilityState==='hidden'||!(chrome||ready()))return;
+    if(!engaged||timer||shown||dismissed||installed()||accepted||busy||!home()||sensitive()||doc.visibilityState==='hidden'||!(chrome||ready()))return;
     if(!deadline)deadline=now()+Math.max(0,delay);
     timer=win.setTimeout(attempt,Math.max(0,deadline-now()));
   }
   function attempt(){
     timer=0;
-    if(stopped||shown||dismissed||installed()||accepted||doc.visibilityState==='hidden'||!home()||sensitive())return;
+    if(!engaged||stopped||shown||dismissed||installed()||accepted||doc.visibilityState==='hidden'||!home()||sensitive())return;
     if(editing()||otherDialog()||doc.body.classList.contains('menu-open')){timer=win.setTimeout(attempt,1000);return;}
     shown=true;write('sessionStorage',KEYS.shown,'1');showSheet();
   }
@@ -134,6 +134,14 @@ export function createInstallExperience(win = window, doc = win.document, {delay
     remove('localStorage',KEYS.installed);queueSync();
   },{capture:true,signal});
   win.addEventListener('appinstalled',installedNow,{signal});
+  // An invitation follows a useful action; a new visitor can explore uninterrupted.
+  doc.addEventListener('sobrizen-useful-action',()=>{engaged=true;sync();},{signal});
+  const visited=new Set();
+  doc.addEventListener('click',event=>{
+    if(doc.getElementById('workspace')?.hidden)return;
+    const page=event.target.closest?.('button[data-page]')?.dataset.page;
+    if(page){visited.add(page);if(visited.size>=2){engaged=true;queueSync();}}
+  },{signal});
   media?.addEventListener?.('change',()=>{if(media.matches)installedNow();else queueSync();},{signal});
   doc.addEventListener('visibilitychange',()=>{if(doc.visibilityState==='hidden'){cancelTimer();deadline=0;}else queueSync();},{signal});
   doc.addEventListener('close',queueSync,{capture:true,signal});

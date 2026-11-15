@@ -8,7 +8,9 @@ const require=createRequire(import.meta.url),root=resolve(dirname(fileURLToPath(
 let jsdom,pglite;
 try {jsdom=require.resolve('jsdom');pglite=require.resolve('@electric-sql/pglite');}
 catch {console.error('Installe les dépendances de test épinglées avec npm ci avant de lancer npm test.');process.exit(1);}
-const result=spawnSync(process.execPath,['--test',...process.argv.slice(2)],{
+// PGlite creates a complete WASM PostgreSQL instance per file. Serialize files
+// to keep the same suite reliable on low-memory developer and CI machines.
+const result=spawnSync(process.execPath,['--test','--test-concurrency=1',...process.argv.slice(2)],{
   cwd:root,stdio:'inherit',env:{...process.env,
     SOBRIZEN_QA_JSDOM:jsdom,SOBRIZEN_JSDOM_PATH:jsdom,
     SOBRIZEN_QA_PGLITE:pglite,SOBRIZEN_PGLITE_PATH:pglite,

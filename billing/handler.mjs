@@ -19,7 +19,7 @@ export function createBillingHandler({env,stripe,fetch:fetcher=globalThis.fetch,
  const conf=async()=>(await db('billing_config?select=*&id=eq.true'))[0]||{};
  const customer=async uid=>(await db(`billing_customers?select=*&user_id=eq.${uid}`))[0]||null;
  const webhookSecret=async()=>env('STRIPE_WEBHOOK_SECRET')||await rpc('billing_get_webhook_secret');
- async function verifyAccount(){if(!configured()||!stripe)throw new BillingFault('STRIPE_KEY_MISSING',503);const a=await stripe.accounts.retrieve();if(a.id!==CFG.account||a.charges_enabled!==true)throw new BillingFault('STRIPE_ACCOUNT_MISMATCH',503);}
+ async function verifyAccount({acceptPayments=true}={}){if(!configured()||!stripe)throw new BillingFault('STRIPE_KEY_MISSING',503);const a=await stripe.accounts.retrieve();if(a.id!==CFG.account||acceptPayments&&a.charges_enabled!==true)throw new BillingFault('STRIPE_ACCOUNT_MISMATCH',503);}
  async function user(req){
   if(authenticate)return authenticate(req);
   const token=req.headers.get('Authorization')||'';if(!/^Bearer eyJ/.test(token))throw new BillingFault('AUTH_REQUIRED',401);
@@ -68,8 +68,9 @@ export function createBillingHandler({env,stripe,fetch:fetcher=globalThis.fetch,
   for(const sub of list)if(sub.metadata?.app==='sobrizen'&&sub.metadata?.user_id===uid)await saveSub(sub.id,{required:true});return list;
  }
  async function status(uid){
-  const [rows,c]=await Promise.all([db(`billing_subscriptions?select=status,paid_until,trial_until,plan,unit_amount,access_blocked,cancel_at_period_end,original_started_at&user_id=eq.${uid}`),customer(uid)]);
-  return {...membership(rows,now()),trial_eligible:!c?.trial_used_at&&rows.length===0,subscriptions:rows};
+  const [rows,c,attempts]=await Promise.all([db(`billing_subscriptions?select=status,paid_until,trial_until,plan,unit_amount,access_blocked,cancel_at_period_end,original_started_at&user_id=eq.${uid}`),customer(uid),db(`billing_checkout_attempts?select=plan,trial_enabled&user_id=eq.${uid}&status=in.(reserved,open)`)]);
+  const pending=attempts[0];
+  return {...membership(rows,now()),trial_eligible:false,billing_policy:CFG.billingPolicy,management_available:!!c&&rows.length>0,can_cancel:rows.some(r=>['active','past_due','trialing','unpaid','paused'].includes(r.status)),checkout_pending:pending?.trial_enabled===false,checkout_plan:pending?.trial_enabled===false?pending.plan:null,subscriptions:rows};
  }
  async function settleSession(session,attempt){
   if(!attempt){const ref=session.metadata?.checkout_attempt_id||session.metadata?.launch_reservation_id;if(!isUuid(ref))return;attempt=(await db(`billing_checkout_attempts?select=*&id=eq.${ref}`))[0];}
@@ -88,7 +89,16 @@ export function createBillingHandler({env,stripe,fetch:fetcher=globalThis.fetch,
    session=recent.find(s=>s.metadata?.checkout_attempt_id===attempt.id||s.metadata?.launch_reservation_id===attempt.id)||null;
    if(session&&session.url)await rpc('billing_attach_checkout',{p_attempt_id:attempt.id,p_session_id:session.id,p_session_url:session.url});
   }
-  if(session&&expire&&session.status==='open')session=await stripe.checkout.sessions.expire(session.id);
+  if(session&&expire&&session.status==='open'){
+   try{session=await stripe.checkout.sessions.expire(session.id);}
+   catch(error){
+    // Completion can race a plan change. Re-read and settle it; never replace a
+    // checkout whose financial outcome is ambiguous after a network failure.
+    if(error?.type!=='StripeInvalidRequestError'||error.statusCode!==400)throw error;
+    session=await stripe.checkout.sessions.retrieve(session.id);
+    if(session.status==='open')throw new BillingFault('CHECKOUT_RECOVERY_REQUIRED',409);
+   }
+  }
   if(session)await settleSession(session,attempt);
   return session;
  }
@@ -100,30 +110,48 @@ export function createBillingHandler({env,stripe,fetch:fetcher=globalThis.fetch,
   if(!launchReady(await conf()))throw new BillingFault('SALES_NOT_OPEN',503);
   if(input.accept_terms!==true||input.terms_version!==CFG.termsVersion)throw new BillingFault('TERMS_REQUIRED');
   if(typeof input.plan!=='string'||!Object.hasOwn(PLANS,input.plan)||input.expected_unit_amount!==PLANS[input.plan].amount)throw new BillingFault('OFFER_CHANGED',409);
+  // Old tabs promised a free trial. Require acknowledgement of the new offer
+  // before opening any immediately billable checkout.
+  if(input.billing_policy!==CFG.billingPolicy||input.expected_trial!==false)throw new BillingFault('OFFER_CHANGED',409);
   await verifyAccount();
   if(!await rpc('billing_take_checkout_lock',{p_user_id:u.id}))throw new BillingFault('CHECKOUT_IN_PROGRESS',429);
   try{
    let c=await customer(u.id);
    if(!c){const created=await stripe.customers.create({email:u.email,preferred_locales:['fr'],invoice_settings:{footer:'TVA non applicable, article 293 B du Code général des impôts (CGI).'},metadata:{app:'sobrizen',user_id:u.id}},{idempotencyKey:`sobrizen-customer-${u.id}`});c={user_id:u.id,stripe_customer_id:created.id};await db('billing_customers','POST',c,'return=representation');}
    const subs=await stripeState(u.id);
-   if(subs.some(s=>pendingStatuses.has(s.status)))throw new BillingFault('EXISTING_SUBSCRIPTION',409);
-   c=await customer(u.id);
-   const eligible=!c.trial_used_at&&subs.length===0;
-   if(input.expected_trial!==eligible)throw new BillingFault('TRIAL_ELIGIBILITY_CHANGED',409);
    const pending=(await db(`billing_checkout_attempts?select=*&user_id=eq.${u.id}&status=in.(reserved,open)`))[0];
    if(pending){
-    const existing=await recoverAttempt(pending,{expire:pending.plan!==input.plan});
+    let existing=await recoverAttempt(pending);
     if(existing?.status==='complete')throw new BillingFault('EXISTING_SUBSCRIPTION',409);
-    if(existing?.status==='open'&&pending.plan===input.plan)return {url:existing.url,plan:pending.plan,trial:pending.trial_enabled};
+    if(existing?.status==='open'){
+     // Some open Checkout responses omit the subscription reference. Its
+     // server-written attempt metadata is an explicit ownership fallback.
+     const linkedId=objectId(existing.subscription)||subs.find(s=>s.metadata?.app==='sobrizen'&&s.metadata?.user_id===u.id&&s.metadata?.checkout_attempt_id===pending.id)?.id,blocking=subs.filter(s=>pendingStatuses.has(s.status));
+     const linked=blocking.find(s=>s.id===linkedId);
+     if(blocking.some(s=>s.id!==linkedId)||linked&&linked.status!=='incomplete')throw new BillingFault('EXISTING_SUBSCRIPTION',409);
+     const immediate=pending.trial_enabled===false&&existing.metadata?.billing_policy===CFG.billingPolicy;
+     // Resume the same owned payment even when Stripe already created an
+     // incomplete subscription during banking authentication.
+     if(immediate&&pending.plan===input.plan)return {url:existing.url,plan:pending.plan,trial:false,resumed:true};
+     if(linkedId)throw new BillingFault(immediate?'CHECKOUT_PLAN_PENDING':'CHECKOUT_RECOVERY_REQUIRED',409);
+     // Unconfirmed legacy trial offers must not create a new trial. Expire only
+     // sessions with no subscription; previously granted trials stay untouched.
+     existing=await recoverAttempt(pending,{expire:true});
+     if(existing?.status==='complete')throw new BillingFault('EXISTING_SUBSCRIPTION',409);
+    }
     // An ambiguous request must not be replaced by a second chargeable checkout.
     if(!existing&&pending.plan!==input.plan)throw new BillingFault('CHECKOUT_IN_PROGRESS',409);
+    if(!existing&&pending.trial_enabled!==false)throw new BillingFault('CHECKOUT_RECOVERY_REQUIRED',409);
     if(!existing&&Date.parse(pending.expires_at)<now()+31*60_000)throw new BillingFault('CHECKOUT_RECOVERY_REQUIRED',409);
    }
+   if(subs.some(s=>pendingStatuses.has(s.status)))throw new BillingFault('EXISTING_SUBSCRIPTION',409);
    await reconcileStaleLaunch();
    const price=await priceFor(input.plan);
    const attempt=await rpc('billing_begin_checkout',{p_user_id:u.id,p_plan:input.plan,p_customer_id:c.stripe_customer_id,p_price_id:price.id});
+   if(attempt.trial_enabled!==false)throw new BillingFault('BILLING_UPDATE_REQUIRED',503);
    await db('billing_consents','POST',{user_id:u.id,terms_version:CFG.termsVersion,purpose:'subscription_terms'},'return=representation');
-   const params=checkoutParameters({userId:u.id,customerId:c.stripe_customer_id,priceId:attempt.stripe_price_id,plan:attempt.plan,trial:attempt.trial_enabled,reservationId:attempt.plan==='launch'?attempt.id:undefined,now:Date.parse(attempt.created_at)});
+   const integrationId='sobrizen_immediate_'+attempt.id.replaceAll('-','').slice(-16).match(/../g).map(pair=>String.fromCharCode(97+parseInt(pair,16)%26)).join('');
+   const params=checkoutParameters({userId:u.id,customerId:c.stripe_customer_id,priceId:attempt.stripe_price_id,plan:attempt.plan,reservationId:attempt.plan==='launch'?attempt.id:undefined,now:Date.parse(attempt.created_at),integrationId});
    params.metadata.checkout_attempt_id=attempt.id;params.subscription_data.metadata.checkout_attempt_id=attempt.id;
    let session;
    try{session=await stripe.checkout.sessions.create(params,{idempotencyKey:`sobrizen-checkout-v2-${attempt.id}`});}
@@ -133,7 +161,7 @@ export function createBillingHandler({env,stripe,fetch:fetcher=globalThis.fetch,
     throw error;
    }
    await rpc('billing_attach_checkout',{p_attempt_id:attempt.id,p_session_id:session.id,p_session_url:session.url});
-   return {url:session.url,plan:attempt.plan,trial:attempt.trial_enabled};
+   return {url:session.url,plan:attempt.plan,trial:false};
   }finally{await rpc('billing_release_checkout_lock',{p_user_id:u.id}).catch(()=>{});}
  }
  async function subscriptionsForCharge(charge){
@@ -148,7 +176,8 @@ export function createBillingHandler({env,stripe,fetch:fetcher=globalThis.fetch,
   const raw=await req.text();if(new TextEncoder().encode(raw).length>1048576)throw new BillingFault('BODY_TOO_LARGE',413);
   let event;try{event=await verifySignature(raw,req.headers.get('stripe-signature'),await webhookSecret(),Math.floor(now()/1000));}catch{throw new BillingFault('INVALID_SIGNATURE');}
   if((await db(`billing_events?select=stripe_event_id&stripe_event_id=eq.${event.id}`)).length)return {received:true};
-  await verifyAccount();const obj=event.data?.object||{},refs=new Set();
+  // Account restrictions must stop new sales, not refund/cancellation updates.
+  await verifyAccount({acceptPayments:false});const obj=event.data?.object||{},refs=new Set();
   if(event.type.startsWith('customer.subscription.'))refs.add(obj.id);
   else if(event.type.startsWith('invoice.')){const ref=invoiceSubscription(obj);if(ref)refs.add(ref);}
   else if(['checkout.session.completed','checkout.session.expired','checkout.session.async_payment_succeeded','checkout.session.async_payment_failed'].includes(event.type)){
@@ -196,13 +225,13 @@ export function createBillingHandler({env,stripe,fetch:fetcher=globalThis.fetch,
    if(route==='status'){if(configured())try{await reconcileStaleLaunch(1);}catch{logger.error('billing checkout reconciliation deferred');}return out(await status(u.id),200,origin);}
    if(route==='checkout')return out(await checkout(u,input),200,origin);
    if(route==='portal'){
-    await verifyAccount();const c=await customer(u.id);if(!c)throw new BillingFault('NO_SUBSCRIPTION',404);
+    await verifyAccount({acceptPayments:false});const c=await customer(u.id);if(!c)throw new BillingFault('NO_SUBSCRIPTION',404);
     const params={customer:c.stripe_customer_id,configuration:CFG.portal,return_url:`${CFG.site}/abonnement`,locale:'fr'};
     if(input.intent==='cancel'){const subs=await stripeState(u.id),active=subs.find(s=>s.metadata?.app==='sobrizen'&&s.metadata?.user_id===u.id&&['active','past_due','trialing','unpaid','paused'].includes(s.status));if(!active)throw new BillingFault('NO_SUBSCRIPTION',404);params.flow_data={type:'subscription_cancel',subscription_cancel:{subscription:active.id},after_completion:{type:'redirect',redirect:{return_url:`${CFG.site}/abonnement?cancellation=submitted`}}};}
     const portal=await stripe.billingPortal.sessions.create(params);return out({url:portal.url},200,origin);
    }
    if(route==='sync'){
-    await verifyAccount();
+    await verifyAccount({acceptPayments:false});
     if(input.session_id){if(!/^cs_live_[A-Za-z0-9]+$/.test(input.session_id))throw new BillingFault('INVALID_SESSION');const session=await stripe.checkout.sessions.retrieve(input.session_id),c=await customer(u.id);if(!c||session.client_reference_id!==u.id||session.metadata?.user_id!==u.id||session.metadata?.app!=='sobrizen'||objectId(session.customer)!==c.stripe_customer_id)throw new BillingFault('SESSION_NOT_OWNED',403);await settleSession(session);if(session.status==='complete'&&session.subscription)await saveSub(objectId(session.subscription),{required:true});}
     else await stripeState(u.id);return out(await status(u.id),200,origin);
    }

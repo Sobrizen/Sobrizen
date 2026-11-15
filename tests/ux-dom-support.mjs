@@ -147,7 +147,15 @@ export async function mockService({consent=true,premium=false}={}){
   }
   const client={from:table=>new Query(table),auth:{onAuthStateChange:callback=>{authCallback=callback;return{data:{subscription:{unsubscribe(){}}}};},getSession:async()=>({data:{session:currentUser?{user:currentUser}:null},error:null}),signOut:async()=>{currentUser=null;authCallback('SIGNED_OUT',null);return{data:{},error:null};}},
     async rpc(name,args){const call={rpc:name,args:clone(args)};calls.push(call);let result;
-      if(name==='list_journal_entries'){
+      if(name==='save_program_progress'){
+        const settings=tables.user_settings.find(row=>row.user_id===currentUser?.id);
+        if(!currentUser||args.p_expected_user_id!==currentUser.id||!settings?.health_data_consent_at||settings.health_data_consent_revoked_at)return pause(call,{data:null,error:{code:'42501',message:'Consentement ou compte requis'}});
+        const old=tables.program_progress.find(row=>row.user_id===currentUser.id&&row.step===args.p_step);
+        if((old?.revision||0)!==args.p_expected_revision)return pause(call,{data:null,error:{code:'40001',message:'Conflit de réflexion'}});
+        const stamp=new NativeDate(clock+(++serial)).toISOString(),saved={...old,user_id:currentUser.id,step:args.p_step,reflection:args.p_reflection,revision:(old?.revision||0)+1,completed_at:old?.completed_at||stamp,updated_at:stamp};
+        tables.program_progress=tables.program_progress.filter(row=>row!==old);tables.program_progress.push(saved);
+        result={data:clone(saved),error:null};
+      }else if(name==='list_journal_entries'){
         assert.ok(currentUser,'Journal listing requires an authenticated session');
         const settings=tables.user_settings.find(row=>row.user_id===currentUser.id);
         if(!settings?.health_data_consent_at||settings.health_data_consent_revoked_at)return pause(call,{data:null,error:{code:'42501',message:'Consentement requis'}});

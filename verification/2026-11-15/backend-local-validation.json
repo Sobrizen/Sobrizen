@@ -1,0 +1,24 @@
+{
+  "date_local": "2026-11-15",
+  "production_mutated": false,
+  "targeted_tests": {
+    "command": "node scripts/test.mjs tests/operations-sql.test.mjs tests/program-progress.test.mjs tests/program-progress-sql.test.mjs tests/security-scan.test.mjs",
+    "passed": 16,
+    "failed": 0,
+    "skipped": 0,
+    "database": "Isolated PGlite; fictional data only"
+  },
+  "credentials_scan": {"findings": 0},
+  "npm_audit": {"command": "npm audit --audit-level=high --ignore-scripts", "vulnerabilities": 0},
+  "migration_generation": {"cli": "Supabase 3.1.0", "target": "local only"},
+  "backup_read": {"command": "supabase backups list --remote=lnvtowdbbagwfbewnchz --output-format=json", "result": "AccessTokenRequiredError", "data_downloaded": false, "coverage": "unknown"},
+  "phone_recheck": {
+    "method": "Extract the regex from the LIVE function definition and evaluate it directly in a read-only SQL query",
+    "live_pattern_length": 22,
+    "international_number_accepted": true,
+    "local_number_accepted": true,
+    "conclusion": "Earlier suspicion withdrawn as a JSON-escaping false positive. The POSIX local migration is robustness work, not a fix for a confirmed live outage."
+  },
+  "client_integration": "Root agent owns app.mjs and its DOM tests; global tests/build are performed after integrating all agents' changes.",
+  "ci_remote_execution": "Prepared, not yet run on GitHub"
+}
