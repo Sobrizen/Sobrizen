@@ -17,6 +17,10 @@ export function integrateSalesApp(source){
 }
 export function integrateSalesSubscription(source){
  source=source.replace(/\r\n/g,'\n');
+ if(source.startsWith('// mon-plan-v2:')){
+  if(!source.includes("from './purchase-intent.mjs'")||!source.includes('restorePurchaseSelection();'))throw Error('Mon Plan purchase integration missing.');
+  return source;
+ }
  if(source.includes('// sales-purchase-flow-v1'))return source;
  source="// sales-purchase-flow-v1\nimport {rememberPlan,loginForPurchase,restorePurchaseSelection} from './purchase-intent.mjs';\n"+source;
  source=once(source," if(chosenPlan()==='launch'&&(!valid||count===0))document.querySelector('input[value=monthly]').checked=true;",'', 'never silently switch plan');
@@ -30,6 +34,13 @@ export function integrateSalesSubscription(source){
  return source;
 }
 export function integrateSalesSubscriptionHtml(source){
+ if(source.includes('<h1>Mon Plan</h1>')){
+  for(const id of ['myPlan','premiumTitle','currentPlan','currentPrice','planFacts','renewalValue','invoices','paymentMethod']){
+   if(source.split('id="'+id+'"').length!==2)throw Error('Mon Plan section missing or ambiguous: '+id);
+  }
+  if((source.match(/name="plan"/g)||[]).length!==2||!source.includes('value="monthly"')||!source.includes('value="annual"'))throw Error('Mon Plan must offer exactly two plans.');
+  return source;
+ }
  source=source.replace('Les nouvelles souscriptions sont actuellement fermées. Vérification de la disponibilité en cours…','Vérification de la disponibilité des offres…').replace('>Souscriptions non ouvertes</button>','>Vérification des offres…</button>').replace('>Souscriptions actuellement fermées.</p>','>Choisis ton offre pour continuer.</p>');
  const accounts=[...source.matchAll(/<section><h2>Mon accès actuel<\/h2>[\s\S]*?<\/section>/gu)];
  if(accounts.length!==1)throw Error('Sales integration: missing or ambiguous current-account section.');

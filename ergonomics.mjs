@@ -31,9 +31,9 @@ export function initErgonomics(){
  function groupMenu(){
   const nav=$('#nav');if(!nav)return;
   if(!nav.dataset.uxGrouped){nav.dataset.uxGrouped='true';for(const [page,label] of [['home','L’essentiel'],['journal','Mes ressources'],['profile','Mon compte']]){const item=$(`[data-page="${page}"]`,nav);if(item){const h=element('span','ux-nav-group',label);h.setAttribute('aria-hidden','true');item.before(h);}}}
-  for(const item of $$('button[data-page],button[data-move="open"]',nav)){
+  for(const item of $$('button[data-page],button[data-move="open"],a[data-plan]',nav)){
    if(item.dataset.uxNavDecorated)continue;
-   const page=item.dataset.page||'movement',label=page==='health'?'Santé':PAGE_LABELS[page];if(!label)continue;const copy=element('span','ux-nav-copy');copy.append(element('span','ux-nav-label',label),element('small','ux-nav-hint',PAGE_HINTS[page]));item.replaceChildren(icon(page),copy);item.setAttribute('aria-label',label);item.dataset.uxNavDecorated='true';
+   const page=item.hasAttribute('data-plan')?'plan':item.dataset.page||'movement',label=page==='plan'?'Mon Plan':page==='health'?'Santé':PAGE_LABELS[page];if(!label)continue;const copy=element('span','ux-nav-copy');copy.append(element('span','ux-nav-label',label),element('small','ux-nav-hint',page==='plan'?'Offre, paiements & renouvellement':PAGE_HINTS[page]));item.replaceChildren(icon(page),copy);item.setAttribute('aria-label',label);item.dataset.uxNavDecorated='true';
   }
  }
  function visibleFocus(root){return $$('button:not(:disabled),a[href],input:not([type="hidden"]):not(:disabled),select:not(:disabled),textarea:not(:disabled),summary,[tabindex="0"]',root).filter(e=>!e.closest('[hidden],[inert]')&&e.getClientRects().length);}
@@ -137,7 +137,7 @@ export function initErgonomics(){
  function enhanceProfile(){
   const firstGrid=$(':scope > .grid.equal',content);if(firstGrid)firstGrid.classList.add('ux-profile-grid');
   const cards=$$(':scope > section.card',content).filter(card=>!card.querySelector('[data-ux-action]'));
-  for(const card of cards){const h=$('h2',card);if(!h)continue;const title=h.textContent.trim();if(title.includes('Premium de test'))continue;const wrap=element('details','ux-settings-group');const summary=element('summary','',['Gratuit','Premium'].includes(title)?'Mon abonnement · '+title:title);wrap.append(summary);card.before(wrap);wrap.append(card);const key='profile:'+title;wrap.open=sectionOpen.get(key)===true;wrap.addEventListener('toggle',()=>sectionOpen.set(key,wrap.open));h.classList.add('ux-visually-hidden');}
+  for(const card of cards){const h=$('h2',card);if(!h)continue;const title=h.textContent.trim();if(title.includes('Premium de test'))continue;const wrap=element('details','ux-settings-group');const summary=element('summary','',['Gratuit','Premium'].includes(title)?'Mon Plan · '+title:title);wrap.append(summary);card.before(wrap);wrap.append(card);const key='profile:'+title;wrap.open=sectionOpen.get(key)===true;wrap.addEventListener('toggle',()=>sectionOpen.set(key,wrap.open));h.classList.add('ux-visually-hidden');}
   const comfort=element('section','card ux-comfort');comfort.append(element('h2','','Confort de lecture'),element('p','muted','Ces préférences restent sur cet appareil.'));
   const group=element('div','ux-chips');group.setAttribute('role','group');group.setAttribute('aria-label','Taille du texte');for(const [value,label] of [['normal','Texte standard'],['large','Texte plus grand']]){const b=button(label,'text-size',value);b.setAttribute('aria-pressed',String(value===textSize));group.append(b);}comfort.append(group,nativeButton('Changer le thème','action','theme','text'));content.append(comfort);
  }
