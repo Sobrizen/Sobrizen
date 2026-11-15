@@ -117,7 +117,7 @@ if(!group){
 
   if(group==='trial'){
     await check('a valid server trial unlocks games, movement and Agenda without a fictitious paid period',async()=>{
-      assert.equal(document.documentElement.dataset.premium,'true');await route('profile');assert.match(txt('#content'),/Essai Premium/);assert.match(txt('#content'),/29\/10\/2026|29 octobre 2026/);
+      assert.equal(document.documentElement.dataset.premium,'true');await route('profile');assert.match(txt('#content'),/essai Premium/i);assert.match(txt('#content'),/29\/10\/2026|29 octobre 2026/);
       await route('games');assert.equal($$('#gameZone [data-game]').length,8);assert.equal($$('#gameZone [data-brain-game]').length,5);await route('agenda');assert.ok($('.ag-page'));assert.equal($('#content [data-action="health-consent"]'),null);
       await click('#nav [data-move="open"]');await click('#mv-tab-moyen');assert.equal($('#mv-tab-moyen').getAttribute('aria-selected'),'true');
     });

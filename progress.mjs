@@ -10,7 +10,7 @@ export function createProgress(api){
  const P={ready:false,error:'',settings:{},chapters:[],verified:null,timeline:null,uid:null,generation:0};
  const currentChapter=()=>chapterAt(P.chapters,timelineToday());
  const timelineDocument=()=>P.timeline?.document||null;
- function timelineToday(){const zone=timelineDocument()?.timezone;if(!zone)return dayKey();const parts=new Intl.DateTimeFormat('en',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());const values=Object.fromEntries(parts.map(p=>[p.type,p.value]));return `${values.year}-${values.month}-${values.day}`;}
+ function timelineToday(){const zone=timelineDocument()?.timezone;return zone?localDateTime(new Date(),zone).date:dayKey();}
  const data=()=>({document:timelineDocument(),checks:S.checks,journey:S.journey,settings:P.settings,chapters:P.chapters,ready:P.ready,today:timelineToday()});
  const versions=()=>({revision:P.timeline?.revision||0,journeyVersion:S.journey.updated_at||null,settingsVersion:P.settings.updated_at||null,chapterId:currentChapter()?.id||null});
  const ui=createTimelineUI({data,versions,save:saveTimeline,modal:api.modal,closeModal:api.closeModal,render:api.render,notify:api.notify,download:api.download,programCount:()=>S.program.length,openPage,openProgress:()=>openPage('progress')});

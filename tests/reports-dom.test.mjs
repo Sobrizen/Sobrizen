@@ -160,6 +160,49 @@ test('historical chart export covers only its visible dates, preserves missing v
   } finally {h.close();}
 });
 
+test('selecting chart points preserves SVG, surrounding forms, history filters and keyboard focus', () => {
+  const h=environment({kind:'chart'});
+  try{
+    const input=h.dom.window.document.createElement('input');input.value='Brouillon conservé';
+    h.$('.tl-chart').before(input);
+    const chart=h.$('.tl-chart'),svg=h.$('.tl-chart-canvas svg');
+    const points=[...chart.querySelectorAll('.tl-chart-point')];
+    assert.ok(points.length>=2);
+    const point=points[0];
+    point.dispatchEvent(new h.dom.window.MouseEvent('click',{bubbles:true,cancelable:true}));
+    assert.equal(h.$('.tl-chart'),chart);
+    assert.equal(h.$('.tl-chart-canvas svg'),svg);
+    assert.equal(input.isConnected,true);assert.equal(input.value,'Brouillon conservé');
+    assert.equal(h.renders,1);
+    assert.equal(chart.querySelectorAll('.tl-chart-point[aria-pressed="true"]').length,1);
+    assert.equal(point.getAttribute('tabindex'),'0');
+    assert.equal(h.dom.window.document.activeElement,point);
+    point.dispatchEvent(new h.dom.window.KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true,cancelable:true}));
+    assert.equal(points[1].getAttribute('aria-pressed'),'true');
+    assert.equal(h.dom.window.document.activeElement,points[1]);
+    assert.equal(h.$('.tl-chart-canvas svg'),svg);
+  }finally{h.close();}
+});
+
+test('changing chart period stays local and a subsequent data refresh uses corrected quantities', () => {
+  const h=environment({kind:'chart'});
+  try{
+    const input=h.dom.window.document.createElement('input');input.value='Recherche conservée';
+    h.$('.tl-chart').before(input);
+    h.$('[data-tl-chart-action="scale"][data-scale="week"]').click();
+    assert.equal(input.isConnected,true);assert.equal(input.value,'Recherche conservée');
+    assert.equal(h.renders,1);
+    assert.equal(h.$('[data-scale="week"]').getAttribute('aria-pressed'),'true');
+    assert.equal(h.dom.window.document.activeElement,h.$('[data-scale="week"]'));
+    h.data.document.occasions.push({id:id(99),date:'2026-09-13',units:9,cost:40});
+    h.api.render();
+    const recorded=h.$('.tl-chart-point[data-start="2026-09-13"]');
+    recorded.dispatchEvent(new h.dom.window.MouseEvent('click',{bubbles:true,cancelable:true}));
+    assert.match(h.$('.tl-chart-readout').textContent,/9 verres standard/);
+    assert.equal(recorded.getAttribute('aria-pressed'),'true');
+  }finally{h.close();}
+});
+
 test('report navigation styles parse with visible focus targets and narrow-screen layout', async () => {
   const h = environment();
   try {

@@ -4,7 +4,8 @@ import {HEALTH_STAGES, HEALTH_SOURCES, HEALTH_REVIEWED_ON, HEALTH_SAFETY, HEALTH
 import {encouragementSummary} from './health-encouragement.mjs';
 import {localDateTime} from './time-core.mjs';
 
-const number = value => new Intl.NumberFormat('fr-FR', {maximumFractionDigits: 1}).format(value);
+const numberFormatter = new Intl.NumberFormat('fr-FR', {maximumFractionDigits: 1});
+const number = value => numberFormatter.format(value);
 const sourceMap = new Map(HEALTH_SOURCES.map(source => [source.id, source]));
 const icons = {
   physical: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z"/><path d="M3 12h5l2-4 3 8 2-4h6"/></svg>',

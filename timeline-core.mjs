@@ -8,6 +8,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 const MODES = new Set(['abstain', 'reduce', 'observe']);
 const ESTIMATED = new Set(['baseline', 'period', 'range']);
 const ACTUAL = new Set(['legacy', 'occasion']);
+const validatedZones = new Set();
 
 function object(value, keys, label) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw Error(`${label} invalide.`);
@@ -60,7 +61,13 @@ export function validateTimelineDocument(input, today = dayKey(), now = new Date
   if (version >= 2) keys.push('ranges');
   const doc = object(input, keys, 'Parcours');
   if (typeof doc.timezone !== 'string' || !doc.timezone || doc.timezone.length > 100) throw Error('Fuseau horaire invalide.');
-  try { new Intl.DateTimeFormat('fr-FR', {timeZone: doc.timezone}).format(0); }
+  try {
+    if (!validatedZones.has(doc.timezone)) {
+      new Intl.DateTimeFormat('fr-FR', {timeZone: doc.timezone}).format(0);
+      if (validatedZones.size >= 30) validatedZones.clear();
+      validatedZones.add(doc.timezone);
+    }
+  }
   catch { throw Error('Fuseau horaire invalide.'); }
 
   const base = object(doc.baseline, ['started_on', 'units_week', 'cost_week'], 'Référence initiale');
@@ -373,7 +380,11 @@ export function timelineSummary(doc, checks = [], start, end, today = dayKey(), 
 
 /** Intended for bounded charts/export. Values retain daily estimate precision. */
 export function timelineRows(doc, checks = [], start, end, today = dayKey(), now = new Date()) {
-  const ctx = context(doc, checks, today, now), window = range(start, end, today);
+  return rowsFor(context(doc, checks, today, now), start, end);
+}
+
+function rowsFor(ctx, start, end) {
+  const today = ctx.today, window = range(start, end, today);
   if (window.days > 366) throw Error('Choisis au maximum 366 journées pour le détail de la courbe.');
   const rows = Array.from({length: window.days}, (_, index) => effectiveRow(ctx, moveDay(start, index)));
   if (start <= today && end >= today) rows.push(actualTodayRow(ctx));
@@ -549,7 +560,21 @@ function stopClock(ctx, history, todayRow) {
 }
 
 export function timelineSnapshot(doc, checks = [], today = dayKey(), now = new Date()) {
+  return snapshotFor(context(doc, checks, today, now));
+}
+
+/** One validated context per render/calculation; never cached across edits or accounts. */
+export function createTimelineReader(doc, checks = [], today = dayKey(), now = new Date()) {
   const ctx = context(doc, checks, today, now);
+  return {
+    snapshot: () => snapshotFor(ctx),
+    summary: (start, end) => summarize(ctx, start, end),
+    rows: (start, end) => rowsFor(ctx, start, end),
+  };
+}
+
+function snapshotFor(ctx) {
+  const today = ctx.today;
   const event = ctx.doc.events.at(-1);
   const period = activeRange(ctx, today), declaration = period || event;
   const todayRow = effectiveRow(ctx, today), realToday = actualTodayRow(ctx);
