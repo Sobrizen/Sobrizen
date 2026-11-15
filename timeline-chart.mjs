@@ -1,6 +1,6 @@
-import {dayKey, parseDay, moveDay, dayDiff, dateLabel, esc} from './core.mjs';
+import {dayKey, parseDay, moveDay, dayDiff, dateLabel, esc, formatDay} from './core.mjs';
 import {addMonths} from './progress-core.mjs';
-import {timelineRows, timelineSummary, timelineSnapshot} from './timeline-core.mjs';
+import {createTimelineReader} from './timeline-core.mjs';
 
 const numberFormat = new Intl.NumberFormat('fr-FR', {maximumFractionDigits: 2});
 const moneyFormat = new Intl.NumberFormat('fr-FR', {style: 'currency', currency: 'EUR', maximumFractionDigits: 2});
@@ -10,7 +10,7 @@ const actualSources = new Set(['legacy', 'occasion']);
 const sourceNames = {baseline: 'Repère estimé', period: 'Rythme estimé', range: 'Plage estimée', legacy: 'Journée notée', occasion: 'Consommation notée', mixed: 'Sources mixtes', unknown: 'Inconnu'};
 const num = value => value === null || value === undefined ? '—' : numberFormat.format(value);
 const euros = value => value === null || value === undefined ? '—' : moneyFormat.format(value);
-const short = date => parseDay(date).toLocaleDateString('fr-FR', {day: 'numeric', month: 'short'});
+const short = date => formatDay(date, {day: 'numeric', month: 'short'});
 const minDay = (a, b) => a < b ? a : b;
 const maxDay = (a, b) => a > b ? a : b;
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
@@ -136,8 +136,9 @@ function colour(value, maximum) {
 /** Rendering and exploration only. Personal history is never changed here. */
 export function createTimelineChart(api) {
   const id = 'tl-chart-' + ++chartCount;
+  let renderedData = null;
   const state = {scale: 'year', offset: 0, metric: 'units', point: null, eventsOpen: false, error: ''};
-  const reset = () => Object.assign(state, {scale: 'year', offset: 0, metric: 'units', point: null, eventsOpen: false, error: ''});
+  const reset = () => {renderedData = null; Object.assign(state, {scale: 'year', offset: 0, metric: 'units', point: null, eventsOpen: false, error: ''});};
   const action = (name, label, attrs = '', className = '') => `<button type="button" class="${className}" data-tl-chart-action="${name}" ${attrs}>${label}</button>`;
 
   function data() {
@@ -147,11 +148,12 @@ export function createTimelineChart(api) {
     state.offset = Math.min(0, state.offset);
     let range = windowRange(state.scale, state.offset, today);
     while (state.offset < 0 && range.end < first) range = windowRange(state.scale, ++state.offset, today);
-    const rows = timelineRows(doc, checks, range.start, range.end, today);
-    const snapshot = incoming.snapshot || timelineSnapshot(doc, checks, today);
+    const reader = createTimelineReader(doc, checks, today);
+    const rows = reader.rows(range.start, range.end);
+    const snapshot = incoming.snapshot || reader.snapshot();
     return {
       doc, checks, today, range, rows,
-      summary: timelineSummary(doc, checks, range.start, range.end, today),
+      summary: reader.summary(range.start, range.end),
       points: plotPoints(rows, range, doc, today),
       events: historyEntries(doc, range),
       markers: transitionMarkers(snapshot, doc, range),
@@ -185,7 +187,6 @@ export function createTimelineChart(api) {
 
   function graph(d) {
     const metric = state.metric, points = d.points, selected = selectedIndex(points);
-    const current = points[selected];
     const measured = globalThis.document.getElementById(id + '-canvas')?.getBoundingClientRect().width || (globalThis.document.querySelector('#content')?.getBoundingClientRect().width || window.innerWidth) - 64;
     const width = Math.max(250, Math.min(960, measured)), compact = width < 600;
     const height = compact ? 252 : 302, left = 45, right = 18, top = 36, bottom = 42;
@@ -245,7 +246,7 @@ export function createTimelineChart(api) {
     const tickCount = d.range.scale === 'week' ? 7 : compact ? 5 : 8;
     const ticks = Array.from({length: tickCount}, (_, i) => {
       const date = moveDay(d.range.start, Math.round(i / (tickCount - 1) * (d.range.days - 1)));
-      const label = d.range.scale === 'week' ? parseDay(date).toLocaleDateString('fr-FR', {weekday: 'short'}).replace('.', '') : short(date);
+      const label = d.range.scale === 'week' ? formatDay(date, {weekday: 'short'}).replace('.', '') : short(date);
       return `<text x="${x(date) + plotWidth / d.range.days / 2}" y="${height - 16}" text-anchor="${i === 0 ? 'start' : i === tickCount - 1 ? 'end' : 'middle'}">${esc(label)}</text>`;
     }).join('');
     const markers = d.markers.map(event => `<g class="tl-chart-transition"><line x1="${x(event.started_on)}" x2="${x(event.started_on)}" y1="${top - 8}" y2="${top + plotHeight}"/><path d="M${x(event.started_on) - 4},${top - 10} L${x(event.started_on) + 4},${top - 10} L${x(event.started_on)},${top - 5} Z"/><title>${esc(event.title)} · ${dateLabel(event.started_on)}</title></g>`).join('');
@@ -256,12 +257,11 @@ export function createTimelineChart(api) {
       const actual = point[metric + 'Actual'] > 0;
       return `<g role="button" tabindex="${index === selected ? '0' : '-1'}" class="tl-chart-point${actual ? ' is-recorded' : ''}" data-tl-chart-action="point" data-index="${index}" data-start="${point.start}" data-end="${point.end}" aria-label="${esc(label)}" aria-pressed="${selected === index}"><circle cx="${pointX(point)}" cy="${y(point[metric])}" r="${d.range.scale === 'year' ? 11 : 15}" class="tl-chart-hit"/><circle cx="${pointX(point)}" cy="${y(point[metric])}" r="${index === selected ? 6 : actual ? 4.5 : d.range.scale === 'year' ? 3 : 4}" fill="${estimated || !complete ? 'var(--card)' : colour(point[metric], colourMax)}" stroke="${colour(point[metric], colourMax)}" class="tl-chart-dot${complete ? '' : ' is-incomplete'}"/><title>${esc(label)}</title></g>`;
     }).join('');
-    const knownIndices = points.map((point, index) => point[metric] !== null ? index : -1).filter(index => index !== -1);
     const empty = !values.length ? `<div class="tl-chart-empty"><strong>Une partie de ton histoire manque ?</strong><p>Ajoute un jour ou une période passée.</p>${action('consumption', 'Ajouter une consommation', '', 'secondary')}</div>` : '';
     return `<div class="tl-chart-caption"><span>${metric === 'units' ? 'Verres standard / jour' : 'Dépenses en € / jour'}</span><small>${d.range.scale === 'year' ? 'Saisies datées · estimations ≤ 7 jours' : 'Valeurs quotidiennes'}</small></div>
       <div class="tl-chart-canvas" id="${id}-canvas"><svg viewBox="0 0 ${width} ${height}" role="group" aria-labelledby="${id}-title ${id}-description"><title id="${id}-title">${metric === 'units' ? 'Consommation' : 'Dépenses'} : ${esc(dateRange(d.range.start, d.range.end, true))}</title><desc id="${id}-description">Plus la valeur baisse, plus le vert s’éclaircit. Pointillés : estimations. Chaque journée notée garde sa date exacte. Les blancs restent inconnus. Bandes vert clair : journées sans alcool, en tenant compte des consommations notées. Sélectionne un point, puis utilise les flèches gauche et droite pour parcourir la courbe.</desc><defs>${definitions.join('')}</defs>${bands}${grid}${markers}${lines.join('')}${dots}${ticks}</svg>${empty}</div>
       <div class="tl-chart-legend"><span><i class="tl-chart-sample is-estimate" aria-hidden="true"></i>Estimations</span><span><i class="tl-chart-recorded-sample" aria-hidden="true"></i>${metric === 'units' ? 'Consommations notées' : 'Dépenses notées'}</span>${d.bands.length ? '<span><i class="tl-chart-band-sample" aria-hidden="true"></i>Sans alcool</span>' : ''}</div>
-      <div class="tl-chart-readout" aria-live="polite">${current ? `<div><strong>${dateRange(current.start, current.end)}</strong><span>${amount(current[metric], metric, current.days > 1)}</span><small>${provenance(current[metric + 'Estimated'], current[metric + 'Actual'])}${current.provisional ? ' · aujourd’hui, en cours' : ''}${current[metric + 'Known'] < current.days ? ` · ${current[metric + 'Known']}/${current.days} jours connus` : ''}</small>${pointEdit(d, current)}</div><div class="tl-chart-point-nav">${action('point-previous', '‹', `aria-label="Point précédent" ${selected <= knownIndices[0] ? 'disabled' : ''}`)}${action('point-next', '›', `aria-label="Point suivant" ${selected >= knownIndices.at(-1) ? 'disabled' : ''}`)}</div>` : '<span>Aucune donnée renseignée sur cette période.</span>'}</div>
+      <div class="tl-chart-readout" aria-live="polite">${readout(d)}</div>
       <div class="tl-chart-colour-key"><span>Plus faible</span><i aria-hidden="true"></i><span>Plus élevé</span></div>`;
   }
 
@@ -273,6 +273,13 @@ export function createTimelineChart(api) {
     return period ? action('entry', 'Modifier cette période', `data-kind="range" data-id="${period.id}" data-date="${period.started_on}"`, 'text tl-chart-edit-point') : '';
   }
 
+  function readout(d) {
+    const metric = state.metric, selected = selectedIndex(d.points), current = d.points[selected];
+    if (!current) return '<span>Aucune donnée renseignée sur cette période.</span>';
+    const known = d.points.flatMap((point, index) => point[metric] !== null ? [index] : []);
+    return `<div><strong>${dateRange(current.start, current.end)}</strong><span>${amount(current[metric], metric, current.days > 1)}</span><small>${provenance(current[metric + 'Estimated'], current[metric + 'Actual'])}${current.provisional ? ' · aujourd’hui, en cours' : ''}${current[metric + 'Known'] < current.days ? ` · ${current[metric + 'Known']}/${current.days} jours connus` : ''}</small>${pointEdit(d, current)}</div><div class="tl-chart-point-nav">${action('point-previous', '‹', `aria-label="Point précédent" ${selected <= known[0] ? 'disabled' : ''}`)}${action('point-next', '›', `aria-label="Point suivant" ${selected >= known.at(-1) ? 'disabled' : ''}`)}</div>`;
+  }
+
   function eventList(d) {
     const events = d.events;
     if (!events.length) return '';
@@ -282,6 +289,7 @@ export function createTimelineChart(api) {
 
   function view() {
     const d = data();
+    renderedData = d;
     if (!d) return '';
     const periodLabel = state.scale === 'year' ? '12 mois glissants' : state.scale === 'week' ? '7 jours' : '30 jours';
     const saved = d.summary.saved;
@@ -300,12 +308,32 @@ export function createTimelineChart(api) {
   }
 
   function refresh(name, selector = '') {
-    api.render();
+    const root = globalThis.document.getElementById(id);
+    if (name === 'point' && root && renderedData) {
+      // Selecting an already displayed point only changes its highlight/readout.
+      // Keep the SVG, calendar, history filters and section panels mounted.
+      const selected = selectedIndex(renderedData.points);
+      for (const point of root.querySelectorAll('.tl-chart-point')) {
+        const active = Number(point.dataset.index) === selected;
+        if (point.getAttribute('aria-pressed') === String(active)) continue;
+        point.setAttribute('aria-pressed', String(active));
+        point.setAttribute('tabindex', active ? '0' : '-1');
+        point.querySelector('.tl-chart-dot')?.setAttribute('r', String(active ? 6 : point.classList.contains('is-recorded') ? 4.5 : state.scale === 'year' ? 3 : 4));
+      }
+      root.querySelector('.tl-chart-readout').innerHTML = readout(renderedData);
+    } else if (root) {
+      const disclosures = [...root.querySelectorAll('details')].map(node => node.open);
+      const template = globalThis.document.createElement('template');
+      template.innerHTML = view();
+      const next = template.content.firstElementChild;
+      [...next.querySelectorAll('details')].forEach((node, index) => {node.open = disclosures[index] || false;});
+      root.replaceWith(next);
+    } else api.render();
     globalThis.document.querySelector(`#${id} [data-tl-chart-action="${name}"]${selector}`)?.focus({preventScroll: true});
   }
 
   function movePoint(direction, edge = false) {
-    const d = data();
+    const d = renderedData || data();
     if (!d) return;
     const known = d.points.map((point, index) => point[state.metric] !== null ? index : -1).filter(index => index >= 0);
     if (!known.length) return;

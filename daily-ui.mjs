@@ -1,4 +1,4 @@
-import {esc,parseDay,dateLabel} from './core.mjs';
+import {esc,parseDay,dateLabel,formatDay} from './core.mjs';
 import {dailyOverview} from './daily-core.mjs';
 import {localDateTime} from './time-core.mjs';
 import {stageProgress} from './health-core.mjs';
@@ -9,7 +9,7 @@ import {HEALTH_STAGES} from './health-evidence.mjs';
 const paths={game:'M7 6h10a4 4 0 0 1 4 4l1 7a2 2 0 0 1-3 2l-4-3H9l-4 3a2 2 0 0 1-3-2l1-7a4 4 0 0 1 4-4ZM7 9v5M4.5 11.5h5M16 10v.01M19 13v.01',people:'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M16 3a4 4 0 0 1 0 8M22 21v-2a4 4 0 0 0-3-3.9M13 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0',check:'M5 12l4 4L19 6',arrow:'M5 12h14m-6-6 6 6-6 6',calendar:'M8 3v4m8-4v4M4 10h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z',plan:'M5 4h14v17H5V4Zm4-2h6v4H9V2Zm-1 9h8m-8 4h5',heart:'M20.5 5.5a5 5 0 0 0-7 0L12 7l-1.5-1.5a5 5 0 0 0-7 7L12 21l8.5-8.5a5 5 0 0 0 0-7Z',spark:'m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3Z',pause:'M8 5v14M16 5v14',goal:'M12 22V3m0 1h8l-2 4 2 4h-8M7 22h10'};
 const icon=name=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${paths[name]||paths.arrow}"/></svg>`;
 const plural=(n,one,many=one+'s')=>n===1?one:many;
-const dateText=(date,options)=>parseDay(date).toLocaleDateString('fr-FR',options);
+const dateText=formatDay;
 
 export function createDailyUI(api){
  const {S,progression,health}=api;
