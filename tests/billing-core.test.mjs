@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHmac} from 'node:crypto';
-import {CFG,PLANS,planForPrice,validPrice,launchReady,publicOffer,membership,snapshot,checkoutParameters,goodCharge,verifySignature} from '../billing/core.mjs';
+import {CFG,PLANS,LEGACY_PLANS,planDetails,planForPrice,validPrice,launchReady,publicOffer,membership,snapshot,checkoutParameters,goodCharge,verifySignature} from '../billing/core.mjs';
 const NOW=Date.parse('2026-11-09T12:00:00Z'),SEC=Math.floor(NOW/1000),DAY=86400;
 const A='11111111-1111-4111-8111-111111111111',ATTEMPT='22222222-2222-4222-8222-222222222222';
 const price=(plan='monthly',extra={})=>({id:`price_${plan}`,product:CFG.product,livemode:true,currency:'eur',type:'recurring',active:true,unit_amount:PLANS[plan].amount,recurring:{interval:PLANS[plan].interval,interval_count:1},...extra});
@@ -11,7 +11,7 @@ const invoice=(plan='monthly',extra={})=>({id:'in_Example',subscription:'sub_Exa
 const readiness=()=>({sales_enabled:true,legal_ready:true,tax_ready:true,hosting_ready:true,premium_features_ready:true,terms_version:CFG.termsVersion});
 
 test('billing offer validates exact live recurring prices and all readiness gates',()=>{
- for(const plan of ['monthly','annual','launch']){
+ for(const plan of ['monthly','annual']){
   assert.equal(planForPrice(price(plan))?.id,plan);assert.equal(validPrice(price(plan)),true);
   assert.equal(planForPrice(price(plan,{product:{id:CFG.product}}))?.id,plan);
  }
@@ -24,10 +24,8 @@ test('billing offer validates exact live recurring prices and all readiness gate
  assert.equal(launchReady({...readiness(),terms_version:'old'}),false);assert.equal(launchReady(null),false);
 });
 
-test('the public launch counter is bounded, keeps zero and never invents unknown availability',()=>{
- for(const n of [0,1,99,100])assert.equal(publicOffer(n).launch.remaining,n);
- for(const n of [-1,101,0.5,NaN,Infinity,'100',undefined,null])assert.equal(publicOffer(n).launch.remaining,null);
- const offer=publicOffer(100);assert.equal(offer.monthly.amount,299);assert.equal(offer.annual.amount,2999);assert.equal(offer.launch.amount,1999);assert.equal(offer.trial_days,0);assert.equal(offer.billing_policy,CFG.billingPolicy);assert.equal(offer.launch.limit,100);assert.equal(offer.launch.lifetime_while_active,true);
+test('public annual availability never discloses counts and preserves sold-out or unknown states',()=>{
+ for(const value of [true,false,null,undefined,1000,0,-1,'true']){const offer=publicOffer(value);assert.equal(offer.annual.available,typeof value==='boolean'?value:null);assert.equal(offer.annual.limit,1000);assert.equal(offer.annual.amount,1799);assert.equal(offer.monthly.amount,299);assert.equal(offer.trial_days,0);assert.equal(offer.billing_policy,CFG.billingPolicy);assert.equal(offer.launch,undefined);assert.equal(JSON.stringify(offer).includes('remaining'),false);}
 });
 
 test('membership follows nonexpired paid/trial time, status, risk blocks and latest valid access',()=>{
@@ -43,7 +41,7 @@ test('membership follows nonexpired paid/trial time, status, risk blocks and lat
 });
 
 test('a snapshot grants each paid plan only for a verified collected invoice period',()=>{
- for(const plan of ['monthly','annual','launch']){
+ for(const plan of ['monthly','annual']){
   const result=snapshot(subscription(plan),[invoice(plan)],NOW);assert.equal(result.premium,true);assert.equal(result.plan,plan);assert.equal(result.unit_amount,PLANS[plan].amount);assert.equal(result.paid_until,new Date(invoice(plan).lines.data[0].period.end*1000).toISOString());
   assert.equal(snapshot(subscription(plan),[],NOW).premium,false);
  }
@@ -89,20 +87,20 @@ test('verified trial grants seven days, rejects oversized or expired periods and
 });
 
 test('Checkout bills immediately for every plan, ignores legacy trial input and retains reservation/site/expiry',()=>{
- for(const plan of ['monthly','annual','launch'])for(const trial of [true,false]){
-  const result=checkoutParameters({userId:A,customerId:'cus_Example',priceId:`price_${plan}`,plan,trial,reservationId:plan==='launch'?ATTEMPT:undefined,now:NOW,integrationId:'integration_test'});
+ for(const plan of ['monthly','annual'])for(const trial of [true,false]){
+  const result=checkoutParameters({userId:A,customerId:'cus_Example',priceId:`price_${plan}`,plan,trial,reservationId:plan==='annual'?ATTEMPT:undefined,now:NOW,integrationId:'integration_test'});
   assert.equal(result.mode,'subscription');assert.equal(result.customer,'cus_Example');assert.equal(result.client_reference_id,A);assert.deepEqual(result.line_items,[{price:`price_${plan}`,quantity:1}]);
   assert.equal(result.expires_at,SEC+3600);assert.equal(result.payment_method_collection,'always');assert.equal(result.metadata.plan,plan);assert.equal(result.subscription_data.metadata.user_id,A);assert.equal(result.metadata.terms_version,CFG.termsVersion);assert.equal(result.integration_identifier,'integration_test');
   assert.ok(result.success_url.startsWith(CFG.site+'/abonnement?'));assert.ok(result.cancel_url.startsWith(CFG.site+'/abonnement?'));
   assert.equal(result.subscription_data.trial_period_days,undefined);assert.equal(result.subscription_data.trial_end,undefined);assert.equal(result.subscription_data.trial_settings,undefined);assert.match(result.custom_text.submit.message,/premier paiement à la confirmation/);assert.match(result.custom_text.submit.message,/Aucun essai gratuit/);assert.equal(result.metadata.billing_policy,CFG.billingPolicy);
-  if(plan==='launch'){assert.equal(result.metadata.launch_reservation_id,ATTEMPT);assert.match(result.custom_text.submit.message,/reste actif/);}
+  if(plan==='annual'){assert.equal(result.metadata.annual_reservation_id,ATTEMPT);assert.match(result.custom_text.submit.message,/reste actif/);}
   assert.match(result.custom_text.submit.message,/Renouvellement automatique/);assert.match(result.custom_text.submit.message,/14 jours/);
  }
 });
 
-test('invalid identities, missing launch reservation and unknown plans never produce a Checkout',()=>{
+test('invalid identities, missing annual reservation and unknown plans never produce a Checkout',()=>{
  const base={userId:A,customerId:'cus_Example',priceId:'price_Example',plan:'monthly',now:NOW};
- for(const patch of [{userId:'bad'},{customerId:'wrong'},{priceId:'wrong'},{plan:'unknown'},{plan:'launch'},{plan:'launch',reservationId:'bad'},{plan:'toString'},{plan:'__proto__'},{plan:['monthly']}])assert.throws(()=>checkoutParameters({...base,...patch}),/Invalid checkout context|Launch reservation required/);
+ for(const patch of [{userId:'bad'},{customerId:'wrong'},{priceId:'wrong'},{plan:'unknown'},{plan:'annual'},{plan:'annual',reservationId:'bad'},{plan:'launch'},{plan:'toString'},{plan:'__proto__'},{plan:['monthly']}])assert.throws(()=>checkoutParameters({...base,...patch}),/Invalid checkout context|Annual reservation required/);
 });
 
 const secret='whsec_isolated_unit_test_only';
@@ -122,4 +120,35 @@ test('webhook HMAC verifies raw body, environment, account and five-minute toler
  await assert.rejects(verifySignature(valid.raw,valid.header,'bad',SEC),/Webhook secret unavailable/);
  for(const header of ['',`t=${SEC},t=${SEC},v1=${valid.signature}`,`t=abc,v1=${valid.signature}`,`t=${SEC},v1=bad`])await assert.rejects(verifySignature(valid.raw,header,secret,SEC),/Invalid signature/);
  for(const wrong of [event({livemode:false}),event({account:'acct_Other'}),event({id:'bad'}),event({type:null})]){const value=signed(wrong);await assert.rejects(verifySignature(value.raw,value.header,secret,SEC),/Wrong event environment/);}
+});
+
+test('archived legacy annual prices still grant their original verified entitlement and are never offered for sale',()=>{
+ assert.deepEqual(Object.keys(PLANS),['monthly','annual']);
+ for(const legacy of LEGACY_PLANS){
+  const p={...price('annual'),id:legacy.stripePriceId,active:false,unit_amount:legacy.amount};
+  const sub=subscription('annual',{items:{data:[{quantity:1,price:p}]}});
+  const inv=invoice('annual',{amount_paid:legacy.amount,verified_charges:[charge('annual',{amount:legacy.amount})],lines:{data:[{price:p.id,quantity:1,proration:false,period:{start:SEC-DAY,end:SEC+364*DAY}}]}});
+  const row=snapshot(sub,[inv],NOW);assert.equal(row.premium,true);assert.equal(row.plan,legacy.id);assert.equal(row.unit_amount,legacy.amount);assert.equal(validPrice(p),false);
+  assert.equal(planDetails([row],NOW,true).unit_amount,legacy.amount);
+ }
+});
+
+test('flexible cancellation and reactivation preserve the paid entitlement and expose the actual cancel date',()=>{
+ const paidEnd=SEC+29*DAY,cancelAt=SEC+10*DAY;
+ const sub=subscription('monthly',{billing_mode:{type:'flexible'},cancel_at_period_end:false,cancel_at:cancelAt,items:{data:[{quantity:1,price:price(),current_period_start:SEC-DAY,current_period_end:paidEnd}]}});
+ const row=snapshot(sub,[invoice()],NOW),details=planDetails([row],NOW,true);
+ assert.equal(row.cancel_at_period_end,true);assert.equal(row.cancel_at,new Date(cancelAt*1000).toISOString());assert.equal(row.paid_until,new Date(paidEnd*1000).toISOString());
+ assert.equal(details.cancel_scheduled,true);assert.equal(details.next_payment_at,null);assert.equal(details.payment_state,'paid');assert.equal(details.currency,'eur');assert.equal(details.interval,'month');assert.equal(details.portal_available,true);
+ const resumed=snapshot({...sub,cancel_at:null},[invoice()],NOW),resumedDetails=planDetails([resumed],NOW,true);
+ assert.equal(resumed.cancel_at_period_end,false);assert.equal(resumed.cancel_at,null);assert.equal(resumedDetails.cancel_scheduled,false);assert.equal(resumedDetails.next_payment_at,new Date(paidEnd*1000).toISOString());
+});
+
+test('Mon Plan chooses entitled then live then historical subscription without guessing new offer amounts',()=>{
+ const ended={status:'canceled',plan:'annual',unit_amount:2999,original_started_at:new Date(NOW).toISOString()};
+ const living={status:'past_due',plan:'monthly',unit_amount:299,original_started_at:new Date(NOW-DAY*1000).toISOString()};
+ assert.equal(planDetails([],NOW),null);assert.equal(planDetails([ended,living],NOW,true).payment_state,'payment_required');
+ assert.equal(planDetails([{...living,paid_until:new Date(NOW+DAY*1000).toISOString()}],NOW,true).payment_state,'payment_required','An unpaid invoice must remain visible even while an earlier paid entitlement still applies');
+ assert.equal(planDetails([ended],NOW,true).unit_amount,2999);assert.equal(planDetails([ended],NOW,true).payment_state,'ended');
+ const trial={...living,status:'trialing',trial_until:new Date(NOW+DAY*1000).toISOString()};assert.equal(planDetails([ended,trial],NOW,true).payment_state,'trial');
+ assert.equal(planDetails([{...trial,access_blocked:true}],NOW,true).payment_state,'blocked');
 });

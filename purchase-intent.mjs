@@ -1,7 +1,7 @@
 /** Only an allowlisted offer is retained; no arbitrary return URL or personal data. */
 export const PURCHASE_KEY='sobrizen-purchase-intent-v1';
 export const PLAN_KEY='sobrizen-selected-plan-v1';
-export const PLAN_IDS=Object.freeze(['monthly','annual','launch']);
+export const PLAN_IDS=Object.freeze(['monthly','annual']);
 const valid=plan=>PLAN_IDS.includes(plan);
 const storage=()=>{try{return globalThis.sessionStorage;}catch{return null;}};
 export function selectedPlan(url=globalThis.location?.href,store=storage()){

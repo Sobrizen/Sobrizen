@@ -22,7 +22,7 @@ const copy=value=>structuredClone(value);
 const settle=async()=>{await Promise.resolve();await new Promise(resolve=>setTimeout(resolve,5));};
 async function until(predicate,label){for(let i=0;i<100;i++){if(predicate())return;await settle();}assert.fail(`Timed out: ${label}`);}
 
-async function page(t,{signedIn=true,salesOpen=false,premiumA=true,grantA=null,remaining=100,billingPolicy='immediate-v1',url='https://sobrizen.test/abonnement.html'}={}){
+async function page(t,{signedIn=true,salesOpen=false,premiumA=true,grantA=null,available=true,billingPolicy='immediate-v2-annual1799',url='https://sobrizen.test/abonnement.html'}={}){
   const html=await readFile(new URL('../abonnement.html',import.meta.url),'utf8');
   assert.match(html,/<script type="module" src="\/subscription\.mjs"><\/script>/);
   const source=(await readFile(new URL('../subscription.mjs',import.meta.url),'utf8')).replace(/\r\n/g,'\n');
@@ -33,7 +33,9 @@ async function page(t,{signedIn=true,salesOpen=false,premiumA=true,grantA=null,r
   assert.doesNotMatch(validationSource,/^import\s/m,'The DOM helper is evaluated unchanged apart from exports');
   const localImport=/^import \{initFormValidation,showFieldError,showFormError,clearFormError\} from '\.\/form-validation\.mjs';\n/m;
   assert.match(source,localImport,'The subscription form uses the same real validation helper');
-  const script=validationSource.replace(/^export\s+/gm,'')+'\n'+source.replace(localImport,'').replace(sdkImport,'Promise.resolve(window.__subscriptionQaSdk)');
+  const purchaseSource=(await readFile(new URL('../purchase-intent.mjs',import.meta.url),'utf8')).replace(/^export\s+/gm,'');
+  const purchaseImport=/^import \{rememberPlan,loginForPurchase,restorePurchaseSelection\} from '\.\/purchase-intent\.mjs';\n/m;
+  const script=purchaseSource+'\n'+validationSource.replace(/^export\s+/gm,'')+'\n'+source.replace(localImport,'').replace(purchaseImport,'').replace(sdkImport,'Promise.resolve(window.__subscriptionQaSdk)');
   const errors=[],navigations=[],downloads=[],calls=[],gates=[],faults=new Map();
   const virtualConsole=new VirtualConsole();
   virtualConsole.on('jsdomError',error=>{
@@ -107,7 +109,7 @@ async function page(t,{signedIn=true,salesOpen=false,premiumA=true,grantA=null,r
     const fault=faults.get(route);faults.delete(route);
     let data;
     if(fault)data=fault.data;
-    else if(route==='health')data={sales_open:salesOpen,stripe_key_configured:true,terms_version:'qa-terms-v1',offer:{billing_policy:billingPolicy,trial_days:0,launch:{remaining}}};
+    else if(route==='health')data={sales_open:salesOpen,stripe_key_configured:true,terms_version:'qa-terms-v1',offer:{billing_policy:billingPolicy,trial_days:0,monthly:{amount:299,interval:'month'},annual:{amount:1799,interval:'year',limit:1000,available}}};
     else if(route==='status'||route==='sync')data=copy(statuses[uid]);
     else if(route==='request'){
       assert.equal(body.confirm,true);assert.ok(['withdrawal','account_deletion'].includes(body.kind));
@@ -153,9 +155,9 @@ test('subscription: signed-out closed sales keep all purchase and request gates 
   for(const selector of ['#terms','#checkout','#sendRequest'])assert.equal(h.$(selector).disabled,true);
   assert.equal(h.$('#login').hidden,false);assert.equal(h.$('#portal').hidden,true);
   assert.equal(h.calls.filter(call=>call.kind==='http'&&call.method==='POST').length,0);
-  assert.match(h.text('#launch'),/fermées/);
-  assert.match(h.text('article.card'),/trois jeux.*Snake Zen, Blocs Zen et 5 choses/);
-  assert.doesNotMatch(h.text('article.card'),/2048|deux jeux/);
+  assert.match(h.text('#launch'),/indisponibles/);
+  assert.match(h.text('.rights article'),/Trois jeux.*Snake Zen, Blocs Zen et 5 choses/);
+  assert.doesNotMatch(h.text('.rights article'),/2048|deux jeux/);
 });
 
 test('subscription: missing confirmation explains the exact field without sending a request',async t=>{
@@ -187,7 +189,7 @@ test('subscription: closed sales retain account management and confirmed support
 test('subscription: logout clears the receipt, mail link, acknowledgements and paid state',async t=>{
   const h=await page(t,{salesOpen:true});h.start();await h.ready();await h.request();
   await h.checked('#terms',true);await h.checked('#confirmRequest',true);
-  await h.emit(null);assertPurged(h);assert.equal(h.$('#portal').hidden,true);assert.equal(h.$('#checkout').disabled,true);
+  await h.emit(null);assertPurged(h);assert.equal(h.$('#portal').hidden,true);assert.equal(h.$('#checkout').disabled,false);
   assert.equal(h.$('#download').disabled,true);
   const before=h.downloads.length;h.$('#download').dispatchEvent(new h.w.MouseEvent('click',{bubbles:true}));await settle();assert.equal(h.downloads.length,before,'Old receipt must not remain downloadable');
   assert.doesNotMatch(h.text('#account'),/account-a/);
@@ -204,7 +206,7 @@ test('subscription: switching accounts clears account A immediately before refre
 
 test('subscription: a delayed status for A cannot replace the refreshed state of B',async t=>{
   const h=await page(t);h.start();await h.ready();
-  const gate=h.defer(call=>call.kind==='http'&&call.route==='status'&&call.uid===A);
+  const gate=h.defer(call=>call.kind==='http'&&call.route==='sync'&&call.uid===A);
   await h.click('#refresh');await until(()=>gate.used,'A status');await h.emit(B);
   await h.click('#refresh');const membership=h.text('#membership');
   gate.release();await settle();
@@ -246,7 +248,7 @@ test('subscription: a delayed getSession cannot send the old action or replace t
   await h.request();await until(()=>gate.used,'A getSession');await h.emit(B);gate.release();await settle();
   assert.equal(h.calls.filter(call=>call.kind==='http'&&call.route==='request').length,before,'No POST may follow a stale session read');
   assert.match(h.text('#account'),/account-b/);assertPurged(h);
-  await h.click('#refresh');assert.equal(h.calls.findLast(call=>call.route==='status').uid,B);
+  await h.click('#refresh');assert.equal(h.calls.findLast(call=>call.route==='sync').uid,B);
 });
 
 test('subscription: token refresh for the same account retains its receipt and form choices',async t=>{
@@ -257,12 +259,12 @@ test('subscription: token refresh for the same account retains its receipt and f
   assert.equal(h.text('#receipt'),receipt);assert.equal(h.$('#receiptBox').hidden,false);
   assert.equal(h.$('#emailRequest').href,link);assert.equal(h.text('#membership'),membership);
   assert.equal(h.$('#terms').checked,true);assert.equal(h.$('#confirmRequest').checked,true);
-  await h.click('#refresh');assert.equal(h.calls.findLast(call=>call.route==='status').authorization,'Bearer qa-token-A-2');
+  await h.click('#refresh');assert.equal(h.calls.findLast(call=>call.route==='sync').authorization,'Bearer qa-token-A-2');
 });
 
 test('subscription: service failures are visible and restore controls without bypassing closed sales',async t=>{
   const h=await page(t);h.start();await h.ready();
-  h.faults.set('status',{ok:false,data:{error:'SERVICE_UNAVAILABLE'}});await h.click('#refresh');
+  h.faults.set('sync',{ok:false,data:{error:'SERVICE_UNAVAILABLE'}});await h.click('#refresh');
   assert.match(h.text('#statusMessage'),/indisponible/);assert.equal(h.$('#refresh').disabled,false);assert.equal(h.$('#checkout').disabled,true);
   h.faults.set('request',{ok:false,data:{error:'SERVICE_UNAVAILABLE'}});await h.request();
   assert.equal(h.$('#receiptBox').hidden,true);assert.equal(h.$('#confirmRequest').checked,true);
@@ -290,24 +292,24 @@ test('subscription: the first monthly subscription explains immediate payment an
  const h=await page(t,{salesOpen:true,premiumA:false});h.start();await h.ready();
  assert.match(h.text('#checkout'),/Souscrire/);assert.match(h.text('#planSummary'),/Premier paiement à la confirmation.*2,99 € \/ mois/);assert.match(h.text('#planSummary'),/Aucun essai gratuit/);
  await h.checked('#terms',true);await h.click('#checkout');
- const call=h.calls.find(c=>c.route==='checkout');assert.ok(call);assert.equal(call.body.plan,'monthly');assert.equal(call.body.expected_unit_amount,299);assert.equal(call.body.expected_trial,false);assert.equal(call.body.billing_policy,'immediate-v1');
+ const call=h.calls.find(c=>c.route==='checkout');assert.ok(call);assert.equal(call.body.plan,'monthly');assert.equal(call.body.expected_unit_amount,299);assert.equal(call.body.expected_trial,false);assert.equal(call.body.billing_policy,'immediate-v2-annual1799');
 });
-test('subscription: launch selection displays lifetime conditions and sends 1999 cents',async t=>{
- const h=await page(t,{salesOpen:true,premiumA:false,remaining:7});h.start();await h.ready();
- assert.match(h.text('#launchCounter'),/^7 places.*sur 100/);
- await h.checked('input[value=launch]',true);await h.checked('#terms',true);await h.click('#checkout');
- const call=h.calls.find(c=>c.route==='checkout');assert.equal(call.body.plan,'launch');assert.equal(call.body.expected_unit_amount,1999);assert.match(h.text('#planSummary'),/tant que cet abonnement annuel reste actif/);
+test('subscription: annual offer sends 1799 cents without a remaining-place counter',async t=>{
+ const h=await page(t,{salesOpen:true,premiumA:false,available:true});h.start();await h.ready();
+ assert.equal(h.$('#launchCounter'),null);assert.equal(h.w.document.querySelectorAll('input[name=plan]').length,2);
+ assert.doesNotMatch(h.text('#annualAvailability'),/restant|attribuées|sur 100/);
+ await h.checked('input[value=annual]',true);await h.checked('#terms',true);await h.click('#checkout');
+ const call=h.calls.find(c=>c.route==='checkout');assert.equal(call.body.plan,'annual');assert.equal(call.body.expected_unit_amount,1799);assert.match(h.text('#planSummary'),/tant que cet abonnement annuel reste actif/);
 });
 test('subscription: a plan change clears the earlier acceptance before sending anything',async t=>{
  const h=await page(t,{salesOpen:true,premiumA:false});h.start();await h.ready();
  await h.checked('#terms',true);assert.equal(h.$('#checkout').disabled,false);
- await h.checked('input[value=annual]',true);assert.equal(h.$('#terms').checked,false);assert.equal(h.$('#checkout').disabled,true);assert.match(h.text('#planSummary'),/29,99 € \/ an/);assert.equal(h.calls.filter(c=>c.route==='checkout').length,0);
+ await h.checked('input[value=annual]',true);assert.equal(h.$('#terms').checked,false);assert.equal(h.$('#checkout').disabled,true);assert.match(h.text('#planSummary'),/17,99 € \/ an/);assert.equal(h.calls.filter(c=>c.route==='checkout').length,0);
 });
-for(const remaining of [0,null,101])test(`subscription: launch cannot be selected with remaining=${remaining}`,async t=>{
- const h=await page(t,{salesOpen:true,premiumA:false,remaining});h.start();await h.ready();
- assert.equal(h.$('input[value=launch]').disabled,true);
- if(remaining===0)assert.match(h.text('#launchCounter'),/100 places.*attribuées ou réservées/);else assert.match(h.text('#launchCounter'),/indisponible/);
- await h.checked('input[value=launch]',true);await h.checked('#terms',true);assert.equal(h.$('#checkout').disabled,true);assert.equal(h.calls.filter(c=>c.route==='checkout').length,0);
+for(const available of [false,null,undefined])test('subscription: unavailable annual offer never silently changes the selection ('+available+')',async t=>{
+ const h=await page(t,{salesOpen:true,premiumA:false,available:available===undefined?'invalid':available,url:'https://sobrizen.test/abonnement?plan=annual'});h.start();await h.ready();
+ assert.equal(h.$('input[value=annual]').disabled,true);assert.equal(h.$('input[value=annual]').checked,true);
+ assert.equal(h.$('#checkout').disabled,true);assert.equal(h.calls.filter(c=>c.route==='checkout').length,0);
 });
 test('subscription: a returning customer receives the same clear immediate-payment offer',async t=>{
  const h=await page(t,{salesOpen:true,premiumA:false});h.statuses[A].trial_eligible=false;h.start();await h.ready();
@@ -315,8 +317,8 @@ test('subscription: a returning customer receives the same clear immediate-payme
  await h.checked('#terms',true);await h.click('#checkout');assert.equal(h.calls.find(c=>c.route==='checkout').body.expected_trial,false);
 });
 test('subscription: an active trial is dated correctly and cannot start a duplicate subscription',async t=>{
- const h=await page(t,{salesOpen:true,premiumA:false});h.statuses[A]={premium:true,trial:true,trial_until:'2026-11-01T12:30:00Z',access_until:'2026-11-01T12:30:00Z',paid_until:null,plan:'launch',trial_eligible:false};h.start();await h.ready();
- assert.match(h.text('#membership'),/Essai Premium déjà accordé.*01\/11\/2026/);assert.match(h.text('#membership'),/19,99/);assert.equal(h.$('#checkout').disabled,true);assert.equal(h.$('#cancelSubscription').hidden,false);
+ const h=await page(t,{salesOpen:true,premiumA:false});h.statuses[A]={premium:true,trial:true,trial_until:'2026-11-01T12:30:00Z',access_until:'2026-11-01T12:30:00Z',paid_until:null,plan:'launch',unit_amount:1999,trial_eligible:false};h.start();await h.ready();
+ assert.match(h.text('#membership'),/Essai Premium déjà accordé.*01\/11\/2026/);assert.match(h.text('#currentPrice'),/19,99/);assert.equal(h.$('#checkout').disabled,true);assert.equal(h.$('#cancelSubscription').hidden,false);
 });
 
 
@@ -330,8 +332,57 @@ for(const status of ['past_due','unpaid','paused'])test('subscription: managing 
  await h.click('#cancelSubscription');assert.equal(h.calls.find(c=>c.route==='portal').body.intent,'cancel');
 });
 
-for(const plan of ['monthly','launch'])test('subscription: incomplete '+plan+' resumes with clear immediate price even when launch sold out',async t=>{
- const h=await page(t,{salesOpen:true,premiumA:false,remaining:0});h.statuses[A]={premium:false,management_available:true,can_cancel:false,checkout_pending:true,checkout_plan:plan,subscriptions:[{status:'incomplete'}]};h.start();await h.ready();
+for(const plan of ['monthly','annual'])test('subscription: incomplete '+plan+' resumes with clear immediate price even when launch sold out',async t=>{
+ const h=await page(t,{salesOpen:true,premiumA:false,available:false});h.statuses[A]={premium:false,management_available:true,can_cancel:false,checkout_pending:true,checkout_plan:plan,subscriptions:[{status:'incomplete'}]};h.start();await h.ready();
  await h.checked('input[value='+plan+']',true);await h.checked('#terms',true);assert.equal(h.$('#checkout').disabled,false);assert.match(h.text('#checkout'),/Reprendre mon paiement/);assert.match(h.text('#membership'),/Paiement à finaliser/);
- await h.click('#checkout');const call=h.calls.find(c=>c.route==='checkout');assert.equal(call.body.plan,plan);assert.equal(call.body.expected_trial,false);assert.equal(call.body.billing_policy,'immediate-v1');
+ await h.click('#checkout');const call=h.calls.find(c=>c.route==='checkout');assert.equal(call.body.plan,plan);assert.equal(call.body.expected_trial,false);assert.equal(call.body.billing_policy,'immediate-v2-annual1799');
+});
+
+for(const plan of [
+ {id:'monthly',label:'Mensuel',unit_amount:299,interval:'month',price:'2,99 € / mois'},
+ {id:'annual',label:'Annuel de lancement',unit_amount:1799,interval:'year',price:'17,99 € / an'},
+ {id:'annual',label:'Annuel — offre historique',unit_amount:2999,interval:'year',price:'29,99 € / an'},
+ {id:'launch',label:'Annuel fondateur — offre historique',unit_amount:1999,interval:'year',price:'19,99 € / an'},
+])test('Mon Plan: displays the actual '+plan.label+' subscription amount and dates',async t=>{
+ const h=await page(t,{salesOpen:true});
+ h.statuses[A].plan_details={...plan,currency:'eur',interval_count:1,status:'active',started_at:'2025-08-06T12:00:00Z',current_period_start:'2026-08-06T12:00:00Z',current_period_end:'2027-08-06T12:00:00Z',next_payment_at:'2027-08-06T12:00:00Z',cancel_scheduled:false,payment_state:'paid',portal_available:true};
+ h.start();await h.ready();
+ assert.equal(h.text('#currentPrice'),plan.price);assert.match(h.text('#currentPlan'),new RegExp(plan.label));
+ assert.equal(h.text('#planStarted'),'06/08/2025');assert.equal(h.text('#planPeriod'),'Du 06/08/2026 au 06/08/2027');assert.equal(h.text('#renewalValue'),'06/08/2027');
+ assert.equal(h.$('#planFacts').hidden,false);assert.match(h.text('#accessSummary'),/rapports détaillés/);
+ assert.equal(h.$('#invoices').hidden,false);assert.equal(h.$('#paymentMethod').hidden,false);
+ assert.equal(h.$('#planGuarantee').hidden,!(plan.id==='launch'||plan.unit_amount===1799));
+});
+
+test('Mon Plan: flexible scheduled cancellation shows its real date rather than a renewal',async t=>{
+ const h=await page(t,{salesOpen:true});h.statuses[A]={premium:true,access_until:'2027-08-06T12:00:00Z',cancel_at_period_end:false,plan_details:{id:'annual',label:'Annuel',unit_amount:1799,currency:'eur',interval:'year',interval_count:1,status:'active',started_at:'2026-08-06T12:00:00Z',current_period_start:'2026-08-06T12:00:00Z',current_period_end:'2027-08-06T12:00:00Z',cancel_scheduled:true,cancel_at:'2027-08-06T12:00:00Z',next_payment_at:null,payment_state:'paid',portal_available:true}};
+ h.start();await h.ready();assert.equal(h.text('#planState'),'Fin programmée');assert.equal(h.text('#renewalLabel'),'Fin programmée de l’abonnement');assert.equal(h.text('#renewalValue'),'06/08/2027');assert.match(h.text('#membership'),/renouvellement désactivé/);assert.match(h.text('#accessSummary'),/droits Premium sont actifs/);
+});
+
+test('Mon Plan: ended subscriptions preserve their historical price while explaining free access',async t=>{
+ const h=await page(t,{premiumA:false,salesOpen:true});h.statuses[A]={premium:false,management_available:true,subscriptions:[{status:'canceled',plan:'annual',unit_amount:2999}],plan_details:{id:'annual',label:'Annuel — offre historique',unit_amount:2999,currency:'eur',interval:'year',status:'canceled',payment_state:'ended',portal_available:true,next_payment_at:null}};
+ h.start();await h.ready();assert.equal(h.text('#planState'),'Abonnement terminé');assert.equal(h.text('#currentPrice'),'29,99 € / an');assert.equal(h.text('#renewalValue'),'Désactivé');assert.match(h.text('#accessSummary'),/accès gratuit/);assert.equal(h.$('#cancelSubscription').hidden,true);assert.equal(h.$('#invoices').hidden,false);
+});
+
+test('Mon Plan: a missing legacy amount or date is never replaced by the new advertised price',async t=>{
+ const h=await page(t);h.statuses[A].plan_details={id:'annual',status:'active',unit_amount:null,currency:'eur',interval:'year',started_at:null,current_period_end:null,next_payment_at:null};h.start();await h.ready();
+ assert.equal(h.text('#currentPrice'),'Montant à consulter dans Stripe');assert.equal(h.text('#planStarted'),'Non communiquée');assert.equal(h.text('#renewalValue'),'À consulter dans Stripe');assert.doesNotMatch(h.text('#myPlan'),/Invalid Date|17,99/);
+});
+
+test('Mon Plan: opening and refreshing really call sync and a failed reconciliation is identified before cached status is shown',async t=>{
+ const h=await page(t);h.start();await h.ready();assert.equal(h.calls.filter(c=>c.route==='sync').length,1);assert.equal(h.calls.some(c=>c.route==='status'),false);
+ const before=h.calls.length;await h.click('#refresh');assert.equal(h.calls.slice(before).filter(c=>c.route==='sync').length,1);
+ h.faults.set('sync',{ok:false,data:{error:'SERVICE_UNAVAILABLE'}});const retry=h.calls.length;await h.click('#refresh');
+ assert.ok(h.calls.slice(retry).some(c=>c.route==='sync'));assert.ok(h.calls.slice(retry).some(c=>c.route==='status'));assert.match(h.text('#billingChecked'),/synchronisation avec Stripe n’a pas abouti/);assert.match(h.text('#statusMessage'),/momentanément indisponible/);
+});
+
+test('Mon Plan: invoice and payment-method controls select the intended portal flow',async t=>{
+ const h=await page(t);h.start();await h.ready();await h.click('#invoices');assert.deepEqual(h.calls.findLast(c=>c.route==='portal').body,{});
+ await h.click('#paymentMethod');assert.deepEqual(h.calls.findLast(c=>c.route==='portal').body,{intent:'payment_method_update'});
+});
+
+test('Mon Plan: annual guest selection survives the source page without a build-time rewrite',async t=>{
+ const h=await page(t,{signedIn:false,salesOpen:true,url:'https://sobrizen.test/abonnement?plan=annual'});h.start();await h.ready();
+ assert.equal(h.$('input[value=annual]').checked,true);assert.equal(h.$('#checkout').disabled,false);assert.equal(h.text('#checkout'),'Continuer avec cette offre');assert.equal(h.$('#login').getAttribute('href'),'/?subscribe=annual');
+ await h.click('#checkout');assert.equal(h.w.sessionStorage.getItem('sobrizen-selected-plan-v1'),'annual');assert.equal(h.calls.some(c=>c.route==='checkout'),false);
 });

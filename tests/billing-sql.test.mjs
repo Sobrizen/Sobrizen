@@ -188,5 +188,50 @@ test('billing migration: launch capacity, ownership, trial eligibility and entit
    assert.equal(+new Date((await get('select trial_used_at from public.billing_customers where user_id=$1',[uid(1)])).trial_used_at),+new Date(first));
    await assert.rejects(rpc('billing_save_snapshot_v2',[uid(2),JSON.stringify(value),new Date().toISOString()]),/BILLING_CUSTOMER_MISMATCH/);
   });
+
+  await reset(3);
+  await db.exec('reset role; create table public.billing_config(id boolean primary key,terms_version text); insert into public.billing_config values(true,\'2026-11-09\'); grant all on public.billing_config to service_role');
+  await role('service_role');
+  const legacy=await addSub(1,{status:'trialing',plan:'annual',unit_amount:2999,stripe_price_id:'price_1ULSYDB6h4U0FlMoAnD7zybM',paid_until:null,trial_until:new Date(Date.now()+5*86400000).toISOString()});
+  const oldAttempt=await begin(2,'launch');await attach(oldAttempt,2);await settle(oldAttempt,'completed',2);
+  const newSql=await readFile(new URL('../db/billing-annual-offer.sql',import.meta.url),'utf8');
+  assert.equal(newSql,await readFile(new URL('../supabase/migrations/20261115155501_mon_plan_annual_offer_1000.sql',import.meta.url),'utf8'));
+  await db.exec('reset role');await db.exec(newSql);await role('service_role');
+  const annualPrice='price_1Uc4WZB6h4U0FlMox1pwl1Lj',monthlyPrice='price_1UZzodB6h4U0FlMoqyWxNKjy';
+  const newBegin=(n=1,plan='annual')=>rpc('billing_begin_checkout',[uid(n),plan,customer(n),plan==='annual'?annualPrice:monthlyPrice]);
+  const available=()=>rpc('billing_annual_available');
+  await t.test('new offer migration retains legacy amount, trial and permanent launch allocation',async()=>{
+   const row=await get('select * from public.billing_subscriptions where user_id=$1',[uid(1)]);
+   assert.equal(row.unit_amount,2999);assert.equal(row.status,'trialing');assert.equal(+new Date(row.trial_until),Date.parse(legacy.trial_until));assert.equal(row.stripe_price_id,legacy.stripe_price_id);
+   assert.equal((await get('select status from public.billing_checkout_attempts where id=$1',[oldAttempt.id])).status,'completed');assert.equal(await available(),true);
+   assert.equal((await get('select terms_version from public.billing_config')).terms_version,'2026-11-15');
+  });
+  await t.test('1000 annual allocations succeed, the 1001st fails, and monthly remains purchasable',async()=>{
+   await reset(1002);const outcomes=await Promise.allSettled(Array.from({length:1001},(_,i)=>newBegin(i+1)));
+   assert.equal(outcomes.filter(r=>r.status==='fulfilled').length,1000);const failed=outcomes.filter(r=>r.status==='rejected');assert.equal(failed.length,1);assert.match(failed[0].reason.message,/ANNUAL_SOLD_OUT/);assert.equal(await available(),false);
+   assert.equal((await newBegin(1002,'monthly')).plan,'monthly');assert.equal((await get('select count(*)::int as n from public.billing_checkout_attempts where stripe_price_id=$1',[annualPrice])).n,1000);
+  });
+  await t.test('new quota is permanent after completion and account deletion; expiry is confirmed, not assumed',async()=>{
+   await reset();const a=await newBegin();assert.equal((await newBegin()).id,a.id);await attach(a);await settle(a);
+   await db.exec('reset role');await db.query('delete from auth.users where id=$1',[uid(1)]);await role('service_role');assert.equal((await get('select count(*)::int as n from public.billing_checkout_attempts where stripe_price_id=$1 and status=\'completed\'',[annualPrice])).n,1);
+   const b=await newBegin(2);await attach(b,2);await db.query("update public.billing_checkout_attempts set created_at=now()-interval '3 hours',expires_at=now()-interval '1 hour' where id=$1",[b.id]);
+   assert.equal((await get('select status from public.billing_checkout_attempts where id=$1',[b.id])).status,'open');await settle(b,'expired',2,null);assert.equal((await get('select status from public.billing_checkout_attempts where id=$1',[b.id])).status,'expired');
+  });
+  await t.test('only exact current Stripe prices can allocate; legacy plans remain snapshot-readable',async()=>{
+   await reset();for(const [plan,price]of [['annual','price_1ULSYDB6h4U0FlMoAnD7zybM'],['monthly',annualPrice],['launch','price_1UZzojB6h4U0FlMos31G0H6E']])await assert.rejects(rpc('billing_begin_checkout',[uid(1),plan,customer(1),price]),/PRICE_MISMATCH|INVALID_PLAN/);
+   await addSub(1,{plan:'annual',unit_amount:1799,stripe_price_id:annualPrice});await addSub(2,{plan:'annual',unit_amount:2999});await addSub(3,{plan:'launch',unit_amount:1999});
+   assert.equal((await get('select count(*)::int as n from public.billing_subscriptions')).n,3);
+  });
+  await t.test('flexible scheduled cancellation stores its own date without changing paid access',async()=>{
+   await reset();const cancel=new Date(Date.now()+3600000).toISOString(),end=new Date(Date.now()+86400000).toISOString();await addSub(1,{cancel_at:cancel,cancel_at_period_end:false,paid_until:end,current_period_start:new Date(Date.now()-3600000).toISOString(),current_period_end:end,currency:'eur',interval:'month',interval_count:1});
+   const row=await get('select * from public.billing_subscriptions where user_id=$1',[uid(1)]);assert.equal(row.cancel_at_period_end,true);assert.equal(+new Date(row.cancel_at),Date.parse(cancel));assert.equal(+new Date(row.paid_until),Date.parse(end));
+   await role('authenticated',uid(1));assert.equal((await get('select public.sobrizen_has_premium() as allowed')).allowed,true);
+  });
+  await t.test('sync cooldown and annual capacity are service-only, atomic and owner-scoped',async()=>{
+   await reset();assert.equal(await rpc('billing_take_sync_slot',[uid(1),30]),true);assert.equal(await rpc('billing_take_sync_slot',[uid(1),30]),false);assert.equal(await rpc('billing_take_sync_slot',[uid(2),30]),true);
+   await db.query("update public.billing_customers set last_sync_requested_at=now()-interval '31 seconds' where user_id=$1",[uid(1)]);assert.equal(await rpc('billing_take_sync_slot',[uid(1),30]),true);await assert.rejects(rpc('billing_take_sync_slot',[uid(1),0]),/INVALID_SYNC_COOLDOWN/);
+   for(const name of ['anon','authenticated']){await role(name,uid(1));await assert.rejects(available(),/permission denied/);await assert.rejects(rpc('billing_take_sync_slot',[uid(1),30]),/permission denied/);await assert.rejects(db.query('select * from public.billing_annual_pool'),/permission denied/);}
+   await db.exec('reset role');assert.equal((await get("select relrowsecurity from pg_class where oid='public.billing_annual_pool'::regclass")).relrowsecurity,true);assert.ok((await db.query("select prosecdef from pg_proc where proname in ('billing_annual_available','billing_take_sync_slot')")).rows.every(r=>r.prosecdef===false));
+  });
  }finally{await db.close();}
 });

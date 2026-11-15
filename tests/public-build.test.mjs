@@ -50,6 +50,14 @@ test('asset insertion never rolls a later service-worker version backwards',()=>
   assert.match(bridged,/sobrizen-v99-release/);assert.match(bridged,/profile-photo-ui.mjs/);assert.match(bridged,/community.mjs/);
   assert.equal(integratePhotosWorker(integrateWorker(bridged)),bridged);
 });
+
+test('Mon Plan build preserves one account centre and exactly two purchase offers',()=>{
+ const source=readFileSync(join(root,'abonnement.html'),'utf8');assert.equal(integrateSalesSubscriptionHtml(source),source);
+ assert.throws(()=>integrateSalesSubscriptionHtml(source.replace('id="myPlan"','id="removed"')),/missing or ambiguous/);
+ assert.throws(()=>integrateSalesSubscriptionHtml(source+'<div id="currentPrice"></div>'),/missing or ambiguous/);
+ assert.throws(()=>integrateSalesSubscriptionHtml(source+'<input name="plan" value="launch">'),/exactly two plans/);
+ assert.doesNotMatch(source,/launchCounter|places restantes|places attribuées|29,99 €|19,99 €/);
+});
 test('precache rejects duplicate URLs including exact literals, path aliases and ignored fragments',()=>{
   const {files}=planPublic(root),worker=files.get('sw.js').toString();
   for(const entry of ["'/app.mjs'",'"/app.mjs"',"'/./app.mjs'","'/app.mjs#duplicate'"]){

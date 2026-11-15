@@ -3,14 +3,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHmac} from 'node:crypto';
 import {createBillingHandler,BillingFault} from '../billing/handler.mjs';
-import {CFG,PLANS,membership} from '../billing/core.mjs';
+import {CFG,PLANS,LEGACY_PLANS,membership} from '../billing/core.mjs';
 const UID='11111111-1111-4111-8111-111111111111',OTHER='22222222-2222-4222-8222-222222222222';
 const START=Date.parse('2026-11-09T22:00:00Z'),SECRET='whsec_QAFIXTUREONLY123';
 const copy=value=>structuredClone(value),uuid=n=>`00000000-0000-4000-8000-${String(n).padStart(12,'0')}`;
 const paidPlan=(plan='monthly')=>({id:PLANS[plan].stripePriceId,active:true,livemode:true,type:'recurring',product:CFG.product,currency:'eur',unit_amount:PLANS[plan].amount,recurring:{interval:PLANS[plan].interval,interval_count:1}});
 function fixture(){
   const state={now:START,config:{sales_enabled:true,legal_ready:true,tax_ready:true,hosting_ready:true,premium_features_ready:true,terms_version:CFG.termsVersion},account:{id:CFG.account,charges_enabled:true},env:{SUPABASE_URL:'https://qa.invalid',SUPABASE_SERVICE_ROLE_KEY:'qa-service-fixture-only',STRIPE_SECRET_KEY:'sk_live_QAFIXTUREONLY',STRIPE_WEBHOOK_SECRET:SECRET},auth:{id:UID,email:'qa@example.invalid',email_confirmed_at:'2026-01-01T00:00:00Z'},authStatus:200,dbCalls:[],stripeCalls:[],authCalls:[],logs:[],serial:10,locked:false,lockAllowed:true,remainingOverride:undefined,checkoutFailure:null,fetchFailures:false,prices:Object.fromEntries(Object.keys(PLANS).map(plan=>[PLANS[plan].stripePriceId,paidPlan(plan)])),subscriptions:[],invoices:[],invoicePayments:[],charges:[],disputes:[],intents:[],sessions:[],tables:{billing_customers:[{user_id:UID,stripe_customer_id:'cus_QA1',trial_used_at:null}],billing_subscriptions:[],billing_checkout_attempts:[],billing_consents:[],billing_events:[],billing_risk_flags:[],billing_requests:[]},checked:new Map()};
-  const remaining=()=>state.remainingOverride===undefined?100-state.tables.billing_checkout_attempts.filter(row=>row.plan==='launch'&&['reserved','open','completed'].includes(row.status)).length:state.remainingOverride;
+  const remaining=()=>state.remainingOverride===undefined?1000-state.tables.billing_checkout_attempts.filter(row=>row.stripe_price_id===PLANS.annual.stripePriceId&&['reserved','open','completed'].includes(row.status)).length:state.remainingOverride;
   function matches(row,params){
     for(const [key,condition] of params){if(['select','order','limit'].includes(key))continue;
       if(condition.startsWith('eq.')){const expected=condition.slice(3),value=row[key];if(String(value)!==expected)return false;}
@@ -24,14 +24,15 @@ function fixture(){
     if(path.startsWith('rpc/')){
       const name=path.slice(4);
       if(name==='billing_get_webhook_secret')return state.storedWebhookSecret||null;
-      if(name==='billing_launch_remaining')return remaining();
+      if(name==='billing_annual_available')return Number.isInteger(remaining())&&remaining()>=0&&remaining()<=1000?remaining()>0:null;
+      if(name==='billing_take_sync_slot'){if(state.lastSync!==undefined&&state.now-state.lastSync<body.p_cooldown_seconds*1000)return false;state.lastSync=state.now;return true;}
       if(name==='billing_take_checkout_lock'){if(!state.lockAllowed||state.locked)return false;state.locked=true;return true;}
       if(name==='billing_release_checkout_lock'){state.locked=false;return null;}
       if(name==='billing_begin_checkout'){
         assert.equal(state.locked,true,'Attempt reservation must be inside the checkout lock');
         const old=state.tables.billing_checkout_attempts.find(row=>row.user_id===body.p_user_id&&['reserved','open'].includes(row.status));
         if(old){if(old.plan!==body.p_plan)throw new BillingFault('CHECKOUT_PLAN_PENDING',409);return copy(old);}
-        if(body.p_plan==='launch'&&remaining()<=0)throw new BillingFault('LAUNCH_SOLD_OUT',409);
+        if(body.p_plan==='annual'&&remaining()<=0)throw new BillingFault('ANNUAL_SOLD_OUT',409);
         const c=state.tables.billing_customers.find(row=>row.user_id===body.p_user_id);
         const attempt={id:uuid(++state.serial),user_id:body.p_user_id,plan:body.p_plan,stripe_customer_id:body.p_customer_id,stripe_price_id:body.p_price_id,trial_enabled:state.allocatorTrial===true,status:'reserved',created_at:new Date(state.now).toISOString(),expires_at:new Date(state.now+CFG.checkoutSeconds*1000).toISOString()};state.tables.billing_checkout_attempts.push(attempt);return copy(attempt);
       }
@@ -103,9 +104,9 @@ function fixture(){
 }
 
 test('health fails closed for every readiness flag, wrong account, invalid secret/key and invalid quota',async t=>{
-  const changes=[...['sales_enabled','legal_ready','tax_ready','hosting_ready','premium_features_ready'].map(key=>[key,h=>h.state.config[key]=false]),['terms version',h=>h.state.config.terms_version='old'],['test key',h=>h.state.env.STRIPE_SECRET_KEY='sk_test_QA'],['missing webhook',h=>h.state.env.STRIPE_WEBHOOK_SECRET=''],['invalid webhook',h=>h.state.env.STRIPE_WEBHOOK_SECRET='not-a-secret'],['wrong account',h=>h.state.account.id='acct_OTHER'],['charges disabled',h=>h.state.account.charges_enabled=false],['quota high',h=>h.state.remainingOverride=101],['quota negative',h=>h.state.remainingOverride=-1],['quota missing',h=>h.state.remainingOverride=null]];
+  const changes=[...['sales_enabled','legal_ready','tax_ready','hosting_ready','premium_features_ready'].map(key=>[key,h=>h.state.config[key]=false]),['terms version',h=>h.state.config.terms_version='old'],['test key',h=>h.state.env.STRIPE_SECRET_KEY='sk_test_QA'],['missing webhook',h=>h.state.env.STRIPE_WEBHOOK_SECRET=''],['invalid webhook',h=>h.state.env.STRIPE_WEBHOOK_SECRET='not-a-secret'],['wrong account',h=>h.state.account.id='acct_OTHER'],['charges disabled',h=>h.state.account.charges_enabled=false]];
   for(const [name,change] of changes)await t.test(name,async()=>{const h=fixture();change(h);const r=await h.send('health',{}, {method:'GET'});assert.equal(r.status,200);assert.equal(r.body.sales_open,false);assert.equal(h.financialCreates().length,0);assert.equal(h.premium(),false);});
-  const h=fixture(),r=await h.send('health',{}, {method:'GET'});assert.equal(r.body.sales_open,true);assert.equal(r.body.offer.trial_days,0);assert.equal(r.body.offer.billing_policy,CFG.billingPolicy);assert.equal(r.body.offer.monthly.amount,299);assert.equal(r.body.offer.launch.amount,1999);assert.equal(r.body.offer.launch.remaining,100);assert.equal(h.financialCreates().length,0);
+  const h=fixture(),r=await h.send('health',{}, {method:'GET'});assert.equal(r.body.sales_open,true);assert.equal(r.body.offer.trial_days,0);assert.equal(r.body.offer.billing_policy,CFG.billingPolicy);assert.equal(r.body.offer.monthly.amount,299);assert.equal(r.body.offer.annual.amount,1799);assert.equal(r.body.offer.annual.available,true);assert.equal(h.financialCreates().length,0);
 });
 
 test('checkout verifies email through Auth and rejects unknown identities before any Stripe/DB mutation',async t=>{
@@ -123,7 +124,7 @@ test('configured price must be live, active, correct product, currency, amount a
 });
 
 test('new checkout immediately bills exact price with explicit owner, stable attempt/idempotency and no premature Premium activation',async t=>{
-  for(const plan of Object.keys(PLANS))await t.test(plan,async()=>{const h=fixture(),r=await h.checkout(plan);assert.equal(r.status,200);assert.equal(r.body.trial,false);assert.equal(h.premium(),false);assert.equal(h.state.tables.billing_subscriptions.length,0);const call=h.state.stripeCalls.find(call=>call.name==='checkout.sessions.create'),[params,opts]=call.args,attempt=h.state.tables.billing_checkout_attempts[0];assert.equal(params.line_items[0].price,PLANS[plan].stripePriceId);assert.equal(params.subscription_data.trial_period_days,undefined);assert.equal(params.subscription_data.trial_end,undefined);assert.equal(params.metadata.billing_policy,CFG.billingPolicy);assert.equal(params.payment_method_collection,'always');assert.equal(params.client_reference_id,UID);assert.equal(params.metadata.user_id,UID);assert.equal(params.metadata.checkout_attempt_id,attempt.id);assert.equal(params.metadata.terms_version,CFG.termsVersion);assert.equal(opts.idempotencyKey,'sobrizen-checkout-v2-'+attempt.id);assert.equal(params.expires_at,Math.floor(START/1000)+CFG.checkoutSeconds);assert.equal(h.state.tables.billing_consents[0].terms_version,CFG.termsVersion);assert.equal(h.remaining(),plan==='launch'?99:100);assert.equal(h.state.locked,false);});
+  for(const plan of Object.keys(PLANS))await t.test(plan,async()=>{const h=fixture(),r=await h.checkout(plan);assert.equal(r.status,200);assert.equal(r.body.trial,false);assert.equal(h.premium(),false);assert.equal(h.state.tables.billing_subscriptions.length,0);const call=h.state.stripeCalls.find(call=>call.name==='checkout.sessions.create'),[params,opts]=call.args,attempt=h.state.tables.billing_checkout_attempts[0];assert.equal(params.line_items[0].price,PLANS[plan].stripePriceId);assert.equal(params.subscription_data.trial_period_days,undefined);assert.equal(params.subscription_data.trial_end,undefined);assert.equal(params.metadata.billing_policy,CFG.billingPolicy);assert.equal(params.payment_method_collection,'always');assert.equal(params.client_reference_id,UID);assert.equal(params.metadata.user_id,UID);assert.equal(params.metadata.checkout_attempt_id,attempt.id);assert.equal(params.metadata.terms_version,CFG.termsVersion);assert.equal(opts.idempotencyKey,'sobrizen-checkout-v2-'+attempt.id);assert.equal(params.expires_at,Math.floor(START/1000)+CFG.checkoutSeconds);assert.equal(h.state.tables.billing_consents[0].terms_version,CFG.termsVersion);assert.equal(h.remaining(),plan==='annual'?999:1000);assert.equal(h.state.locked,false);});
 });
 
 test('used trial and active remote subscription cannot be silently replaced or trialed again',async()=>{
@@ -136,17 +137,17 @@ test('status never creates customers, prices, checkout or portal sessions and ca
   const h=fixture(),r=await h.send('status',{premium:true,status:'active',paid_until:'2099-01-01',session_id:'cs_live_FAKE'});assert.equal(r.status,200);assert.equal(r.body.premium,false);assert.equal(h.financialCreates().length,0);assert.equal(h.state.stripeCalls.length,0);assert.equal(h.state.tables.billing_subscriptions.length,0);
 });
 
-test('checkout retries reuse an existing open session and do not consume two launch slots',async()=>{
-  const h=fixture();const first=await h.checkout('launch'),second=await h.checkout('launch');assert.equal(first.status,200);assert.equal(second.body.url,first.body.url);assert.equal(h.state.tables.billing_checkout_attempts.length,1);assert.equal(h.remaining(),99);assert.equal(h.state.stripeCalls.filter(call=>call.name==='checkout.sessions.create').length,1);assert.equal(h.premium(),false);
+test('checkout retries reuse an existing open session and do not consume two annual slots',async()=>{
+  const h=fixture();const first=await h.checkout('annual'),second=await h.checkout('annual');assert.equal(first.status,200);assert.equal(second.body.url,first.body.url);assert.equal(h.state.tables.billing_checkout_attempts.length,1);assert.equal(h.remaining(),999);assert.equal(h.state.stripeCalls.filter(call=>call.name==='checkout.sessions.create').length,1);assert.equal(h.premium(),false);
 });
 
 test('uncertain network failures preserve the reservation and recover without duplicate billable checkout',async t=>{
-  for(const mode of ['before','after'])await t.test(mode,async()=>{const h=fixture();h.state.checkoutFailure=mode;assert.equal((await h.checkout('launch')).status,503);const attempt=h.state.tables.billing_checkout_attempts[0];assert.equal(attempt.status,'reserved');assert.equal(h.remaining(),99);assert.equal(h.premium(),false);const retry=await h.checkout('launch');assert.equal(retry.status,200);assert.equal(h.state.tables.billing_checkout_attempts.length,1);assert.equal(h.state.sessions.length,1);assert.equal(h.remaining(),99);const keys=h.state.stripeCalls.filter(call=>call.name==='checkout.sessions.create').map(call=>call.args[1].idempotencyKey);assert.equal(new Set(keys).size,1);assert.equal(h.state.locked,false);});
+  for(const mode of ['before','after'])await t.test(mode,async()=>{const h=fixture();h.state.checkoutFailure=mode;assert.equal((await h.checkout('annual')).status,503);const attempt=h.state.tables.billing_checkout_attempts[0];assert.equal(attempt.status,'reserved');assert.equal(h.remaining(),999);assert.equal(h.premium(),false);const retry=await h.checkout('annual');assert.equal(retry.status,200);assert.equal(h.state.tables.billing_checkout_attempts.length,1);assert.equal(h.state.sessions.length,1);assert.equal(h.remaining(),999);const keys=h.state.stripeCalls.filter(call=>call.name==='checkout.sessions.create').map(call=>call.args[1].idempotencyKey);assert.equal(new Set(keys).size,1);assert.equal(h.state.locked,false);});
 });
 
-test('definite rejection releases a launch slot; sold-out and busy locks never create a session',async()=>{
-  const h=fixture();h.state.checkoutFailure='definite';assert.equal((await h.checkout('launch')).status,503);assert.equal(h.state.tables.billing_checkout_attempts[0].status,'failed');assert.equal(h.remaining(),100);assert.equal(h.premium(),false);
-  const full=fixture();full.state.remainingOverride=0;assert.equal((await full.checkout('launch')).body.error,'LAUNCH_SOLD_OUT');assert.equal(full.financialCreates().length,0);assert.equal(full.state.locked,false);
+test('definite rejection releases a annual slot; sold-out and busy locks never create a session',async()=>{
+  const h=fixture();h.state.checkoutFailure='definite';assert.equal((await h.checkout('annual')).status,503);assert.equal(h.state.tables.billing_checkout_attempts[0].status,'failed');assert.equal(h.remaining(),1000);assert.equal(h.premium(),false);
+  const full=fixture();full.state.remainingOverride=0;assert.equal((await full.checkout('annual')).body.error,'ANNUAL_SOLD_OUT');assert.equal(full.financialCreates().length,0);assert.equal(full.state.locked,false);
   const busy=fixture();busy.state.lockAllowed=false;assert.equal((await busy.checkout()).body.error,'CHECKOUT_IN_PROGRESS');assert.equal(busy.financialCreates().length,0);
 });
 
@@ -185,8 +186,8 @@ test('open disputes block access; only a freshly retrieved won dispute and valid
   h.state.now+=1000;await h.event('charge.dispute.created',{id:'dp_QA1',charge:'ch_QA1',status:'needs_response'});assert.equal(h.premium(),true,'Current Stripe state wins over a stale event type/payload');assert.equal(h.financialCreates().length,0);
 });
 
-test('stale launch reconciliation may expire a checkout but cannot create a payment or activate an unpaid subscription',async()=>{
-  const h=fixture();await h.checkout('launch');h.state.now+=CFG.checkoutSeconds*1000+1000;h.state.stripeCalls.length=0;const r=await h.send('status');assert.equal(r.status,200);assert.equal(r.body.premium,false);assert.equal(h.state.tables.billing_checkout_attempts[0].status,'expired');assert.equal(h.remaining(),100);assert.equal(h.financialCreates().length,0);assert.equal(h.state.stripeCalls.filter(call=>call.name==='checkout.sessions.expire').length,1);
+test('stale annual reconciliation may expire a checkout but cannot create a payment or activate an unpaid subscription',async()=>{
+  const h=fixture();await h.checkout('annual');h.state.now+=CFG.checkoutSeconds*1000+1000;h.state.stripeCalls.length=0;const r=await h.send('status');assert.equal(r.status,200);assert.equal(r.body.premium,false);assert.equal(h.state.tables.billing_checkout_attempts[0].status,'expired');assert.equal(h.remaining(),1000);assert.equal(h.financialCreates().length,0);assert.equal(h.state.stripeCalls.filter(call=>call.name==='checkout.sessions.expire').length,1);
 });
 
 test('processing failure is not acknowledged as delivered; a signed retry can succeed later',async()=>{
@@ -219,8 +220,8 @@ test('a second unrelated subscription still blocks recovery and prevents duplica
 });
 
 test('unconfirmed legacy trial sessions expire before a fresh immediate checkout is offered',async()=>{
- const h=fixture();await h.checkout('launch');const attempt=h.state.tables.billing_checkout_attempts[0],session=h.state.sessions[0];attempt.trial_enabled=true;delete session.metadata.billing_policy;session.subscription_data.trial_period_days=7;
- const result=await h.checkout('launch');assert.equal(result.status,200);assert.equal(result.body.trial,false);assert.equal(session.status,'expired');assert.equal(h.state.tables.billing_checkout_attempts.length,2);assert.equal(h.remaining(),99);
+ const h=fixture();await h.checkout('annual');const attempt=h.state.tables.billing_checkout_attempts[0],session=h.state.sessions[0];attempt.trial_enabled=true;delete session.metadata.billing_policy;session.subscription_data.trial_period_days=7;
+ const result=await h.checkout('annual');assert.equal(result.status,200);assert.equal(result.body.trial,false);assert.equal(session.status,'expired');assert.equal(h.state.tables.billing_checkout_attempts.length,2);assert.equal(h.remaining(),999);
  const replacement=h.state.sessions[1];assert.equal(replacement.subscription_data.trial_period_days,undefined);assert.equal(replacement.metadata.billing_policy,CFG.billingPolicy);assert.notEqual(replacement.id,session.id);
 });
 
@@ -240,4 +241,39 @@ test('disabled new charges do not block existing cancellation or signed refund r
  const h=fixture();h.subscription({paid:true});await h.event('invoice.paid',{subscription:'sub_QA1'});assert.equal(h.premium(),true);h.state.account.charges_enabled=false;
  assert.equal((await h.send('health',{}, {method:'GET'})).body.sales_open,false);assert.equal((await h.checkout()).status,503);assert.equal((await h.send('portal',{intent:'cancel'})).status,200);
  h.state.now+=1000;Object.assign(h.state.charges[0],{refunded:true,amount_refunded:299});assert.equal((await h.event('charge.refunded',{id:'ch_QA1'})).status,200);assert.equal(h.premium(),false);
+});
+
+test('annual sold out or unknown availability never leaks counts or disables monthly checkout',async()=>{
+ for(const remaining of [0,null]){
+  const h=fixture();h.state.remainingOverride=remaining;const health=await h.send('health',{}, {method:'GET'});
+  assert.equal(health.body.sales_open,true);assert.equal(health.body.offer.annual.available,remaining===0?false:null);assert.equal(health.body.offer.annual.limit,1000);
+  assert.equal(JSON.stringify(health.body).includes('remaining'),false);assert.equal(health.body.offer.launch,undefined);
+  assert.equal((await h.checkout('monthly')).status,200);
+ }
+ const h=fixture();assert.equal((await h.checkout('launch',{expected_unit_amount:1999})).body.error,'OFFER_CHANGED');assert.equal((await h.checkout('annual',{expected_unit_amount:2999})).body.error,'OFFER_CHANGED');
+});
+
+test('an open old-price annual checkout is expired before the new 17.99 offer; an ambiguous old attempt is never replaced',async()=>{
+ const h=fixture();await h.checkout('annual');const attempt=h.state.tables.billing_checkout_attempts[0],session=h.state.sessions[0];
+ attempt.stripe_price_id=LEGACY_PLANS[0].stripePriceId;session.metadata.billing_policy='immediate-v1';
+ const r=await h.checkout('annual');assert.equal(r.status,200);assert.equal(session.status,'expired');assert.equal(h.state.sessions.length,2);assert.equal(h.state.sessions[1].line_items[0].price,PLANS.annual.stripePriceId);assert.equal(h.remaining(),999);
+ const uncertain=fixture();uncertain.state.checkoutFailure='before';await uncertain.checkout('annual');uncertain.state.tables.billing_checkout_attempts[0].stripe_price_id=LEGACY_PLANS[0].stripePriceId;
+ assert.equal((await uncertain.checkout('annual')).body.error,'CHECKOUT_RECOVERY_REQUIRED');assert.equal(uncertain.state.tables.billing_checkout_attempts.length,1);
+});
+
+test('explicit sync reads Stripe once per owner cooldown and returns a detailed flexible cancellation state',async()=>{
+ const h=fixture(),sub=h.subscription({paid:true});const sec=h.state.now/1000;sub.billing_mode={type:'flexible'};sub.cancel_at=sec+86400;sub.items.data[0].current_period_start=sec-3600;sub.items.data[0].current_period_end=sec+29*86400;
+ const first=await h.send('sync');assert.equal(first.status,200);assert.equal(first.body.sync.performed,true);assert.equal(first.body.plan_details.cancel_scheduled,true);assert.equal(first.body.plan_details.cancel_at,new Date(sub.cancel_at*1000).toISOString());assert.equal(first.body.plan_details.next_payment_at,null);assert.equal(first.body.plan_details.unit_amount,299);assert.equal(first.body.plan_details.payment_state,'paid');
+ const calls=h.state.stripeCalls.length,second=await h.send('sync');assert.equal(second.body.sync.performed,false);assert.equal(second.body.sync.retry_after_seconds,30);assert.equal(h.state.stripeCalls.length,calls);
+ h.state.now+=30000;sub.cancel_at=null;const third=await h.send('sync');assert.equal(third.body.sync.performed,true);assert.equal(third.body.plan_details.cancel_scheduled,false);assert.ok(third.body.plan_details.next_payment_at);
+});
+
+test('manual sync is bounded and does not partially change snapshots when too many subscriptions exist',async()=>{
+ const h=fixture(),sub=h.subscription({paid:true});h.state.subscriptions=Array.from({length:11},(_,i)=>({...copy(sub),id:'sub_Bounded'+i}));
+ const r=await h.send('sync');assert.equal(r.status,503);assert.equal(r.body.error,'SYNC_LIMIT_REACHED');assert.equal(h.state.tables.billing_subscriptions.length,0);
+});
+
+test('payment method action is scoped to the authenticated customer and returns through Mon Plan',async()=>{
+ const h=fixture();const result=await h.send('portal',{intent:'payment_method_update'});assert.equal(result.status,200);
+ const params=h.state.stripeCalls.find(c=>c.name==='billingPortal.sessions.create').args[0];assert.equal(params.customer,'cus_QA1');assert.equal(params.flow_data.type,'payment_method_update');assert.equal(params.flow_data.after_completion.redirect.return_url,CFG.site+'/abonnement?payment_method=updated');
 });
