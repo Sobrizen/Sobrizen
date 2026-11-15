@@ -3,7 +3,7 @@
  * No DOM, storage, implicit clock, medical score or synthetic daily completion.
  */
 import {parseDay, moveDay, dayDiff} from './core.mjs';
-import {timelineRows, timelineSnapshot} from './timeline-core.mjs';
+import {createTimelineReader} from './timeline-core.mjs';
 import {HEALTH_METRICS, healthJourney, mergeHealthObservations} from './health-core.mjs';
 import {instantMilliseconds, localDateTime} from './time-core.mjs';
 import {PROGRAM} from './program.mjs';
@@ -170,10 +170,11 @@ export function dailyOverview({document=null,today,now,snapshot=null,checks=[],h
   checks=ownArray(checks);healthRows=ownArray(healthRows);journal=ownArray(journal);program=ownArray(program);
   // Use the existing engine's totals, clock validation and exception precedence.
   // Never rebuild savings as "streak × daily spending".
-  const state=document?timelineSnapshot(document,checks,today,instant):null;
+  const reader=document?createTimelineReader(document,checks,today,instant):null;
+  const state=reader?.snapshot()||null;
   const legacy=legacyRows(checks,today);
   function daysFor(start,end){
-    const rows=document?new Map(timelineRows(document,checks,start,end,today,instant).map(row=>[row.checkin_date,row])):legacy;
+    const rows=reader?new Map(reader.rows(start,end).map(row=>[row.checkin_date,row])):legacy;
     return Array.from({length:dayDiff(end,start)+1},(_,index)=>{
       const date=moveDay(start,index);return dayModel(date,rows.get(date),today);
     });

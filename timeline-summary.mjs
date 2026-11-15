@@ -1,11 +1,11 @@
-import {dayKey, moveDay, dayDiff, parseDay, esc} from './core.mjs';
+import {dayKey, moveDay, dayDiff, parseDay, esc, formatDay} from './core.mjs';
 import {addMonths} from './progress-core.mjs';
 import {timelineSummary} from './timeline-core.mjs';
 
 const periods = {week: '7 jours', month: '30 jours', year: '12 mois'};
 const numbers = new Intl.NumberFormat('fr-FR', {maximumFractionDigits: 2});
 const currency = new Intl.NumberFormat('fr-FR', {style: 'currency', currency: 'EUR', maximumFractionDigits: 2});
-const shortDate = value => parseDay(value).toLocaleDateString('fr-FR', {day: 'numeric', month: 'short', year: 'numeric'});
+const shortDate = value => formatDay(value, {day: 'numeric', month: 'short', year: 'numeric'});
 const count = value => Number.isFinite(value) ? numbers.format(value) : '—';
 const euros = value => Number.isFinite(value) ? currency.format(value) : '—';
 let nextId = 0;

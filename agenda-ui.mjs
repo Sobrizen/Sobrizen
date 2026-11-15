@@ -1,4 +1,4 @@
-import {esc} from './core.mjs';
+import {esc, formatDay} from './core.mjs';
 import {localDateTime, zonedDateTimeCandidates} from './time-core.mjs';
 import {showFieldError, clearFieldError, showFormError, clearFormError} from './form-validation.mjs';
 import {
@@ -15,9 +15,10 @@ const icons = {
   goal: svg('<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><path d="m10 12 2 2 5-6"/>'),
   check: svg('<path d="m5 12 4 4L19 6"/>'),
 };
-const dateLabel = (date, options = {}) => new Intl.DateTimeFormat('fr-FR', {timeZone: 'UTC', day: 'numeric', month: 'long', ...options}).format(new Date(date + 'T12:00:00Z'));
+const dateLabel = (date, options = {}) => formatDay(date, {day: 'numeric', month: 'long', ...options});
 const countLabel = count => `${count} élément${count > 1 ? 's' : ''}`;
-const number = value => new Intl.NumberFormat('fr-FR').format(value);
+const numberFormatter = new Intl.NumberFormat('fr-FR');
+const number = value => numberFormatter.format(value);
 function defaultZone() { try { return agendaZone(Intl.DateTimeFormat().resolvedOptions().timeZone); } catch { return 'Europe/Paris'; } }
 function zones(current) {
   let values = [];

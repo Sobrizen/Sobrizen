@@ -4,8 +4,19 @@ export function parseDay(s){if(!/^\d{4}-\d{2}-\d{2}$/.test(s||''))throw Error('D
 export function moveDay(s,n){const d=parseDay(s);d.setDate(d.getDate()+n);return dayKey(d)}
 export function dayDiff(a,b){return Math.round((Date.UTC(...a.split('-').map((n,i)=>Number(n)-(i===1?1:0)))-Date.UTC(...b.split('-').map((n,i)=>Number(n)-(i===1?1:0))))/86400000)}
 export function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-export function money(v){return new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(Number(v)||0)}
-export function dateLabel(s){return parseDay(s).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})}
+const moneyFormatter=new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR',maximumFractionDigits:0});
+const dayFormatters=new Map();
+// Civil dates have no instant/timezone. Reuse the small set of display formats,
+// without retaining private dates or creating an ICU formatter for every row.
+export function formatDay(s,options){
+ const date=parseDay(s),settings={...options,timeZone:'UTC'};
+ const key=JSON.stringify(Object.entries(settings).sort(([a],[b])=>a.localeCompare(b)));
+ let formatter=dayFormatters.get(key);
+ if(!formatter){formatter=new Intl.DateTimeFormat('fr-FR',settings);if(dayFormatters.size>=24)dayFormatters.clear();dayFormatters.set(key,formatter);}
+ return formatter.format(new Date(Date.UTC(date.getFullYear(),date.getMonth(),date.getDate(),12)));
+}
+export function money(v){return moneyFormatter.format(Number(v)||0)}
+export function dateLabel(s){return formatDay(s,{day:'numeric',month:'long',year:'numeric'})}
 export function avg(rows,key){const a=rows.map(x=>x[key]).filter(x=>x!==null&&x!==undefined&&Number.isFinite(Number(x))).map(Number);return a.length?a.reduce((a,b)=>a+b,0)/a.length:null}
 export function metrics(checks,weekly=0,today=dayKey()){
  const unique=new Map(checks.filter(c=>c.checkin_date<=today).map(c=>[c.checkin_date,c]));const all=[...unique.values()];
