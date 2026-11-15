@@ -10,7 +10,7 @@ test('operator queue exposes bounded references and stays inaccessible to client
   const db=new PGlite();
   try{
     await db.exec("create role anon; create role authenticated; create schema private; grant usage on schema private to anon,authenticated; create table public.billing_requests(id uuid primary key,kind text,status text check(status in ('received','processing','completed','rejected')),created_at timestamptz default now()); create table public.content_reports(id uuid primary key,post_id uuid,comment_id uuid,created_at timestamptz default now());");
-    await db.exec(await readFile(new URL('../supabase/migrations/20261114233232_operations_review_log.sql',import.meta.url),'utf8'));
+    await db.exec(await readFile(new URL('../supabase/migrations/20261115001032_operations_review_log.sql',import.meta.url),'utf8'));
     await db.exec("insert into public.billing_requests select gen_random_uuid(),'account_deletion','received',now() from generate_series(1,105); insert into public.content_reports select gen_random_uuid(),gen_random_uuid(),null,now() from generate_series(1,3);");
     for(const role of ['anon','authenticated']){
       await db.exec(`set role ${role}`);

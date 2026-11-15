@@ -49,7 +49,7 @@ test('billing migration: launch capacity, ownership, trial eligibility and entit
   `);
   await db.exec(await readFile(new URL('../db/billing-launch.sql',import.meta.url),'utf8'));
   const immediateSql=await readFile(new URL('../db/billing-immediate.sql',import.meta.url),'utf8');
-  assert.equal(immediateSql,await readFile(new URL('../supabase/migrations/20261114233102_remove_new_subscription_trials.sql',import.meta.url),'utf8'));
+  assert.equal(immediateSql,await readFile(new URL('../supabase/migrations/20261115001025_remove_new_subscription_trials.sql',import.meta.url),'utf8'));
   await db.exec(immediateSql);
   const role=async(name,user='')=>{assert.ok(['anon','authenticated','service_role'].includes(name));await db.exec(`reset role;set role ${name}`);await db.query("select set_config('test.uid',$1,false)",[user]);};
   const reset=async(n=3)=>{

@@ -8,8 +8,8 @@ const require=createRequire(import.meta.url);
 const {PGlite}=await import(pathToFileURL(process.env.SOBRIZEN_QA_PGLITE||require.resolve('@electric-sql/pglite')).href);
 const UID='11111111-1111-4111-8111-111111111111',OTHER='22222222-2222-4222-8222-222222222222';
 const base=await readFile(new URL('../db/20261109_sensitive_consent_and_journal.sql',import.meta.url),'utf8');
-const phone=await readFile(new URL('../supabase/migrations/20261114232737_fix_private_settings_phone.sql',import.meta.url),'utf8');
-const cas=await readFile(new URL('../supabase/migrations/20261114232739_program_progress_cas.sql',import.meta.url),'utf8');
+const phone=await readFile(new URL('../supabase/migrations/20261115000954_fix_private_settings_phone.sql',import.meta.url),'utf8');
+const cas=await readFile(new URL('../supabase/migrations/20261115001005_program_progress_cas.sql',import.meta.url),'utf8');
 
 test('reflection revisions, consent and private settings remain enforced in PostgreSQL',async t=>{
   const db=new PGlite(),query=(sql,args=[])=>db.query(sql,args);

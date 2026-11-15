@@ -61,7 +61,7 @@ Les scénarios DOM couvrent les seize affichages, les quatre niveaux de Memory, 
 
 ## Labyrinthe et Solitaire
 
-La migration `20261114232941_arcade_private_records.sql`, générée avec le CLI, ajoute les deux identifiants et leurs contraintes ; elle conserve les données et les policies existantes. Son SQL est également conservé dans `db/arcade-records.sql` pour les vérifications isolées. Elle doit être appliquée avant de publier le client utilisant les nouveaux records.
+La migration `20261115001014_arcade_private_records.sql`, générée avec le CLI puis renommée pour correspondre à sa version distante, ajoute les deux identifiants et leurs contraintes ; elle conserve les données et les policies existantes. Son SQL est également conservé dans `db/arcade-records.sql` pour les vérifications isolées. Elle doit être appliquée avant de publier le client utilisant les nouveaux records.
 
 - **Labyrinthe** : meilleur score en points et meilleur niveau atteint, sauvegardés à la fin ou à la fermeture d’une partie ayant marqué des points. La pause ne déclare pas une victoire et ne termine pas la partie.
 - **Solitaire** : une victoire n’est enregistrée qu’une fois les 52 cartes aux fondations. Le score interne `1 000 000 − nombre d’actions` permet de conserver le plus petit nombre d’actions avec la règle monotone existante. Chaque déplacement, pioche, recyclage de la pioche et annulation compte ; l’annulation ne réduit jamais ce compteur. Les indices et la fondation automatique sont autorisés et annoncés dans les règles ainsi que le libellé du record. Une partie inachevée ou quittée ne crée aucun record de victoire.
