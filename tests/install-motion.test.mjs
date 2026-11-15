@@ -4,7 +4,7 @@ import {JSDOM} from 'jsdom';
 import {createInstallExperience,INSTALL_DELAY} from '../install-prompt.mjs';
 import {createProgressMotion} from '../progress-motion.mjs';
 const flush=async()=>{for(let i=0;i<8;i++)await Promise.resolve();};
-function harness({ua='Mozilla/5.0 Chrome/130.0',standalone=false,stored={},blocked=false}={}){
+function harness({ua='Mozilla/5.0 Chrome/130.0',standalone=false,stored={},blocked=false,engaged=true}={}){
  const dom=new JSDOM('<body><section id="welcome"><div class="welcome-hero"><div class="hero-tags"></div></div><input id="email"></section><div id="workspace" hidden><main id="content"></main></div><button data-action="install">Ancien bouton</button></body>',{url:'https://sobrizen.fr/',pretendToBeVisual:true});
  const w=dom.window,d=w.document;let now=1794600000000,tid=0;const tasks=new Map();
  Object.defineProperty(d,'readyState',{configurable:true,value:'complete'});
@@ -15,12 +15,14 @@ function harness({ua='Mozilla/5.0 Chrome/130.0',standalone=false,stored={},block
  for(const [key,value] of Object.entries(stored))w.localStorage.setItem(key,value);
  if(blocked)for(const key of ['localStorage','sessionStorage'])Object.defineProperty(w,key,{get(){throw Error('blocked');}});
  const install=createInstallExperience(w,d,{now:()=>now});
+ if(engaged)d.dispatchEvent(new w.CustomEvent('sobrizen-useful-action'));
  const advance=async ms=>{const end=now+ms;for(;;){const list=[...tasks].filter(([,t])=>t.at<=end).sort((a,b)=>a[1].at-b[1].at);if(!list.length)break;const [id,t]=list[0];tasks.delete(id);now=t.at;t.fn();await flush();}now=end;await flush();};
  const prompt=(outcome='dismissed')=>{let calls=0;const e=new w.Event('beforeinstallprompt',{cancelable:true});e.prompt=()=>{calls++;return Promise.resolve();};e.userChoice=Promise.resolve({outcome});w.dispatchEvent(e);return {event:e,calls:()=>calls};};
  const end=()=>{install.destroy();w.close();};
  return {w,d,media,install,advance,prompt,end,tasks};
 }
-test('installation invitation opens at 3 seconds, never invokes native prompt automatically',async()=>{const h=harness(),p=h.prompt();await h.advance(INSTALL_DELAY-1);assert.equal(h.d.querySelector('dialog[open]'),null);await h.advance(1);assert.ok(h.d.querySelector('#szInstallDialog[open]'));assert.equal(p.calls(),0);h.end();});
+test('a new visitor is never interrupted before a useful action',async()=>{const h=harness({engaged:false}),p=h.prompt();await h.advance(60000);assert.equal(h.d.querySelector('dialog[open]'),null);h.d.dispatchEvent(new h.w.CustomEvent('sobrizen-useful-action'));await h.advance(INSTALL_DELAY);assert.ok(h.d.querySelector('#szInstallDialog[open]'));assert.equal(p.calls(),0);h.end();});
+test('installation invitation follows a useful action, never invokes native prompt automatically',async()=>{const h=harness(),p=h.prompt();await h.advance(INSTALL_DELAY-1);assert.equal(h.d.querySelector('dialog[open]'),null);await h.advance(1);assert.ok(h.d.querySelector('#szInstallDialog[open]'));assert.equal(p.calls(),0);h.end();});
 test('native prompt is click-only and single use; dismissal keeps a usable manual button',async()=>{const h=harness(),p=h.prompt();await h.advance(3000);h.d.querySelector('#szInstallDialog [data-pwa-action="install"]').click();assert.equal(p.calls(),1);h.d.querySelector('#szInstallDialog [data-pwa-action="install"]').click();assert.equal(p.calls(),1);await flush();assert.ok(!h.d.querySelector('#szInstallDialog').open);h.d.querySelector('[data-pwa-banner] button').click();assert.ok(!h.d.querySelector('#szInstallGuide').hidden);assert.equal(p.calls(),1);h.end();});
 test('late install readiness upgrades a live guide',async()=>{const h=harness();await h.advance(3000);h.d.querySelector('#szInstallDialog [data-pwa-action="install"]').click();assert.ok(!h.d.querySelector('#szInstallGuide').hidden);h.prompt();await flush();assert.equal(h.d.querySelector('#szInstallDialog [data-pwa-label]').textContent,'Installer SobriZen');h.end();});
 test('Plus tard retains homepage CTA and snoozes the popup',async()=>{const h=harness();await h.advance(3000);h.d.querySelector('[data-pwa-action="later"]').click();await h.advance(30000);assert.ok(!h.d.querySelector('dialog').open);assert.ok(!h.d.querySelector('[data-pwa-banner]').hidden);assert.ok(Number(h.w.localStorage.getItem('sobrizen-install-later-v1'))>0);h.end();const q=harness({stored:{'sobrizen-install-later-v1':'1794599999999'}});await q.advance(30000);assert.equal(q.d.querySelector('dialog'),null);q.end();});

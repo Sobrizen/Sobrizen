@@ -90,6 +90,8 @@ test('difficulty keyboard navigation keeps one selected tab and supports Home/En
 test('free access stays on Doux, locked difficulties stay locked, and upgrades work',options,async()=>{
  const a=await app({premium:false});try{
   await a.click('#nav [data-move="open"]');
+  assert.match(a.get('.mv-warning a').textContent,/Voir les offres Premium/);
+  assert.doesNotMatch(a.get('#movement-root').textContent,/essai de 7 jours|7 jours gratuits/);
   a.d.documentElement.dataset.premium='true';
   a.d.dispatchEvent(new a.w.CustomEvent('sobrizen-access-change',{detail:{premium:true,ready:true}}));
   assert.equal(a.d.querySelectorAll('.mv-card').length,4);

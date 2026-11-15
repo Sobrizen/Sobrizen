@@ -1,5 +1,7 @@
 # SobriZen Premium — préparation du lancement du 9 novembre 2026
 
+> **Document historique — actualisation du 15 novembre 2026 :** [nouvelle offre immédiate, essais acquis préservés et déploiement sécurisé](docs/RELEASE_2026-11-15.md). Les nouveaux achats de la version préparée n'ont plus d'essai gratuit. Ne pas appliquer la migration correspondante sous l'ancien handler avec les ventes ouvertes. Le corps ci-dessous conserve l'état et les validations du 9 novembre ; il ne décrit pas l'état courant. Les textes juridiques n'ont pas été modifiés et restent à actualiser par le propriétaire.
+
 **Les ventes restent fermées tant que les prérequis réels ne sont pas confirmés.** Le code, les tarifs Stripe et le service de facturation ont été préparés pour l’offre officielle. Une clé configurée, un compteur à 100 ou un test automatisé réussi ne constituent pas une preuve de paiement réel ni une validation juridique.
 
 ## Offre officielle et objets Stripe

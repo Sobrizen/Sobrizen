@@ -28,12 +28,15 @@ Les parties terminées, fermées ou recommencées sauvegardent leur résultat. L
 | 5 choses | Nombre de séances dont les cinq étapes ont été parcourues, sans mesure de performance ou de santé |
 | Mosaïque | Meilleur score et plus haut niveau atteint |
 | Gemmes, Couleurs, Bulles, Liens | Plus haut niveau terminé et meilleur score d’un plateau |
+| SémantiZen | Plus petit nombre d’essais pour un mot trouvé sans indice |
+| Labyrinthe | Meilleur score en points et meilleur niveau atteint |
+| Solitaire | Plus petit nombre d’actions pour une victoire complète ; aides autorisées et annulations comptées |
 
 Les maxima et minima sont agrégés indépendamment : le meilleur temps de réaction peut provenir d’une autre partie que le meilleur nombre de signaux. Les scores sont déclarés par les contrôleurs du client et restent privés. Il ne s’agit pas d’un classement ou d’un système de vérification anti-triche.
 
 ## Persistance et isolation
 
-`game-records.sql` prépare deux tables. `game_records` conserve au maximum treize lignes par compte, une par jeu. `game_record_completions` ne conserve que le propriétaire, un UUID et une date par séance de « 5 choses » terminée. Ces reçus rendent le compteur idempotent, même après une réponse perdue et un nouvel essai. Aucun historique détaillé des coups n’est conservé. Les deux tables sont supprimées en cascade avec le compte.
+`game-records.sql` prépare deux tables. Après les migrations additives SémantiZen et arcade, `game_records` conserve au maximum seize lignes par compte, une par jeu. `game_record_completions` ne conserve que le propriétaire, un UUID et une date par séance de « 5 choses » terminée. Ces reçus rendent le compteur idempotent, même après une réponse perdue et un nouvel essai. Aucun historique détaillé des coups n’est conservé. Les deux tables sont supprimées en cascade avec le compte.
 
 Le RPC `save_game_record(p_game_id,p_score,p_level,p_time_ms,p_completed,p_run_id,p_expected_user_id)` est `SECURITY INVOKER`. Les politiques RLS restreignent lecture et écriture au propriétaire. Une seconde vérification compare `auth.uid()` au compte attendu, ce qui empêche qu’une requête préparée pour un compte soit attribuée au compte qui vient de le remplacer. Les trois jeux gratuits peuvent enregistrer leurs résultats sans Premium ; les dix autres vérifient `public.sobrizen_has_premium()` côté SQL, y compris par leurs politiques d’écriture.
 
@@ -54,7 +57,16 @@ node --test games.test.mjs tests/games-mobile.test.mjs tests/games-brain.test.mj
 
 Si les dépendances sont installées hors du dépôt, `SOBRIZEN_PGLITE_PATH` désigne le paquet PGlite et `SOBRIZEN_QA_JSDOM` le fichier `jsdom/lib/api.js`. La suite ne masque pas une dépendance manquante par un test ignoré.
 
-Les scénarios DOM couvrent les treize affichages et leurs résultats, les quatre niveaux de Memory, une résolution complète de Couleurs et Liens, les transitions de Séquence, la mutation trompeuse de `dataset.premium` et le changement de session/droit. Le canvas et le temps sont simulés : le rendu tactile et les thèmes doivent être vérifiés dans un navigateur réel.
+Les scénarios DOM couvrent les seize affichages, les quatre niveaux de Memory, une résolution complète de Couleurs et Liens, les transitions de Séquence, la mutation trompeuse de `dataset.premium` et le changement de session/droit. Les tests arcade vérifient plusieurs changements de niveau sans duplication du scheduler, pause/reprise, dessin uniquement aux pas de jeu, clavier du Solitaire, focus et annonces, victoire complète et fermeture sans fausse victoire. Le canvas et le temps sont simulés : le rendu tactile et les thèmes doivent être vérifiés dans un navigateur réel.
+
+## Labyrinthe et Solitaire
+
+La migration `20261114232941_arcade_private_records.sql`, générée avec le CLI, ajoute les deux identifiants et leurs contraintes ; elle conserve les données et les policies existantes. Son SQL est également conservé dans `db/arcade-records.sql` pour les vérifications isolées. Elle doit être appliquée avant de publier le client utilisant les nouveaux records.
+
+- **Labyrinthe** : meilleur score en points et meilleur niveau atteint, sauvegardés à la fin ou à la fermeture d’une partie ayant marqué des points. La pause ne déclare pas une victoire et ne termine pas la partie.
+- **Solitaire** : une victoire n’est enregistrée qu’une fois les 52 cartes aux fondations. Le score interne `1 000 000 − nombre d’actions` permet de conserver le plus petit nombre d’actions avec la règle monotone existante. Chaque déplacement, pioche, recyclage de la pioche et annulation compte ; l’annulation ne réduit jamais ce compteur. Les indices et la fondation automatique sont autorisés et annoncés dans les règles ainsi que le libellé du record. Une partie inachevée ou quittée ne crée aucun record de victoire.
+
+Ces résultats restent déclarés par le client, privés et sans classement public. Une erreur réseau laisse un résultat non synchronisé et la commande de nouvel essai existante ; les changements de session le retirent de la mémoire sans l’affecter au compte suivant.
 
 Références de conception consultées le 9 novembre 2026 :
 

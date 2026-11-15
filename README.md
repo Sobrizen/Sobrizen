@@ -1,5 +1,7 @@
 # Sobrizen V4 — suivi par périodes
 
+> **Actualisation du 15 novembre 2026 :** voir [la note de livraison et l'ordre sûr de déploiement](docs/RELEASE_2026-11-15.md). La version préparée facture les nouvelles souscriptions immédiatement, sans essai ; les essais déjà accordés restent conservés. Les mentions d'essai et d'ouverture ci-dessous décrivent l'historique. Les textes juridiques restent à actualiser par le propriétaire.
+
 Frontend statique en français, préparé dans un dossier public `dist/` et hébergé sur Vercel. Backend Supabase existant. Le build utilise une liste explicite de ressources publiques et conserve les sources intactes ; voir [PUBLICATION.md](PUBLICATION.md).
 
 ## Fonctions

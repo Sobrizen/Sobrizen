@@ -8,6 +8,7 @@
     "prepare:semantic": "node scripts/prepare-semantic-data.mjs",
     "prebuild": "npm run prepare:semantic",
     "build": "node scripts/build.mjs",
+    "release:check": "npm test && npm run build",
     "pretest": "npm run prepare:semantic",
     "test": "node scripts/test.mjs",
     "test:agenda": "node scripts/test.mjs tests/agenda-core.test.mjs tests/agenda-dom.test.mjs tests/agenda-sql.test.mjs",

@@ -1,0 +1,12 @@
+{
+  "date_local": "2026-11-15",
+  "command": "npm run release:check",
+  "tests": {"total": 684, "passed": 684, "failed": 0, "skipped": 0},
+  "test_duration_ms": 146907.2652,
+  "public_build": {"files": 116, "bytes": 7953592, "service_worker_cache": "sobrizen-v22-20261115-launch-ready"},
+  "credential_scan_findings": 0,
+  "dependency_advisories": 0,
+  "environment": "Node 24 on Windows; production application controllers and isolated PostgreSQL/Stripe adapters",
+  "limits": ["No real card charged", "No real customer account created or deleted", "No physical mobile-device or screen-reader verification", "Browser visual automation unavailable", "These local checks do not establish a bank payout or a successful backup restoration"],
+  "deployment_status": "Recorded before deployment; see the separate deployment result for publication status"
+}

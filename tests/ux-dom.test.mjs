@@ -1,6 +1,7 @@
 /** Run: node tests/ux-dom.test.mjs [--group=demo|without-consent|member|premium|races]. */
 import assert from 'node:assert/strict';
 import {HEALTH_SOURCES} from '../health-evidence.mjs';
+import {GAME_IDS,FREE_GAMES} from '../game-records-core.mjs';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {environment,boot,mockService,UID,UID2,$,$$,txt,click,value,submit,key,closeModal,route,settle,setNow,now,isWriteCall} from './ux-dom-support.mjs';
@@ -91,7 +92,7 @@ if(!group){
     await check('profile saves a demo display name and offers readable text and theme controls',async()=>{
       await route('profile');await value($('#profileForm'),'display_name','Alex QA');await submit($('#profileForm'));assert.equal($('#profileForm').elements.display_name.value,'Alex QA');await click('[data-ux-action="text-size"][data-ux-value="large"]');assert.equal(document.body.classList.contains('ux-large-text'),true);const dark=document.body.classList.contains('dark');await click('[data-action="theme"]');assert.equal(document.body.classList.contains('dark'),!dark);
     });
-    await check('free game catalog exposes three games and keeps ten Premium gates',async()=>{await route('games');assert.equal($$('#gameZone [data-game]').length,3);assert.equal($$('#gameZone [data-game-upgrade]').length,10);await click('[data-game="ground"]');assert.ok($('#gaPlay'));for(let i=0;i<5;i++)await click('#gaPlay [data-ga="ground"]');assert.equal($('#gaPlay').dataset.state,'result');await click('#gaPlay [data-ga="close"]');assert.equal($('#gaPlay'),null);});
+    await check('demo catalog exposes the free games and semantic demo while retaining every other Premium gate',async()=>{await route('games');assert.equal($$('#gameZone [data-game]').length,FREE_GAMES.length);assert.equal($$('#gameZone [data-game-record]').length,GAME_IDS.length);assert.equal($$('#gameZone [data-game-upgrade]').length,GAME_IDS.length-FREE_GAMES.length-1);assert.ok($('[data-game-upgrade="maze"]'));assert.ok($('[data-game-upgrade="solitaire"]'));await click('[data-game="ground"]');assert.ok($('#gaPlay'));for(let i=0;i<5;i++)await click('#gaPlay [data-ga="ground"]');assert.equal($('#gaPlay').dataset.state,'result');await click('#gaPlay [data-ga="close"]');assert.equal($('#gaPlay'),null);});
     await check('help and a pause remain available without sending or calling anyone',async()=>{await click('header [data-action="help"]');assert.ok($('#modal a[href="tel:112"]'));assert.match(txt('#modalContent'),/ne traitent pas un sevrage/);await click('[data-action="urge"]');await submit($('#urgeStartForm'));assert.equal(txt('#timer'),'10:00');setNow(now()+60000);await env.tick();assert.equal(txt('#timer'),'09:00');await submit($('#urgeEndForm'));assert.equal($('#modal').open,false);});
   }
 
@@ -123,7 +124,7 @@ if(!group){
   }
   if(group==='blocked'){
     await check('blocked payment access remains free even when its previous paid period is in the future',async()=>{
-      assert.equal(document.documentElement.dataset.premium,'false');await route('games');assert.equal($$('#gameZone [data-game]').length,3);assert.equal($$('#gameZone [data-game-upgrade]').length,11);
+      assert.equal(document.documentElement.dataset.premium,'false');await route('games');assert.equal($$('#gameZone [data-game]').length,FREE_GAMES.length);assert.equal($$('#gameZone [data-game-upgrade]').length,GAME_IDS.length-FREE_GAMES.length);
       document.documentElement.dataset.premium='true';document.dispatchEvent(new CustomEvent('sobrizen-access-change',{detail:{premium:true,ready:true}}));
       const forged=document.createElement('button');forged.dataset.game='memory';document.body.append(forged);try{await click(forged);assert.equal($('#gaPlay'),null);}finally{forged.remove();}
       await click('#nav [data-move="open"]');await click('#mv-tab-moyen');assert.equal($('#mv-tab-doux').getAttribute('aria-selected'),'true');assert.equal($('#mv-tab-moyen').getAttribute('aria-selected'),'false');
@@ -158,7 +159,7 @@ if(!group){
   }
 
   if(group==='premium'){
-    await check('premium subscription unlocks detailed tracking and all thirteen games',async()=>{assert.equal(document.documentElement.dataset.premium,'true');await route('progress');assert.ok($('[data-tl-chart-instance]'));await route('games');assert.equal($$('#gameZone [data-game]').length,8);assert.equal($$('#gameZone [data-brain-game]').length,5);assert.equal($$('#gameZone [data-game-upgrade]').length,0);});
+    await check('premium subscription unlocks detailed tracking and all sixteen games',async()=>{assert.equal(document.documentElement.dataset.premium,'true');await route('progress');assert.ok($('[data-tl-chart-instance]'));await route('games');assert.equal($$('#gameZone [data-game]').length,8);assert.equal($$('#gameZone [data-brain-game]').length,5);assert.equal($$('#gameZone [data-arcade]').length,2);assert.ok($('[data-semantic-game]'));assert.equal($$('#gameZone [data-game-record]').length,GAME_IDS.length);assert.equal($$('#gameZone [data-game-upgrade]').length,0);});
     await check('detailed chart supports keyboard selection and period navigation without writes',async()=>{await route('progress');const writes=mock.calls.filter(isWriteCall).length,point=$('.tl-chart-point');assert.ok(point);point.focus();const event=await key(point,'End');assert.equal(event.defaultPrevented,true);assert.ok(document.activeElement.matches('.tl-chart-point'));await key(document.activeElement,'Enter');assert.ok($('[data-tl-chart-instance]'));assert.equal(mock.calls.filter(isWriteCall).length,writes);});
     for(const id of ['snake','blocks','merge','sequence','memory','reaction','taps','ground'])await check(`game ${id}: launch, help, keyboard pause/resume and clean close`,async()=>{
       await route('games');const launch=$(`[data-game="${id}"]`);launch.focus();await click(launch);assert.equal($('#gaPlay')?.dataset.game,id);assert.equal(document.body.style.overflow,'hidden');await env.frames(3,800);await click('#gaPlay [data-ga="help"]');assert.equal($('#gaPlay').classList.contains('ga-paused'),true);await key($('#gaPlay'),'p');assert.equal($('#gaPlay').classList.contains('ga-paused'),false);await key($('#gaPlay'),'p');assert.equal($('#gaPlay').classList.contains('ga-paused'),true);await click('#gaPlay [data-ga="resume"]');if(id==='taps'){await click('#gaPlay [data-ga="target"]');assert.equal(txt('#gaPlay .ga-score'),'19 s');assert.match(txt('#gaPlay .ga-unit'),/1 cibles/);}if(id==='ground'){await click('#gaPlay [data-ga="ground"]');assert.equal(txt('#gaPlay .ga-level'),'2 / 5');}await click('#gaPlay [data-ga="close"]');assert.equal($('#gaPlay'),null);assert.equal(document.body.style.overflow,'');assert.equal(document.activeElement,launch);

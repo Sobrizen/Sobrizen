@@ -27,7 +27,7 @@ test('billing offer validates exact live recurring prices and all readiness gate
 test('the public launch counter is bounded, keeps zero and never invents unknown availability',()=>{
  for(const n of [0,1,99,100])assert.equal(publicOffer(n).launch.remaining,n);
  for(const n of [-1,101,0.5,NaN,Infinity,'100',undefined,null])assert.equal(publicOffer(n).launch.remaining,null);
- const offer=publicOffer(100);assert.equal(offer.monthly.amount,299);assert.equal(offer.annual.amount,2999);assert.equal(offer.launch.amount,1999);assert.equal(offer.trial_days,7);assert.equal(offer.launch.limit,100);assert.equal(offer.launch.lifetime_while_active,true);
+ const offer=publicOffer(100);assert.equal(offer.monthly.amount,299);assert.equal(offer.annual.amount,2999);assert.equal(offer.launch.amount,1999);assert.equal(offer.trial_days,0);assert.equal(offer.billing_policy,CFG.billingPolicy);assert.equal(offer.launch.limit,100);assert.equal(offer.launch.lifetime_while_active,true);
 });
 
 test('membership follows nonexpired paid/trial time, status, risk blocks and latest valid access',()=>{
@@ -88,14 +88,13 @@ test('verified trial grants seven days, rejects oversized or expired periods and
  assert.equal(snapshot(trial,[],NOW,{blocked:true}).premium,false);
 });
 
-test('Checkout commits exact plan, trial, reservation, site and one-hour expiration',()=>{
+test('Checkout bills immediately for every plan, ignores legacy trial input and retains reservation/site/expiry',()=>{
  for(const plan of ['monthly','annual','launch'])for(const trial of [true,false]){
   const result=checkoutParameters({userId:A,customerId:'cus_Example',priceId:`price_${plan}`,plan,trial,reservationId:plan==='launch'?ATTEMPT:undefined,now:NOW,integrationId:'integration_test'});
   assert.equal(result.mode,'subscription');assert.equal(result.customer,'cus_Example');assert.equal(result.client_reference_id,A);assert.deepEqual(result.line_items,[{price:`price_${plan}`,quantity:1}]);
   assert.equal(result.expires_at,SEC+3600);assert.equal(result.payment_method_collection,'always');assert.equal(result.metadata.plan,plan);assert.equal(result.subscription_data.metadata.user_id,A);assert.equal(result.metadata.terms_version,CFG.termsVersion);assert.equal(result.integration_identifier,'integration_test');
   assert.ok(result.success_url.startsWith(CFG.site+'/abonnement?'));assert.ok(result.cancel_url.startsWith(CFG.site+'/abonnement?'));
-  if(trial){assert.equal(result.subscription_data.trial_period_days,7);assert.equal(result.subscription_data.trial_settings.end_behavior.missing_payment_method,'cancel');assert.match(result.custom_text.submit.message,/7 jours gratuits/);}
-  else {assert.equal(result.subscription_data.trial_period_days,undefined);assert.equal(result.subscription_data.trial_settings,undefined);assert.doesNotMatch(result.custom_text.submit.message,/7 jours gratuits/);}
+  assert.equal(result.subscription_data.trial_period_days,undefined);assert.equal(result.subscription_data.trial_end,undefined);assert.equal(result.subscription_data.trial_settings,undefined);assert.match(result.custom_text.submit.message,/premier paiement à la confirmation/);assert.match(result.custom_text.submit.message,/Aucun essai gratuit/);assert.equal(result.metadata.billing_policy,CFG.billingPolicy);
   if(plan==='launch'){assert.equal(result.metadata.launch_reservation_id,ATTEMPT);assert.match(result.custom_text.submit.message,/reste actif/);}
   assert.match(result.custom_text.submit.message,/Renouvellement automatique/);assert.match(result.custom_text.submit.message,/14 jours/);
  }

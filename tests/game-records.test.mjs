@@ -32,10 +32,10 @@ function fixture({demo=false}={}){
   };
 }
 
-test('all fourteen activities have a private, intelligible record metric',async()=>{
+test('all sixteen activities have a private, intelligible record metric',async()=>{
   const f=fixture();await f.records.load();
   for(const id of GAME_IDS){
-    const result=id==='semantizen'?{score:999958,level:0,completed:true}:id==='ground'?{score:0,level:0,completed:true}:id==='memory'?{score:28,level:4,timeMs:120000,completed:true}:id==='reaction'?{score:12,level:5,timeMs:350,completed:true}:{score:42,level:2,completed:true};
+    const result=['semantizen','solitaire'].includes(id)?{score:999958,level:0,completed:true}:id==='maze'?{score:420,level:2}:id==='ground'?{score:0,level:0,completed:true}:id==='memory'?{score:28,level:4,timeMs:120000,completed:true}:id==='reaction'?{score:12,level:5,timeMs:350,completed:true}:{score:42,level:2,completed:true};
     assert.equal((await f.records.save(f.records.begin(id),result)).saved,true,id);
     assert.ok(f.records.record(id),id);
     assert.match(f.records.describe(id),id==='ground'?/séance terminée/:/Mon record/);
@@ -56,6 +56,13 @@ test('game results reject impossible, nonfinite and medically meaningless pause 
   assert.throws(()=>normalizeGameResult('snake',{score:1,timeMs:400}));
   assert.throws(()=>normalizeGameResult('ground',{score:5,completed:true}));
   assert.match(gameRecordLabel('ground',mergeGameRecord(null,'ground',{completed:true})),/1 séance terminée/);
+});
+test('arcade records retain real maze progress and completed solitaire actions with aids declared',()=>{
+ for(const result of [{score:1,level:1},{score:10,level:0},{score:10,level:1,timeMs:20}])assert.throws(()=>normalizeGameResult('maze',result));
+ for(const result of [{score:999999},{score:1000000,completed:true},{score:0,completed:true},{score:999999,level:1,completed:true}])assert.throws(()=>normalizeGameResult('solitaire',result));
+ let record=mergeGameRecord(null,'solitaire',{score:999800,completed:true});record=mergeGameRecord(record,'solitaire',{score:999900,completed:true});record=mergeGameRecord(record,'solitaire',{score:999700,completed:true});
+ assert.equal(record.best_score,999900);assert.match(gameRecordLabel('solitaire',record),/100 actions.*aides autorisées/);
+ assert.match(gameRecordLabel('maze',mergeGameRecord(null,'maze',{score:120,level:2})),/120 pts.*niveau 2 atteint/);
 });
 test('repeated finish/close and a network retry count one completed pause',async()=>{
   const f=fixture();const run=f.records.begin('ground');f.offline();

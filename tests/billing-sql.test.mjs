@@ -48,6 +48,9 @@ test('billing migration: launch capacity, ownership, trial eligibility and entit
    grant all on public.billing_customers,public.billing_subscriptions,public.premium_test_grants,public.subscription_anchors to service_role;
   `);
   await db.exec(await readFile(new URL('../db/billing-launch.sql',import.meta.url),'utf8'));
+  const immediateSql=await readFile(new URL('../db/billing-immediate.sql',import.meta.url),'utf8');
+  assert.equal(immediateSql,await readFile(new URL('../supabase/migrations/20261114233102_remove_new_subscription_trials.sql',import.meta.url),'utf8'));
+  await db.exec(immediateSql);
   const role=async(name,user='')=>{assert.ok(['anon','authenticated','service_role'].includes(name));await db.exec(`reset role;set role ${name}`);await db.query("select set_config('test.uid',$1,false)",[user]);};
   const reset=async(n=3)=>{
    await db.exec('reset role;truncate public.billing_checkout_attempts,public.billing_risk_flags,public.billing_customers,public.billing_subscriptions,public.premium_test_grants,public.subscription_anchors,auth.users cascade');
@@ -88,7 +91,7 @@ test('billing migration: launch capacity, ownership, trial eligibility and entit
   });
 
   await t.test('retries return one pending attempt and cannot reserve a second plan or another customer',async()=>{
-   await reset();const a=await begin();const again=await begin();assert.equal(a.id,again.id);assert.equal(a.trial_enabled,true);
+   await reset();const a=await begin();const again=await begin();assert.equal(a.id,again.id);assert.equal(a.trial_enabled,false);
    assert.equal(Date.parse(a.expires_at)-Date.parse(a.created_at),3600000);
    await assert.rejects(begin(1,'annual'),/CHECKOUT_PLAN_PENDING/);
    await assert.rejects(rpc('billing_begin_checkout',[uid(1),'launch',customer(2),'price_launch']),/BILLING_CUSTOMER_MISMATCH/);
@@ -110,7 +113,7 @@ test('billing migration: launch capacity, ownership, trial eligibility and entit
    assert.equal(await remaining(),99);await assert.rejects(settle(a,'failed',1,null),/CHECKOUT_EXPIRY_REQUIRED/);
    assert.equal((await settle(a,'expired',1,null)).status,'expired');assert.equal(await remaining(),100);
    assert.equal((await settle(a,'expired',1,null)).status,'expired');
-   const retry=await begin();assert.notEqual(retry.id,a.id);assert.equal(retry.trial_enabled,true);
+   const retry=await begin();assert.notEqual(retry.id,a.id);assert.equal(retry.trial_enabled,false);
    await assert.rejects(settle(a,'completed',1),/CHECKOUT_STATE_CONFLICT/);
   });
 
@@ -121,14 +124,14 @@ test('billing migration: launch capacity, ownership, trial eligibility and entit
    assert.equal(await remaining(),99);assert.equal((await get('select count(*)::int as n from public.billing_customers where user_id=$1',[uid(1)])).n,0);
   });
 
-  await t.test('one completed trial permanently consumes eligibility; retries preserve its first timestamp',async()=>{
-   await reset();const a=await begin();await attach(a);await settle(a);
+  await t.test('legacy completed trials retain history while all new reservations disable trials',async()=>{
+   await reset();const a=await begin();await db.query('update public.billing_checkout_attempts set trial_enabled=true where id=$1',[a.id]);await attach(a);await settle(a);
    const first=(await get('select trial_used_at from public.billing_customers where user_id=$1',[uid(1)])).trial_used_at;
    assert.ok(first);await settle(a);const repeated=(await get('select trial_used_at from public.billing_customers where user_id=$1',[uid(1)])).trial_used_at;
    assert.equal(+new Date(repeated),+new Date(first));
    const next=await begin(1,'monthly');assert.equal(next.trial_enabled,false);
    await addSub(2,{status:'canceled',paid_until:null});assert.equal((await begin(2,'annual')).trial_enabled,false);
-   assert.equal((await begin(3)).trial_enabled,true);
+   assert.equal((await begin(3)).trial_enabled,false);
   });
 
   await t.test('malformed or NULL Checkout identity cannot attach or complete an allocation',async()=>{

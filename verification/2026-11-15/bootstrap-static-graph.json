@@ -1,0 +1,30 @@
+{
+  "measured_on": "2026-11-15",
+  "method": "Static relative-import graph of working source; raw bytes, no gzip or browser/network timing",
+  "before": {
+    "modules": 52,
+    "rawBytes": 921824
+  },
+  "after": {
+    "modules": 6,
+    "rawBytes": 69436
+  },
+  "reductionPercent": 92.5,
+  "deferred": {
+    "modules": 47,
+    "rawBytes": 857798,
+    "quotesBytes": 105963,
+    "staticGamesBytes": 115908
+  },
+  "afterModules": [
+    "bootstrap.mjs",
+    "ergonomics.mjs",
+    "ergonomics-core.mjs",
+    "section-navigation.mjs",
+    "install-prompt.mjs",
+    "form-validation.mjs"
+  ],
+  "bootstrapTestsPassed": 16,
+  "publicBuildTestsPassed": 5,
+  "productionDeploymentPerformed": false
+}

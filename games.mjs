@@ -1,4 +1,4 @@
-/* Thirteen established games plus SémantiZen, an original semantic word game. */
+/* Sixteen activities share the same account-scoped records and access runtime. */
 import {gamesView as mobileView,initGames as initMobile} from './games-mobile.mjs';
 import {puzzleCards,initPuzzleGames} from './games-puzzles.mjs';
 import {configureGameRuntime,retryGameRecords} from './games-runtime.mjs';

@@ -4,3 +4,5 @@ dist/
 supabase/.temp/
 semantizen-vocabulary.json
 semantizen-vectors.bin
+artifacts/
+artifacts-*.log
