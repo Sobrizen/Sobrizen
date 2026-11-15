@@ -1148,3 +1148,39 @@ body.sz-document [hidden] { display: none !important; }
   body.ux-ready #content { max-width: none; }
   body.ux-ready #content :is(.card, .stat, .dy-primary-grid > section) { box-shadow: none !important; }
 }
+
+/* Shared hospital-inspired palette for existing document pages. */
+body.sz-document{
+ --sz-bg:#f5f8f8;--sz-surface:#ffffff;--sz-elevated:#f0f7f8;--sz-ink:#123c46;--sz-muted:#53717a;--sz-line:#d6e5e8;
+ --sz-home:#087f8c;--sz-home-soft:#e9f6f5;--sz-home-edge:#acd8db;
+ --sz-progress:#276b8a;--sz-progress-soft:#edf5fa;--sz-progress-edge:#bdd7e5;
+ --sz-health:#14796f;--sz-health-soft:#eaf6f2;--sz-health-edge:#b4dcd2;
+ --sz-journey:#166d7b;--sz-journey-soft:#edf6f8;--sz-journey-edge:#b9d8df;
+ --sz-journal:#376c83;--sz-journal-soft:#eff6fa;--sz-journal-edge:#c0d8e4;
+ --sz-agenda:#1c7478;--sz-agenda-soft:#edf7f6;--sz-agenda-edge:#b9dcda;
+ --sz-movement:#2d786e;--sz-movement-soft:#edf7f3;--sz-movement-edge:#bddcd2;
+ --sz-games:#386d89;--sz-games-soft:#edf4f9;--sz-games-edge:#c0d5e3;
+ --sz-community:#1b7484;--sz-community-soft:#ebf6f8;--sz-community-edge:#b7dce2;
+ --sz-profile:#446b7a;--sz-profile-soft:#eff5f7;--sz-profile-edge:#c5d9e0;
+ --sz-success:#14796f;--sz-success-soft:#eaf6f2;--sz-warning:#8a5c1b;--sz-warning-soft:#fff6e8;
+ --sz-danger:#aa3e4a;--sz-danger-soft:#fff0f2;--sz-on-action:#ffffff;--sz-focus:#087f8c;
+ --sz-header:#ffffff;--sz-shadow:0 3px 16px #123c4606;--sz-radius:16px;
+ --bg:var(--sz-bg);--card:var(--sz-surface);--text:var(--sz-ink);--muted:var(--sz-muted);--line:var(--sz-line);
+ --paper:var(--sz-surface);--ink:var(--sz-ink);--accent:var(--sz-home);--tint:var(--sz-home-soft);
+ --green:var(--sz-section,var(--sz-home));--soft:var(--sz-section-soft,var(--sz-home-soft));
+}
+@media(prefers-color-scheme:dark){body.sz-document{
+ --sz-bg:#102a32;--sz-surface:#173840;--sz-elevated:#1d424b;--sz-ink:#e9f6f7;--sz-muted:#aec9cf;--sz-line:#35565f;
+ --sz-home:#7cd4d4;--sz-home-soft:#1b4149;--sz-home-edge:#46747c;
+ --sz-progress:#a4cee8;--sz-progress-soft:#203e50;--sz-progress-edge:#50768c;
+ --sz-health:#92d6c7;--sz-health-soft:#1d423f;--sz-health-edge:#4a7b72;
+ --sz-journey:#93d1df;--sz-journey-soft:#1d3f4a;--sz-journey-edge:#4c7682;
+ --sz-journal:#accfe0;--sz-journal-soft:#243f4e;--sz-journal-edge:#567887;
+ --sz-agenda:#91d4d2;--sz-agenda-soft:#1b4147;--sz-agenda-edge:#49787c;
+ --sz-movement:#9ad5c7;--sz-movement-soft:#20433f;--sz-movement-edge:#4d7a70;
+ --sz-games:#accde5;--sz-games-soft:#243e50;--sz-games-edge:#56758b;
+ --sz-community:#96d5df;--sz-community-soft:#1d414b;--sz-community-edge:#4a7883;
+ --sz-profile:#b4ced9;--sz-profile-soft:#283f49;--sz-profile-edge:#5e7986;
+ --sz-success:#92d6c7;--sz-success-soft:#1d423f;--sz-warning:#edc994;--sz-warning-soft:#413728;
+ --sz-danger:#ffb7c1;--sz-danger-soft:#482e3a;--sz-on-action:#102a32;--sz-focus:#9adfe3;--sz-header:#173840;
+}}
