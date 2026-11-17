@@ -14,6 +14,7 @@ test('real notification migrations isolate recipients, honor preferences, dedupl
   await db.exec(`create role anon;create role authenticated;create role service_role;create schema auth;create schema vault;grant usage on schema public,auth to anon,authenticated;create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;create table auth.users(id uuid primary key);create table public.profiles(id uuid primary key references auth.users(id) on delete cascade,display_name text);create table public.user_settings(user_id uuid primary key,hidden_authors uuid[] default '{}');create table public.posts(id uuid primary key,author_id uuid references public.profiles(id),created_at timestamptz default now());create table public.post_likes(post_id uuid references public.posts(id) on delete cascade,user_id uuid references auth.users(id),primary key(post_id,user_id));create table public.comments(id uuid primary key default gen_random_uuid(),post_id uuid references public.posts(id) on delete cascade,author_id uuid references public.profiles(id));create table vault.decrypted_secrets(id uuid primary key,decrypted_secret text);grant select,insert,delete on public.post_likes,public.comments to authenticated;`);
   await db.exec(await readFile(new URL('../supabase/migrations/20261117230042_client_account_and_notifications.sql',import.meta.url),'utf8'));
   await db.exec(await readFile(new URL('../supabase/migrations/20261117230741_notification_web_push.sql',import.meta.url),'utf8'));
+  await db.exec(await readFile(new URL('../supabase/migrations/20261117232043_finalize_expired_push_leases.sql',import.meta.url),'utf8'));
   for(const uid of [A,B,C]){await db.query('insert into auth.users values($1)',[uid]);await db.query('insert into public.profiles values($1,$2)',[uid,'Fiction '+uid[0]]);await db.query('insert into public.user_settings(user_id) values($1)',[uid]);}
   await db.query('insert into public.posts(id,author_id) values($1,$2)',[POST,A]);
   await t.test('a like creates exactly one owner-only alert, self activity creates none',async()=>{
@@ -63,6 +64,10 @@ test('real notification migrations isolate recipients, honor preferences, dedupl
     assert.equal((await db.query('select finished_at from private.notification_push_queue')).rows[0].finished_at,null);
     await member(null,'select public.complete_notification_push($1,$2,201)',[delivery.id,delivery.lease_token],'service_role');
     assert.equal((await db.query('select outcome from private.notification_push_queue')).rows[0].outcome,'sent');
+    await member(B,'insert into public.comments(post_id,author_id) values($1,$2)',[POST,B]);
+    await db.exec("update private.notification_push_queue set attempts=5,leased_until=now()-interval '1 minute' where finished_at is null");
+    assert.equal((await member(null,'select public.claim_notification_push(30) batch',[],'service_role')).rows[0].batch.length,0);
+    assert.equal((await db.query("select count(*)::int n from private.notification_push_queue where outcome='failed'")).rows[0].n,1,'Expired fifth attempts terminate instead of triggering an endless scheduler loop');
     await member(B,'insert into public.comments(post_id,author_id) values($1,$2)',[POST,B]);await member(A,'update public.notification_preferences set comments_enabled=false');
     assert.equal((await member(null,'select public.claim_notification_push(30) batch',[],'service_role')).rows[0].batch.length,0);
     await member(A,'select public.unregister_notification_device($1)',[subscription.endpoint]);
