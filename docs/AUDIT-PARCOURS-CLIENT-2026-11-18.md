@@ -37,10 +37,12 @@ Les demandes d’effacement et la modération exigent une intervention humaine e
 
 ## Vérification et exploitation
 
-- Suite globale : 845 tests réussis, zéro échec, zéro test ignoré sur la version intégrée ; build public validé avec liste de ressources autorisées.
+- Suite globale finale : 847 tests réussis, zéro échec, zéro test ignoré sur la version intégrée ; build public validé avec liste de ressources autorisées.
 - Tests PostgreSQL : migrations réelles dans PGlite, droits anonymes, isolation entre trois comptes, préférences, masquage, dédoublonnage, export, suppression en cascade, validation d’URL push et réservation exclusive des livraisons.
 - Tests DOM : changements email/mot de passe, erreurs et confirmation, masquage des mots de passe, historique et ouverture d’une notification, préférences, changement de session pendant un chargement, démonstration sans écriture.
 - Tests d’envoi : destinations autorisées, texte discret, succès, erreur temporaire, appareil expiré et refus d’URL non autorisée, avec fournisseur simulé.
+- Recette Chrome du build réel : 390 et 1280 pixels, formulaires de sécurité, ouverture/fermeture de l’historique, publication de démonstration retrouvée dans « Mes publications », aucune erreur JavaScript ni débordement horizontal. Les requêtes externes sont bloquées.
+- Service Edge déployé : appel invalide refusé avec HTTP 401 ; appel interne autorisé retournant HTTP 200 et une file vide (`processed=0`, `sent=0`, `failed=0`). Aucune alerte n’a été envoyée à un membre pour ces contrôles.
 
 Le service `sobrizen-notifications` vérifie son propre jeton de dispatch. Les secrets VAPID et de dispatch sont stockés dans Supabase Vault, sans fichier local ni code public. Les fonctions accessibles aux membres vérifient `auth.uid()` et ne permettent de gérer que leurs appareils. Les tables de livraison sont privées et leurs accès directs sont révoqués. Les avertissements de l’analyseur sur ces RPC `SECURITY DEFINER` sont intentionnels et couverts par les tests de propriété ; les autres tables privées restent fermées sans politique RLS autorisant un client.
 
