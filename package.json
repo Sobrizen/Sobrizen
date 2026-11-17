@@ -5,6 +5,8 @@
   "type": "module",
   "engines": {"node": "24.x"},
   "scripts": {
+    "blog:generate": "node scripts/generate-blog.mjs",
+    "test:blog": "npm run prepare:semantic && node scripts/test.mjs tests/blog.test.mjs",
     "prepare:semantic": "node scripts/prepare-semantic-data.mjs",
     "prebuild": "npm run prepare:semantic",
     "build": "node scripts/build.mjs",
