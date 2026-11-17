@@ -19,6 +19,7 @@ import {normalizeUsername} from './username.mjs';
 import {initFormValidation,showFieldError,clearFieldError,showFormError,clearFormError} from './form-validation.mjs';
 import {createExperience} from './app-experience.mjs';
 import {renderHomePlan} from './home-plan.mjs';
+import {createAccountCenter} from './account-center.mjs';
 initFormValidation();
 const experience=createExperience();
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
@@ -30,11 +31,11 @@ const SUPABASE_URL='https://lnvtowdbbagwfbewnchz.supabase.co',SUPABASE_KEY='sb_p
 const PRIVATE_SETTING_KEYS=['support_name','support_phone','risky_situation','response_plan'];
 let client=null,clientPromise=null,toastTimeout,installEvent=null,timerTick=null,sessionRevision=0,privateLoadRevision=0,privateTrackingRevision=-1,feedRevision=0,commentsRevision=0,modalRevision=0,authRequestRevision=0;
 const formContexts=new WeakMap(),reasonDrafts=new WeakMap();
-let journalShareHandler=null,journalNotes=null,renderedUser=null;
+let journalShareHandler=null,journalNotes=null,renderedUser=null,communityLinkHandler=null;
 const sessionContext=()=>({user:S.user,demo:S.demo,revision:sessionRevision});
 const sameSession=context=>context.user===S.user&&context.demo===S.demo&&context.revision===sessionRevision;
 function assertSession(context,sensitive=false){if(!sameSession(context)||!context.user)throw Error('Ton espace a changé. Rouvre cet écran avant de réessayer.');if(sensitive)privateWrite();}
-function invalidateSession(){sessionRevision++;privateLoadRevision++;feedRevision++;commentsRevision++;accessRefresh.reset();S.urge=null;stopUrgeClock();experience.reset();renderedUser=null;journalMotivation.reset();journalNotes.reset();gameRecords.reset();agenda.reset();adminEntry.reset();}
+function invalidateSession(){sessionRevision++;privateLoadRevision++;feedRevision++;commentsRevision++;accessRefresh.reset();S.urge=null;stopUrgeClock();experience.reset();account.reset();renderedUser=null;journalMotivation.reset();journalNotes.reset();gameRecords.reset();agenda.reset();adminEntry.reset();}
 function applySettings(row){const patch={...row};for(const key of ['privacy_ack_at','health_data_consent_at','health_data_consent_version','health_data_consent_revoked_at'])delete patch[key];S.settings={...S.settings,...patch};}
 function clearPrivateState(){Object.assign(S,{journey:{},checks:[],journal:[],program:[],urges:[],reasons:[],urge:null});for(const key of PRIVATE_SETTING_KEYS)delete S.settings[key];clearInterval(timerTick);if(!$('#modalContent .ag-dialog')){closeModal({force:true});$('#modalContent').replaceChildren();}progression.reset();health.reset();daily.reset();dailyEntry.reset();journalMotivation.reset();journalNotes.reset();}
 async function accountRequest(run,{sensitive=false}={}){const context=sessionContext();assertSession(context,sensitive);if(context.demo)throw Error('La démonstration ne sauvegarde aucune donnée en ligne.');const db=await getClient();assertSession(context,sensitive);const result=await run(db,context.user.id);assertSession(context,sensitive);return checkResult(result);}
@@ -116,10 +117,19 @@ async function getClient(){
     },0);
    }
    if(event==='SIGNED_OUT'&&!S.demo&&S.user)leave();
+   if(['USER_UPDATED','TOKEN_REFRESHED'].includes(event)&&session?.user?.id===S.user?.id&&!S.demo){Object.assign(S.user,session.user);setTimeout(()=>account.renderDetails(),0);}
    if(event==='SIGNED_IN'&&session&&!S.authBusy&&!S.demo&&S.user?.id!==session.user.id){const context=sessionContext();setTimeout(()=>{if(sameSession(context)&&!S.authBusy&&!S.demo&&S.user?.id!==session.user.id)enter(session.user).catch(e=>notify(message(e)))},0)}
   });return client;
  })().catch(e=>{clientPromise=null;throw e});
  let timeout;try{return await Promise.race([clientPromise,new Promise((_,reject)=>{timeout=setTimeout(()=>reject(Error('Chargement de la connexion trop lent. Réessaie.')),18000)})])}finally{clearTimeout(timeout)}
+}
+async function verifyAccountPassword(password,context){
+ assertSession(context);if(context.demo)throw Error('Cette action nécessite ton compte personnel.');
+ const {createClient}=await import('https://esm.sh/@supabase/supabase-js@2.117.1');assertSession(context);
+ const verifier=createClient('https://lnvtowdbbagwfbewnchz.supabase.co','sb_publishable_NejyPV0XbMiAW_yAmuIrhA_7_zDFYT7',{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false},global:{fetch:safeFetch}});
+ try{const result=await verifier.auth.signInWithPassword({email:context.user.email,password});assertSession(context);if(result.error||result.data?.user?.id!==context.user.id)throw Error('Le mot de passe actuel ne correspond pas. Réessaie ou utilise « Mot de passe oublié ».');}
+ finally{try{await verifier.auth.signOut({scope:'local'});}catch{}}
+ assertSession(context);
 }
 const accessRefresh=createMembershipRefresh({context:sessionContext,isCurrent:sameSession,state:()=>S.billing,read:context=>readBillingAccess(context,'sync'),readFallback:context=>readBillingAccess(context,'status'),apply:next=>{const changed=S.billing.premium!==next.premium;S.billing=next;syncAccess();updatePlanSummary();if(changed){updateAccessSurfaces();if(S.user&&!S.demo)notify(next.premium?'Ton accès Premium est à jour.':'Ton accès Premium a changé. Ton suivi et tes brouillons sont conservés.');}}});
 function syncAccess(){const premium=!!S.billing?.premium;document.documentElement.dataset.premium=premium?'true':'false';document.documentElement.dataset.billingReady=S.billing?.ready?'true':'false';const slot=document.querySelector('[data-home-plan-slot]');if(slot)slot.innerHTML=renderHomePlan(S.billing,{demo:S.demo});document.dispatchEvent(new CustomEvent('sobrizen-access-change',{detail:{premium,ready:!!S.billing?.ready}}));accessRefresh.schedule();}
@@ -215,9 +225,9 @@ function render(){
  $$('button[data-page],#nav button[data-move="open"]').forEach(b=>{const current=b.dataset.page===S.page||b.dataset.move==='open'&&S.page==='movement';b.classList.toggle('selected',current);if(b.closest('nav'))b.setAttribute('aria-current',current?'page':'false')});
  // Movement owns its rendered page and player; refresh only the shared shell.
  if(S.page==='movement'){journalMotivation.pageRendered();journalNotes.pageRendered();experience.rendered(S.page);return;}
- const f={home:homeView,journey:journeyView,journal:journalView,agenda:()=>agenda.view(),games:()=>gamesView({premium:S.billing.premium}),community:communityView,profile:profileView,progress:()=>healthConsentActive()?progression.view({calendar:daily.calendarView()}):consentGate(),health:()=>health.view()}[S.page]||homeView;$('#content').innerHTML=f();for(const form of $('#content').querySelectorAll('form'))formContexts.set(form,sessionContext());
+ const f={home:homeView,journey:journeyView,journal:journalView,agenda:()=>agenda.view(),games:()=>gamesView({premium:S.billing.premium}),community:communityView,profile:profileView,progress:()=>healthConsentActive()?progression.view({calendar:daily.calendarView()}):consentGate(),health:()=>health.view()}[S.page]||homeView;$('#content').innerHTML=f();if(S.page==='profile')$('#content').insertAdjacentHTML('beforeend',account.view());for(const form of $('#content').querySelectorAll('form'))formContexts.set(form,sessionContext());
  journalMotivation.pageRendered();journalNotes.pageRendered();adminEntry.pageRendered();
- experience.rendered(S.page);
+ account.rendered();experience.rendered(S.page);
  if(entering)focusWorkspace();
 }
 function greeting(title,sub){return `<div class="greeting"><span class="eyebrow">TON ESPACE SOBRIZEN</span><h1>${title}</h1><p class="muted">${sub}</p></div>`}
@@ -298,7 +308,7 @@ const actionHandlers={
  breath:()=>modal('Respirer sans forcer',`<div class="breath" aria-hidden="true">◌</div><p>Installe-toi confortablement. Inspire doucement, puis expire un peu plus lentement, sans retenir ton souffle. Garde un rythme confortable plutôt que de suivre l’animation à tout prix.</p><p class="small">Arrête en cas de vertige ou d’inconfort. Cet exercice ne traite pas le sevrage.</p><button class="primary full" data-action="help">Revenir à mon espace d’aide</button>`),
  ground:()=>modal('Revenir à ce qui t’entoure',`<p>Dans un lieu sûr, prends ton temps pour remarquer :</p><ol class="tool-steps"><li>5 choses que tu vois.</li><li>4 choses que tu peux sentir au toucher.</li><li>3 sons autour de toi.</li><li>2 odeurs, ou simplement 2 sensations neutres.</li><li>1 chose dont tu as besoin maintenant.</li></ol><p class="small">Adapte l’exercice à tes capacités. Aucun besoin de réussir parfaitement.</p><button class="primary full" data-action="help">Revenir à l’aide</button>`),
  theme:()=>{document.body.classList.toggle('dark');try{localStorage.setItem('sobrizen-theme',document.body.classList.contains('dark')?'dark':'light')}catch{}},
- logout:async()=>{const context=sessionContext();if(context.user&&!context.demo){const db=await getClient();if(!sameSession(context))return;checkResult(await db.auth.signOut({scope:'local'}))}if(sameSession(context))leave()},
+ logout:async()=>{const context=sessionContext();if(context.user&&!context.demo){await account.beforeLogout();const db=await getClient();if(!sameSession(context))return;checkResult(await db.auth.signOut({scope:'local'}))}if(sameSession(context))leave()},
  check:()=>progression.openOccasion(),
  'month-prev':()=>{const d=parseDay(S.month+'-01');d.setMonth(d.getMonth()-1);S.month=dayKey(d).slice(0,7);render()},
  'month-next':()=>{const d=parseDay(S.month+'-01');d.setMonth(d.getMonth()+1);S.month=dayKey(d).slice(0,7);render()},
@@ -356,6 +366,7 @@ journalNotes=createJournalNotes({S,getClient,checkResult,notify,message,modal,cl
 const gameRecords=createGameRecords({S,getClient,sessionContext,sameSession});
 const agenda=createAgenda({S,accountRequest,sessionContext,sameSession,modal,closeModal,notify,message,render:()=>render(),isPremium:()=>!!S.billing.premium,download});
 const adminEntry=createAdminEntry({S,getClient,sessionContext,sameSession});
+const account=createAccountCenter({S,getClient,sessionContext,sameSession,assertSession,checkResult,modal,closeModal,notify,message,verifyPassword:verifyAccountPassword,leave,openPublication:async id=>{if(!communityLinkHandler)throw Error('La communauté est momentanément indisponible.');if(await communityLinkHandler(id)&&id)await commentsModal(id);}});
 configureMovementAccess(()=>!!S.billing.premium);
 initGames({isPremium:()=>!!S.billing.premium,records:gameRecords,sessionContext,sameSession});
 if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});

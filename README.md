@@ -1,5 +1,7 @@
 # Sobrizen V4 — suivi par périodes
 
+> **Parcours client du 18 novembre 2026 :** changement d’email et de mot de passe, gestion des sessions, centre d’aide, tri « Mes publications », cloche et préférences de notification, alertes Web Push et export communautaire. Voir [l’audit et les vérifications](docs/AUDIT-PARCOURS-CLIENT-2026-11-18.md).
+
 > **Actualisation du 15 novembre 2026 :** voir [la note de livraison et l'ordre sûr de déploiement](docs/RELEASE_2026-11-15.md). La version préparée facture les nouvelles souscriptions immédiatement, sans essai ; les essais déjà accordés restent conservés. Les mentions d'essai et d'ouverture ci-dessous décrivent l'historique. Les textes juridiques restent à actualiser par le propriétaire.
 
 Frontend statique en français, préparé dans un dossier public `dist/` et hébergé sur Vercel. Backend Supabase existant. Le build utilise une liste explicite de ressources publiques et conserve les sources intactes ; voir [PUBLICATION.md](PUBLICATION.md).
@@ -31,7 +33,7 @@ Site statique : Node 24, installation `npm ci`, préparation `npm run build` et 
 La migration `schema/journey_stop_clock.sql` ajoute la précision à la minute au document v3, sans convertir les anciennes dates en heures fictives. Voir [HEALTH.md](HEALTH.md) pour les onze étapes scientifiques, la gestion des reprises et le suivi des ressentis.
 
 ## Limites explicites
-Pas de chatbot IA, pas de vidéos hébergées, pas de notifications push, paiements Stripe préparés avec essai de 7 jours et trois offres (ouverture commerciale soumise aux prérequis de BILLING.md), pas de sauvegarde automatique hors connexion. La connexion et la sauvegarde du suivi nécessitent Internet. L'export personnel n'est pas chiffré. Les administrateurs Supabase disposent d'un accès technique ; ce n'est pas un chiffrement de bout en bout. Les signalements exigent une modération humaine. La suppression complète du compte et la documentation juridique doivent être finalisées avant commercialisation.
+Pas de chatbot IA, pas de vidéos hébergées, alertes Web Push avec accord du navigateur (installation sur l’écran d’accueil requise sur iOS/iPadOS), paiements Stripe préparés avec essai de 7 jours et trois offres (ouverture commerciale soumise aux prérequis de BILLING.md), pas de sauvegarde automatique hors connexion. La connexion et la sauvegarde du suivi nécessitent Internet. L'export personnel n'est pas chiffré. Les administrateurs Supabase disposent d'un accès technique ; ce n'est pas un chiffrement de bout en bout. Les signalements exigent une modération humaine. La suppression complète du compte et la documentation juridique doivent être finalisées avant commercialisation.
 
 Les offres gratuites restent soumises aux quotas et conditions des hébergeurs. Vercel Hobby est limité aux usages personnels non commerciaux.
 

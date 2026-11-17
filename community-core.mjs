@@ -12,7 +12,7 @@ export const DURATIONS = Object.freeze([
   ['long','1 an et plus',365,null], ['unset','Durée non partagée',null,null]
 ]);
 export const KINDS = Object.freeze([['share','Partage'],['victory','Victoire'],['struggle','Moment difficile'],['question','Question']]);
-export const SORTS = Object.freeze([['recent','Plus récents'],['short','Abstinence croissante'],['long','Abstinence décroissante']]);
+export const SORTS = Object.freeze([['recent','Plus récents'],['mine','Mes publications'],['short','Abstinence croissante'],['long','Abstinence décroissante']]);
 export const PAGE_SIZE = 20;
 export const BUCKET = 'community-images';
 export const MAX_SOURCE_BYTES = 10 * 1024 * 1024;
@@ -46,8 +46,9 @@ export function validatePost(value={}) {
   if([...alt].length>180) throw Error('La description de l’image est limitée à 180 caractères.');
   return {body,kind,emotion,abstinence_days:days,image_alt:alt||null};
 }
-export function matchesPost(post,filters={},kind='all',search='',hidden=[]) {
+export function matchesPost(post,filters={},kind='all',search='',hidden=[],userId=null) {
   const f=normalizeFilters(filters), d=post.abstinence_days;
+  if(f.sort==='mine'&&(!userId||post.author_id!==userId))return false;
   if(hidden.includes(post.author_id))return false;
   if(kind!=='all'&&post.kind!==kind)return false;
   if(search&&!String(post.body).toLocaleLowerCase('fr').includes(String(search).toLocaleLowerCase('fr')))return false;
@@ -59,7 +60,7 @@ export function matchesPost(post,filters={},kind='all',search='',hidden=[]) {
   return true;
 }
 export function comparePosts(a,b,sort='recent') {
-  if(sort!=='recent'){
+  if(['short','long'].includes(sort)){
     const av=a.abstinence_days,bv=b.abstinence_days;
     if(av==null&&bv!=null)return 1;
     if(bv==null&&av!=null)return -1;
@@ -69,8 +70,13 @@ export function comparePosts(a,b,sort='recent') {
   return (Number.isFinite(time)&&time!==0)?time:String(b.id).localeCompare(String(a.id));
 }
 /** Apply restrictions on the server BEFORE ordering and pagination. */
-export function feedQuery(query,{filters={},kind='all',search='',hidden=[],page=0}={}) {
+export function feedQuery(query,{filters={},kind='all',search='',hidden=[],page=0,userId=null,postId=null}={}) {
   const f=normalizeFilters(filters);
+  if(f.sort==='mine'){
+    if(!validUUID(userId))throw Error('Connecte-toi pour retrouver tes publications.');
+    query=query.eq('author_id',userId);
+  }
+  if(postId){if(!validUUID(postId))throw Error('Publication invalide.');query=query.eq('id',postId);}
   if(KINDS.some(x=>x[0]===kind))query=query.eq('kind',kind);
   const term=String(search).trim().slice(0,80).replace(/[%_\\]/g,'');
   if(term)query=query.ilike('body','%'+term+'%');
@@ -84,7 +90,7 @@ export function feedQuery(query,{filters={},kind='all',search='',hidden=[],page=
   }
   const ids=hidden.filter(validUUID).slice(0,500);
   if(ids.length)query=query.not('author_id','in','('+ids.join(',')+')');
-  if(f.sort!=='recent')query=query.order('abstinence_days',{ascending:f.sort==='short',nullsFirst:false});
+  if(['short','long'].includes(f.sort))query=query.order('abstinence_days',{ascending:f.sort==='short',nullsFirst:false});
   query=query.order('created_at',{ascending:false}).order('id',{ascending:false});
   const offset=Math.max(0,Number.isSafeInteger(page)?page:0)*PAGE_SIZE;
   return query.range(offset,offset+PAGE_SIZE-1);

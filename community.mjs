@@ -43,11 +43,11 @@ export async function prepareImage(file,{signal}={}){
 
 /** Native app integration; journal content is supplied only after an explicit share action. */
 export function createCommunity({S,getClient,checkResult,notify,message,modal,closeModal,render,greeting,sessionContext,sameSession,assertSession,getTrackingDuration=()=>({status:'unavailable',days:null,precision:'unknown'})}){
-  let filters=emptyFilters(),contextSeen=null,revision=0,imageRequest=0,loading=false,feedError='',draft=null,demoPool=[];
+  let filters=emptyFilters(),contextSeen=null,revision=0,imageRequest=0,loading=false,feedError='',draft=null,demoPool=[],focusedPost=null;
   const demoURLs=new Set();
   if(!document.querySelector('link[data-community-style]')){const link=document.createElement('link');link.rel='stylesheet';link.href='/community.css';link.dataset.communityStyle='';document.head.append(link);}
   function releaseDraft(){if(draft){draft.sequence++;draft.imageController?.abort();if(draft.previewURL)URL.revokeObjectURL(draft.previewURL);draft=null;}}
-  function reset(){revision++;imageRequest++;filters=emptyFilters();loading=false;feedError='';releaseDraft();demoURLs.forEach(url=>URL.revokeObjectURL(url));demoURLs.clear();demoPool=[];contextSeen=null;}
+  function reset(){revision++;imageRequest++;filters=emptyFilters();focusedPost=null;loading=false;feedError='';releaseDraft();demoURLs.forEach(url=>URL.revokeObjectURL(url));demoURLs.clear();demoPool=[];contextSeen=null;}
   function ensure(){const context=sessionContext();if(!contextSeen||!sameSession(contextSeen)){reset();contextSeen=context;}return context;}
   function active(context,token){return sameSession(context)&&revision===token;}
   const inCommunity=()=>S.user&&S.page==='community';
@@ -64,7 +64,7 @@ export function createCommunity({S,getClient,checkResult,notify,message,modal,cl
   }
   async function loadFeed(append=false){
     const context=ensure();assertSession(context);const token=++revision,page=S.feedPage||0;
-    const snapshot={filters:{...filters},kind:S.feedKind,search:S.feedSearch,hidden:[...(S.settings.hidden_authors||[])],page};
+    const snapshot={filters:{...filters},kind:S.feedKind,search:S.feedSearch,hidden:[...(S.settings.hidden_authors||[])],page,userId:context.user.id,postId:focusedPost};
     loading=true;feedError='';
     try{
       if(context.demo){seedDemo();S.posts=demoPool;S.morePosts=false;return true;}
@@ -92,10 +92,10 @@ export function createCommunity({S,getClient,checkResult,notify,message,modal,cl
       throw error;
     }finally{if(active(context,token))loading=false;}
   }
-  function filteredRows(){return S.posts.filter(p=>matchesPost(p,filters,S.feedKind,S.feedSearch,S.settings.hidden_authors||[])).sort((a,b)=>comparePosts(a,b,filters.sort));}
+  function filteredRows(){return S.posts.filter(p=>(!focusedPost||p.id===focusedPost)&&matchesPost(p,filters,S.feedKind,S.feedSearch,S.settings.hidden_authors||[],S.user?.id)).sort((a,b)=>comparePosts(a,b,filters.sort));}
   function postList(){
     ensure();const rows=filteredRows();
-    if(!rows.length)return `<article class="card community-empty">${loading?'Chargement des publications…':'Aucune publication avec ces filtres.'}<br><button class="text" type="button" data-community-reset>Afficher tous les messages</button></article>`;
+    if(!rows.length)return `<article class="card community-empty">${loading?'Chargement des publications…':focusedPost?'Cette publication a été supprimée ou n’est plus accessible.':filters.sort==='mine'?'Tu n’as aucune publication avec ces filtres. Retrouve ici les messages que tu partages.':'Aucune publication avec ces filtres.'}<br><button class="text" type="button" data-community-reset>Afficher tous les messages</button></article>`;
     return rows.map(p=>{
       const own=p.author_id===S.user.id,hasImage=!!p.image_path||!!(S.demo&&p.image_url);
       const photo=hasImage?`<button type="button" class="community-image-button" data-community-image="${esc(p.id)}" aria-label="Ouvrir l’image jointe">${p.image_url?`<img class="community-image" src="${esc(p.image_url)}" alt="${esc(p.image_alt||'Image partagée par '+(p.profiles?.display_name||'un membre'))}" loading="lazy" decoding="async" referrerpolicy="no-referrer">`:'<span class="small">Afficher l’image</span>'}</button>`:'';
@@ -107,7 +107,7 @@ export function createCommunity({S,getClient,checkResult,notify,message,modal,cl
   }
   function view(){
     ensure();return greeting('Les échanges qui te parlent.','Trouve du soutien selon ton ressenti et ton étape du parcours.')+`<div class="row between"><button class="primary" data-action="post-new">+ Partager</button><button class="text" data-action="feed-refresh">Actualiser</button></div>
-    <section class="community-controls" aria-label="Filtrer les publications"><div class="community-selects">
+    ${focusedPost?'<p class="small">Publication ouverte depuis une notification. <button class="text" type="button" data-community-reset>Revenir à tout le fil</button></p>':''}<section class="community-controls" aria-label="Filtrer les publications"><div class="community-selects">
     ${select('duration','Durée sans alcool',DURATIONS,filters.duration,'data-community-filter="duration"')}
     ${select('emotion','Émotion',[['all','Toutes les émotions'],...EMOTIONS,['unset','Émotion non partagée']],filters.emotion,'data-community-filter="emotion"')}
     ${select('sort','Trier par',SORTS,filters.sort,'data-community-filter="sort"')}</div>
@@ -343,10 +343,10 @@ export function createCommunity({S,getClient,checkResult,notify,message,modal,cl
     assertSession(context);S.posts=S.posts.filter(x=>x.id!==id);demoPool=demoPool.filter(x=>x.id!==id);if(context.demo&&demoURLs.has(p.image_url)){URL.revokeObjectURL(p.image_url);demoURLs.delete(p.image_url);}if(inCommunity())render();notify(cleanupFailed?'Publication supprimée. Le nettoyage du fichier image n’a pas pu être confirmé.':'Publication supprimée.');
   }
   async function reload(){const context=ensure();S.feedPage=0;const task=loadFeed();if(inCommunity())render();try{if(await task&&sameSession(context)&&inCommunity())render();}catch(error){if(sameSession(context))notify(message(error));}}
-  document.addEventListener('change',event=>{const key=event.target?.dataset?.communityFilter;if(!key||!inCommunity())return;ensure();filters=normalizeFilters({...filters,[key]:event.target.value});void reload();});
+  document.addEventListener('change',event=>{const key=event.target?.dataset?.communityFilter;if(!key||!inCommunity())return;ensure();focusedPost=null;filters=normalizeFilters({...filters,[key]:event.target.value});void reload();});
   document.addEventListener('click',async event=>{
     const resetButton=event.target.closest?.('[data-community-reset]');
-    if(resetButton&&inCommunity()){event.preventDefault();ensure();filters=emptyFilters();S.feedKind='all';S.feedSearch='';void reload();return;}
+    if(resetButton&&inCommunity()){event.preventDefault();ensure();filters=emptyFilters();focusedPost=null;S.feedKind='all';S.feedSearch='';void reload();return;}
     const button=event.target.closest?.('[data-community-image]');if(!button||!inCommunity())return;
     event.preventDefault();const context=ensure(),post=S.posts.find(p=>p.id===button.dataset.communityImage);if(!post)return;button.disabled=true;
     const request=++imageRequest,dialog=document.getElementById('modal'),modalRoot=document.getElementById('modalContent'),previousContent=modalRoot?.firstChild,previousOpen=dialog?.open,pageRoot=document.getElementById('content')?.firstElementChild;
@@ -361,5 +361,11 @@ export function createCommunity({S,getClient,checkResult,notify,message,modal,cl
   document.addEventListener('error',event=>{const image=event.target;if(image?.matches?.('img.community-image')){image.hidden=true;const button=image.closest('button');if(button&&!button.querySelector('span')){const span=document.createElement('span');span.textContent='Recharger l’image';span.className='small';button.append(span);}}},true);
   document.getElementById('modal')?.addEventListener('close',()=>{if(!document.getElementById('modal').open)releaseDraft();});
   const root=document.getElementById('modalContent');if(root)new MutationObserver(()=>{if(draft&&!document.contains(draft.form))releaseDraft();}).observe(root,{childList:true});
-  return {loadFeed,view,postList,openPost,openFromJournal,removePost,reset};
+  async function openPublication(id){
+    const context=ensure();assertSession(context);filters=emptyFilters();focusedPost=id;S.feedPage=0;S.feedKind='all';S.feedSearch='';S.page='community';
+    if(!await loadFeed()||!sameSession(context))return false;
+    render();if(id&&!S.posts.some(post=>post.id===id)){notify('Cette publication a été supprimée ou n’est plus accessible.');return false;}
+    document.getElementById('content')?.focus({preventScroll:true});return true;
+  }
+  return {loadFeed,view,postList,openPost,openFromJournal,removePost,reset,openPublication};
 }
