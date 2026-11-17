@@ -1,0 +1,13 @@
+# Statistiques privées
+
+Ouvrir `https://www.sobrizen.com/admin` avec le compte administrateur Sobrizen habituel. La page réutilise la session du site, ou demande les identifiants. L’autorisation est vérifiée dans PostgreSQL à chaque actualisation ; masquer la page ou vérifier une adresse côté navigateur ne constitue pas le contrôle d’accès.
+
+Le tableau de bord affiche uniquement des agrégats : comptes existants, confirmations d’e-mail, inscriptions par jour sur 7/30/90 jours et états des abonnements synchronisés depuis Stripe. Il ne retourne ni identités de membres, ni adresses e-mail, ni données de santé. Les comptes de test existants sont inclus. Les comptes supprimés et anonymes sont exclus. Les dates suivent Europe/Paris, y compris les changements d’heure. Les instantanés d’abonnements ne sont pas un grand livre d’encaissements.
+
+L’allowlist `sobrizen_admin.operators` est privée, sans privilège client ni auto-inscription. Son implémentation `SECURITY DEFINER` utilise un chemin de recherche vide, contrôle `auth.uid()` et la confirmation du compte avant toute lecture privilégiée. Le point d’entrée public est une fonction `SECURITY INVOKER`, réservée aux utilisateurs authentifiés. Le compte autorisé est configuré séparément, côté serveur ; aucune adresse de propriétaire n’est envoyée dans les fichiers publics. Retirer une ligne de l’allowlist retire immédiatement l’accès à la prochaine requête.
+
+Le bouton « Ouvrir les statistiques de visites » mène au rapport Vercel privé, qui conserve sa propre authentification. Aucun jeton Vercel n’est placé dans le client ni copié depuis le connecteur. Web Analytics doit être activé dans le projet Vercel, puis le site redéployé. Le module local `analytics.mjs` charge le script officiel uniquement sur les domaines de production. Il ne transmet que les trois chemins publics accueil, abonnement et informations légales. Les paramètres, fragments, retours d’authentification, pages d’administration et événements personnalisés sont exclus. Les préférences DNT et GPC sont respectées. Les rubriques internes, textes du journal, indicateurs de santé et identités ne sont jamais instrumentés. Aucun événement de recette n’est envoyé depuis une prévisualisation locale.
+
+Les réponses du tableau de bord sont demandées sans cache. La page est exclue du service worker et des robots. Les chiffres sont effacés au changement de compte, à la déconnexion et à la sortie de page ; les réponses arrivant après un changement de session sont ignorées.
+
+Références : https://supabase.com/docs/guides/database/functions et https://vercel.com/docs/analytics/redacting-sensitive-data.

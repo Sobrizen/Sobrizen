@@ -117,6 +117,7 @@ export function planPublic(sourceRoot=root){
   transform('subscription.mjs',integrateSalesSubscription);
   transform('abonnement.html',integrateSalesSubscriptionHtml);
   transform('legal.html',integrateSalesLegal);
+  for(const file of ['index.html','abonnement.html','legal.html'])transform(file,source=>source.replace('</head>','<script type="module" src="/analytics.mjs"></script></head>'));
   bundleEntryStyles(files);
   const config=JSON.parse(readFileSync(resolve(sourceRoot,'vercel.json'),'utf8'));
   return {files,summary:validatePublic(files,config)};
