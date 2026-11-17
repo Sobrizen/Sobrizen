@@ -1,5 +1,7 @@
 # Statistiques privées
 
+Depuis l’application, ouvrir « Mon profil », puis la carte « Les statistiques de Sobrizen » et le lien « Ouvrir mes statistiques ». Cette carte apparaît uniquement après une réponse positive de `sobrizen_admin_access()` pour le compte connecté. La démo ne l’affiche pas. Un changement de compte efface immédiatement cette autorisation de présentation ; les protections du tableau de bord restent vérifiées à chaque requête.
+
 Ouvrir `https://www.sobrizen.com/admin` avec le compte administrateur Sobrizen habituel. La page réutilise la session du site, ou demande les identifiants. L’autorisation est vérifiée dans PostgreSQL à chaque actualisation ; masquer la page ou vérifier une adresse côté navigateur ne constitue pas le contrôle d’accès.
 
 Le tableau de bord affiche uniquement des agrégats : comptes existants, confirmations d’e-mail, inscriptions par jour sur 7/30/90 jours et états des abonnements synchronisés depuis Stripe. Il ne retourne ni identités de membres, ni adresses e-mail, ni données de santé. Les comptes de test existants sont inclus. Les comptes supprimés et anonymes sont exclus. Les dates suivent Europe/Paris, y compris les changements d’heure. Les instantanés d’abonnements ne sont pas un grand livre d’encaissements.

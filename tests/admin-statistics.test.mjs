@@ -25,6 +25,7 @@ test('statistics authorize only a confirmed operator and return aggregates with 
         ('active',now()+interval '1 day',null,true,false,'monthly'),
         ('trialing',null,now()+interval '1 day',false,false,'monthly');`);
     await db.exec(readFileSync(new URL('../schema/admin-statistics.sql',import.meta.url),'utf8'));
+    await db.exec(readFileSync(new URL('../schema/admin-profile-access.sql',import.meta.url),'utf8'));
     await db.exec(`insert into sobrizen_admin.operators(user_id) values('${OWNER}');`);
     const privilege=await db.query(`select has_table_privilege('authenticated','sobrizen_admin.operators','SELECT') as read,
       has_table_privilege('authenticated','sobrizen_admin.operators','INSERT') as enroll,
@@ -40,11 +41,19 @@ test('statistics authorize only a confirmed operator and return aggregates with 
     await assert.rejects(call(''),error=>error.code==='42501');
     await assert.rejects(call(OWNER,365),error=>error.code==='22023');
     const data=await call(OWNER);
+    async function access(uid){
+      await db.exec('set role authenticated');
+      try{await db.query("select set_config('request.jwt.claim.sub',$1,false)",[uid]);return (await db.query('select public.sobrizen_admin_access() as allowed')).rows[0].allowed;}
+      finally{await db.exec('reset role');}
+    }
+    assert.equal(await access(OWNER),true);assert.equal(await access(OTHER),false);assert.equal(await access(''),false);
+    assert.equal((await db.query("select has_function_privilege('anon','public.sobrizen_admin_access()','EXECUTE') as allowed")).rows[0].allowed,false);
     assert.equal(data.accounts.total,3);assert.equal(data.accounts.today,2);assert.equal(data.accounts.yesterday,1);
     assert.equal(data.accounts.period,3);assert.equal(data.daily.length,7);assert.equal(data.daily.at(-1).registrations,2);
     assert.equal(data.subscriptions.active_paid,1);assert.equal(data.subscriptions.trialing,1);assert.deepEqual(data.plans,[{plan:'annual',count:1}]);
     assert.equal(JSON.stringify(data).includes(OWNER),false);assert.equal(JSON.stringify(data).includes('@'),false);
     await db.exec(`delete from sobrizen_admin.operators where user_id='${OWNER}'`);
+    assert.equal(await access(OWNER),false);
     await assert.rejects(call(OWNER),error=>error.code==='42501');
   }finally{await db.close();}
 });
