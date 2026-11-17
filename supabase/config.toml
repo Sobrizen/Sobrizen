@@ -1,4 +1,8 @@
 project_id = "sobrizen"
+[functions.sobrizen-notifications]
+# The body verifies the Vault-backed database dispatch token.
+verify_jwt = false
+entrypoint = "./functions/sobrizen-notifications/index.ts"
 [functions.sobrizen-billing]
 # Browser routes verify the Supabase access token themselves; Stripe uses HMAC.
 verify_jwt = false

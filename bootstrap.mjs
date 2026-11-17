@@ -62,7 +62,7 @@ export function createBootstrap(win=window,doc=win.document,{load=loadApplicatio
   function shouldStart(){
     try{if(win.localStorage.getItem(SESSION_KEY)!==null)return true;}catch{}
     const query=new win.URLSearchParams(win.location.search),hash=new win.URLSearchParams(win.location.hash.slice(1));
-    return PLANS.has(query.get('subscribe'))||query.has('code')||
+    return PLANS.has(query.get('subscribe'))||query.has('code')||query.has('notification')||
       ['access_token','refresh_token','token','token_hash','error','error_description'].some(key=>query.has(key)||hash.has(key))||
       ['recovery','signup','invite','email_change','magiclink'].some(type=>hash.get('type')===type||query.get('type')===type);
   }
