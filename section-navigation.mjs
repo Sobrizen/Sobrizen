@@ -122,12 +122,14 @@ export function createSectionNavigation(content) {
       const motivation = children(grid).filter(el => el !== profile);
       const plan = $('#settingsForm', content)?.closest('.ux-settings-group');
       if (plan) {plan.open = true; motivation.push(plan);}
-      const settings = children(content).filter(el => !el.matches('.greeting') && el !== grid && el !== plan);
+      const adminEntry = $('[data-admin-entry]', content);
+      const settings = children(content).filter(el => !el.matches('.greeting,[data-admin-entry]') && el !== grid && el !== plan);
       mount(page, content, [
         {key: 'profile', label: 'Mon profil', nodes: [profile]},
         {key: 'motivation', label: 'Mes motivations', nodes: motivation},
         {key: 'settings', label: 'Réglages', nodes: settings},
       ]);
+      if (adminEntry) $('.greeting', content)?.after(adminEntry);
       if (!grid.children.length) grid.remove();
     }
   }

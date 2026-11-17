@@ -6,16 +6,16 @@
 import assert from 'node:assert/strict';
 import {
   environment, boot, mockService, UID, $, $$, txt, click, value, key,
-  closeModal, route, settle,
+  closeModal, route, settle, isWriteCall,
 } from './ux-dom-support.mjs';
 
 const env = await environment({online: true});
-const mock = await mockService({premium: true});
+const mock = await mockService({premium: true, admin: true});
 const results = [];
 const active = () => $('.sz-section-tab[aria-selected="true"]')?.dataset.section;
 const panel = key => $(`.sz-section-panel[data-section="${key}"]`);
 const tab = key => $(`.sz-section-tab[data-section="${key}"]`);
-const writes = () => mock.calls.filter(call => call.rpc || ['insert', 'upsert', 'update', 'delete'].includes(call.op)).length;
+const writes = () => mock.calls.filter(isWriteCall).length;
 
 async function choose(keyName) {
   const target = tab(keyName);
@@ -79,6 +79,19 @@ try {
     await key(tab('overview'), 'ArrowLeft'); assert.equal(active(), 'support');
     await key(tab('support'), 'Home'); assert.equal(active(), 'overview');
     exclusive(['overview', 'benefits', 'feelings', 'support']);
+  });
+
+  await check('authorized statistics shortcut stays visible above every profile tab without saving user data', async () => {
+    await route('profile'); await settle();
+    const shortcut = $('[data-admin-entry]'), link = shortcut?.querySelector('a');
+    assert.ok(shortcut); assert.equal(shortcut.hidden, false); assert.equal(link?.getAttribute('href'), '/admin');
+    assert.equal(shortcut.closest('.sz-section-panel'), null);
+    assert.equal(shortcut.previousElementSibling?.classList.contains('greeting'), true);
+    const before = writes();
+    for (const keyName of ['profile', 'motivation', 'settings']) {
+      await choose(keyName); assert.equal(link.closest('[hidden]'), null);
+    }
+    assert.equal(writes(), before);
   });
 
   await check('health links reveal the hidden support and feelings panels before moving focus', async () => {

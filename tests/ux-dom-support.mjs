@@ -16,7 +16,7 @@ export const settle=async(ms=8)=>{await Promise.resolve();await new Promise(reso
 export const $=(selector,root=document)=>root.querySelector(selector);
 export const $$=(selector,root=document)=>[...root.querySelectorAll(selector)];
 export const txt=(selector,root=document)=>$(selector,root)?.textContent.trim()||'';
-export const isWriteCall=call=>['insert','upsert','update','delete'].includes(call.op)||!!call.rpc&&!['list_journal_entries','read_private_settings','export_personal_data'].includes(call.rpc);
+export const isWriteCall=call=>['insert','upsert','update','delete'].includes(call.op)||!!call.rpc&&!['list_journal_entries','read_private_settings','export_personal_data','sobrizen_admin_access'].includes(call.rpc);
 
 export async function environment({online=false,mobile=false}={}){
   let library;
@@ -82,7 +82,7 @@ export const UID2='22222222-2222-4222-8222-222222222222';
 const id=n=>`00000000-0000-4000-8000-${n.toString(16).padStart(12,'0')}`;
 const clone=value=>structuredClone(value);
 
-export async function mockService({consent=true,premium=false}={}){
+export async function mockService({consent=true,premium=false,admin=false}={}){
   const {timelineStopBasis}=await import('../timeline-core.mjs');
   const stamp='2026-10-27T10:00:00.000Z';
   const goal={mode:'abstain',weekly_limit:null,daily_limit:null,target_on:null,why:'Motivation fictive QA',triggers:[],support_first:false,planned_action:''};
@@ -147,7 +147,9 @@ export async function mockService({consent=true,premium=false}={}){
   }
   const client={from:table=>new Query(table),auth:{onAuthStateChange:callback=>{authCallback=callback;return{data:{subscription:{unsubscribe(){}}}};},getSession:async()=>({data:{session:currentUser?{user:currentUser}:null},error:null}),signOut:async()=>{currentUser=null;authCallback('SIGNED_OUT',null);return{data:{},error:null};}},
     async rpc(name,args){const call={rpc:name,args:clone(args)};calls.push(call);let result;
-      if(name==='save_program_progress'){
+      if(name==='sobrizen_admin_access'){
+        result={data:admin&&currentUser?.id===UID,error:null};
+      }else if(name==='save_program_progress'){
         const settings=tables.user_settings.find(row=>row.user_id===currentUser?.id);
         if(!currentUser||args.p_expected_user_id!==currentUser.id||!settings?.health_data_consent_at||settings.health_data_consent_revoked_at)return pause(call,{data:null,error:{code:'42501',message:'Consentement ou compte requis'}});
         const old=tables.program_progress.find(row=>row.user_id===currentUser.id&&row.step===args.p_step);
