@@ -8,3 +8,19 @@
 @media(max-width:640px){.calendar-day .calendar-status{display:none}.calendar-day .calendar-status-short{display:block;font-size:.72rem;font-weight:600}}
 
 .tool fieldset{border:0;padding:0;margin:0;min-width:0}
+/* Keep even six-row months on one A4 page, independently of the screen breakpoint. */
+@media print{
+  .article-body>.callout,.tool>.eyebrow,.calendar-legend{display:none!important}
+  .article-body{font-size:10pt}
+  .calendar-sheet{margin:0;break-inside:avoid}
+  .calendar-sheet>p.print-only{font-size:9pt;line-height:1.5;margin:0 0 3mm}
+  .calendar-sheet h3{font-size:18pt;line-height:1.25;margin:4mm 0 3mm}
+  .calendar-weekdays{font-size:8pt;line-height:1.5;margin:4mm 0 2mm}
+  .calendar-weekdays,.calendar-grid{gap:1.5mm}
+  .calendar-day{height:18mm;min-height:18mm;aspect-ratio:auto;padding:2mm}
+  .calendar-day strong{font-size:10pt}
+  .calendar-day .calendar-status{display:block!important;font-size:7pt;line-height:1.2}
+  .calendar-day .calendar-status-short{display:none!important}
+  .calendar-total{font-size:9pt;line-height:1.5;margin:5mm 0}
+  .calendar-sheet>p.print-notes{font-size:9pt;line-height:2;margin:6mm 0 0;padding-top:3mm}
+}
