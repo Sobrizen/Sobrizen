@@ -8,6 +8,10 @@
 @media(max-width:640px){.calendar-day .calendar-status{display:none}.calendar-day .calendar-status-short{display:block;font-size:.72rem;font-weight:600}}
 
 .tool fieldset{border:0;padding:0;margin:0;min-width:0}
+/* Current supplied brand mark, without a separate retyped wordmark. */
+.site-header .brand img{display:block;width:80px;height:80px;object-fit:contain;border-radius:50%}
+.site-header .header-inner{min-height:104px}
+@media(max-width:640px){.site-header .brand img{width:72px;height:72px}.site-header .header-inner{min-height:96px;padding-block:12px}}
 /* Keep even six-row months on one A4 page, independently of the screen breakpoint. */
 @media print{
   .article-body>.callout,.tool>.eyebrow,.calendar-legend{display:none!important}
