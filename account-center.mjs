@@ -1,5 +1,6 @@
 import {esc,validUUID} from './community-core.mjs';
 import {showFieldError,showFormError,clearFormError} from './form-validation.mjs';
+import {emailFeedback} from './auth-feedback.mjs';
 
 const DEFAULTS=Object.freeze({likes_enabled:true,comments_enabled:true,push_enabled:false});
 const PAGE_SIZE=20;
@@ -8,7 +9,7 @@ const passwordInput=(name,label)=>`<label>${label}<span class="account-password"
 const dateLabel=value=>new Date(value).toLocaleString('fr-FR',{dateStyle:'medium',timeStyle:'short'});
 
 /** Account changes never share a form, password, or late response across sessions. */
-export function createAccountCenter({S,getClient,sessionContext,sameSession,assertSession,checkResult,modal,closeModal,notify,message,verifyPassword,openPublication,leave}){
+export function createAccountCenter({S,getClient,sessionContext,sameSession,assertSession,checkResult,modal,closeModal,notify,message,verifyPassword,openPublication,leave,showAuthNotice=null,showAuthSuccess=null}){
   if(!document.querySelector('link[data-account-style]')){const link=document.createElement('link');link.rel='stylesheet';link.href='/account-center.css';link.dataset.accountStyle='';document.head.append(link);}
   let seen=null,revision=0,preferences={...DEFAULTS},loaded=false,loadError='',rows=[],hasMore=false,unread=0,poll=null,loading=null,channel=null,opening=0;
   const $=selector=>document.querySelector(selector);
@@ -134,7 +135,7 @@ export function createAccountCenter({S,getClient,sessionContext,sameSession,asse
     'show-password':button=>{const input=button.parentElement.querySelector('input');input.type=input.type==='password'?'text':'password';button.textContent=input.type==='password'?'Afficher':'Masquer';button.setAttribute('aria-pressed',String(input.type!=='password'));},
     'logout-others':async()=>{if(!confirm('Déconnecter tes autres appareils ? Tu restes connecté ici.'))return;const context=sessionContext(),state=await pushSubscription();assertSession(context);await request(db=>db.rpc('unregister_other_notification_devices',{p_keep_endpoint:state?.subscription?.endpoint||null}),context);await request(db=>db.auth.signOut({scope:'others'}),context);notify('Les autres appareils devront se reconnecter après expiration de leur session actuelle.');},
     'logout-all':async()=>{if(!confirm('Te déconnecter sur tous les appareils, y compris celui-ci ?'))return;const context=sessionContext();await request(db=>db.rpc('unregister_other_notification_devices',{p_keep_endpoint:null}),context);await beforeLogout();const db=await getClient();assertSession(context);checkResult(await db.auth.signOut({scope:'global'}));if(sameSession(context))leave();},
-    reauthenticate:async()=>{await request(db=>db.auth.reauthenticate());notify('Code demandé. Consulte ton email puis recopie le code si le service le demande.');},
+    reauthenticate:async button=>{const form=button.closest('form');await request(db=>db.auth.reauthenticate());if(!form?.isConnected)return;const text=emailFeedback('security-code').message;const status=form.querySelector('[data-account-status]');if(status)status.textContent=text;form.elements.nonce?.focus();notify('Code demandé. Vérifie tes emails et tes spams.');},
     'enable-push':enablePush,'disable-push':disablePush,
     deletion:()=>dialog('Demander la suppression de mon compte',`<p>Ton compte, ton suivi et tes publications seront concernés par ta demande. Le support vérifie les données à effacer et les éventuelles obligations de conservation.</p><p>Avant de continuer, exporte ton suivi si tu veux en conserver une copie. Vérifie également ton abonnement : la demande d’effacement ne le résilie pas automatiquement.</p><div class="row"><button type="button" class="secondary" data-action="export">Exporter mon suivi</button><a class="primary" href="/abonnement.html#demandes">Déposer et suivre ma demande d’effacement</a></div>`)
   };
@@ -159,7 +160,10 @@ export function createAccountCenter({S,getClient,sessionContext,sameSession,asse
           if(!v('current')){fail('current','Saisis ton mot de passe actuel.');break;}
           await verifyPassword(v('current'),context);assertSession(context);
           const result=await request(db=>db.auth.updateUser({email},{emailRedirectTo:location.origin}),context);
-          if(result?.user)Object.assign(S.user,result.user);renderDetails();form.reset();closeModal();notify('Changement demandé. Confirme les liens reçus par email pour utiliser ta nouvelle adresse.');break;
+          if(result?.user){Object.assign(S.user,result.user);if(!result.user.new_email)delete S.user.new_email;}renderDetails();
+          const immediate=String(result?.user?.email||'').toLowerCase()===email&&!result?.user?.new_email;
+          form.reset();if(form.isConnected){closeModal();if(immediate&&showAuthSuccess)showAuthSuccess('email-updated');else if(showAuthNotice)showAuthNotice('email-change',{email});else notify('Changement demandé. Confirme les liens reçus par email pour utiliser ta nouvelle adresse. Vérifie aussi tes spams.');}
+          break;
         }
         case 'password':{
           if(v('password').length<10){fail('password','Utilise au moins 10 caractères.');break;}
@@ -168,7 +172,7 @@ export function createAccountCenter({S,getClient,sessionContext,sameSession,asse
           if(!v('current')){fail('current','Saisis ton mot de passe actuel.');break;}
           await verifyPassword(v('current'),context);assertSession(context);
           await request(db=>db.auth.updateUser({password:v('password'),...(v('nonce').trim()?{nonce:v('nonce').trim()}:{})}),context);
-          form.reset();closeModal();notify('Ton mot de passe a été modifié.');break;
+          form.reset();if(form.isConnected){closeModal();if(showAuthSuccess)showAuthSuccess('password-updated');else notify('Ton mot de passe a été modifié.');}break;
         }
         case 'preferences':{
           const next={likes_enabled:data.has('likes_enabled'),comments_enabled:data.has('comments_enabled')};
