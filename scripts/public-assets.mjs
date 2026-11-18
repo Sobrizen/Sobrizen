@@ -7,6 +7,9 @@ export const PUBLIC_ASSETS=Object.freeze(["auth-feedback.mjs","auth-feedback.css
 "program-progress.mjs","membership-refresh.mjs","bootstrap.mjs",
 "blog.html","blog/blog.css","blog/logo-sobrizen.png","blog/tools-core.mjs","blog/tools.mjs","blog/calendrier-sans-alcool-vierge.pdf",
 "blog/calendrier-sans-alcool-a-imprimer.html","blog/calcul-economies-arret-alcool.html","blog/compteur-jours-sans-alcool.html",
-"blog/10-15-jours-sans-alcool-bienfaits.html","blog/bienfaits-arret-alcool-jour-apres-jour.html","blog/ne-plus-boire-alcool-le-soir.html","blog/dry-january-2027-calendrier.html"
+"blog/10-15-jours-sans-alcool-bienfaits.html","blog/bienfaits-arret-alcool-jour-apres-jour.html","blog/ne-plus-boire-alcool-le-soir.html","blog/dry-january-2027-calendrier.html",
+"blog/journal-consommation-alcool-pdf.html","blog/reprise-alcool-apres-arret.html","blog/envie-de-boire-alcool-plan-soutien.html",
+"blog/refuser-alcool-soiree-sans-se-justifier.html","blog/calcul-verres-standard-alcool.html","blog/application-suivi-consommation-alcool.html","blog/noel-sans-alcool.html",
+"blog/journal-consommation-alcool.pdf","blog/sobrizen-suivi-demo.jpg","blog/sobrizen-journal-demo.jpg"
 ]);
 

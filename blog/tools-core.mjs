@@ -42,3 +42,18 @@ export function calendarTotals(entries){
     return sum;
   },{without:0,with:0});
 }
+/** French convention: ethanol density 0.8 g/ml, 10 g per standard drink. */
+export function standardDrinks(volume,strength,portions='1'){
+  const decimal=(value,label,max,allowZero=false)=>{
+    const normalized=String(value).trim().replace(',','.');
+    if(!/^\d+(?:\.\d{1,2})?$/u.test(normalized))throw Error(`${label} : saisis un nombre avec au maximum deux décimales.`);
+    const result=Number(normalized);
+    if(!Number.isFinite(result)||result>max||result<(allowZero?0:0.01))throw Error(`${label} : ${allowZero?`la valeur doit être comprise entre 0 et ${max}`:`la valeur doit être supérieure à 0 et ne pas dépasser ${max}`}.`);
+    return result;
+  };
+  const cl=decimal(volume,'Volume en cl',2000),percent=decimal(strength,'Degré en %',100,true);
+  const count=String(portions).trim();
+  if(!/^\d{1,3}$/u.test(count)||Number(count)<1||Number(count)>100)throw Error('Nombre de portions : saisis un entier entre 1 et 100.');
+  const grams=cl*percent*0.08*Number(count);
+  return {grams,units:grams/10};
+}

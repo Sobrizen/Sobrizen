@@ -1,4 +1,4 @@
-import {localToday,civilDate,elapsedDays,savings,monthGrid,calendarTotals} from './tools-core.mjs';
+import {localToday,civilDate,elapsedDays,savings,monthGrid,calendarTotals,standardDrinks} from './tools-core.mjs';
 const euro=new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR',maximumFractionDigits:2});
 const fullDate=value=>new Intl.DateTimeFormat('fr-FR',{dateStyle:'long',timeZone:'UTC'}).format(new Date(civilDate(value).serial*86400000));
 
@@ -80,9 +80,34 @@ export function mountTools(doc=document,today=localToday(),print=()=>window.prin
       event.preventDefault();const parts=['moment','alternative','support'].map(name=>plan.querySelector(`[name="${name}"]`).value.trim());
       const error=plan.querySelector('[data-error]'),result=plan.querySelector('[data-result]');
       if(parts.some(p=>!p)){error.textContent='Complète les trois éléments pour préparer ton plan.';result.hidden=true;return;}
-      error.textContent='';plan.querySelector('[data-plan-text]').textContent=`Quand ${parts[0]}, je prévois ${parts[1]}. Si j’ai besoin d’un appui : ${parts[2]}.`;result.hidden=false;
+      error.textContent='';plan.querySelector('[data-plan-text]').textContent=plan.hasAttribute('data-support-plan')?`Situation : ${parts[0]}. Action prévue : ${parts[1]}. Appui : ${parts[2]}.`:`Quand ${parts[0]}, je prévois ${parts[1]}. Si j’ai besoin d’un appui : ${parts[2]}.`;result.hidden=false;
     });
     plan.querySelector('[data-controls]').disabled=false;
+    plan.querySelector('[data-download-plan]')?.addEventListener('click',()=>{
+      const value=plan.querySelector('[data-plan-text]').textContent;
+      if(!value)return;
+      const view=doc.defaultView,blob=new view.Blob(['Ma fiche de soutien - Sobrizen\n\n'+value+'\n\nCette fiche ne remplace pas un accompagnement adapté.\n'],{type:'text/plain;charset=utf-8'});
+      const href=view.URL.createObjectURL(blob),anchor=doc.createElement('a');
+      anchor.href=href;anchor.download='ma-fiche-soutien-sobrizen.txt';doc.body.append(anchor);anchor.click();anchor.remove();
+      view.setTimeout(()=>view.URL.revokeObjectURL(href),1000);
+    });
+  }
+  const units=doc.querySelector('[data-tool="units"]');
+  if(units){
+    const format=new Intl.NumberFormat('fr-FR',{maximumFractionDigits:2});
+    const estimated=value=>value>0&&value<0.01?'moins de 0,01':format.format(value);
+    units.addEventListener('submit',event=>{
+      event.preventDefault();const error=units.querySelector('[data-error]'),result=units.querySelector('[data-result]');error.textContent='';
+      try{
+        const values=['volume','strength','portions'].map(name=>units.querySelector(`[name="${name}"]`).value);
+        const calculated=standardDrinks(...values);
+        units.querySelector('[data-units]').textContent=estimated(calculated.units);
+        units.querySelector('[data-grams]').textContent=`Quantité estimée : ${estimated(calculated.grams)} g d’alcool pur, pour l’ensemble des portions renseignées.`;
+        result.hidden=false;
+      }catch(e){error.textContent=e.message;result.hidden=true;}
+    });
+    units.querySelector('[data-controls]').disabled=false;
+    units.requestSubmit();
   }
 }
 if(typeof document!=='undefined')mountTools();

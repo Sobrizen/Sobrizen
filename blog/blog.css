@@ -8,6 +8,11 @@
 @media(max-width:640px){.calendar-day .calendar-status{display:none}.calendar-day .calendar-status-short{display:block;font-size:.72rem;font-weight:600}}
 
 .tool fieldset{border:0;padding:0;margin:0;min-width:0}
+.product-shot{margin:28px 0;border:1px solid var(--line);border-radius:16px;overflow:hidden;background:var(--white)}
+.result-panel p{overflow-wrap:anywhere}
+.product-shot img{display:block;width:100%;height:auto}
+.product-shot figcaption{padding:15px 18px;font-size:.85rem;line-height:1.7;color:var(--muted)}
+.practical-list{padding:22px 22px 22px 43px;background:var(--green);border-radius:14px}
 /* Current supplied brand mark, without a separate retyped wordmark. */
 .site-header .brand img{display:block;width:80px;height:80px;object-fit:contain;border-radius:50%}
 .site-header .header-inner{min-height:104px}

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {JSDOM} from 'jsdom';
-import {civilDate,elapsedDays,savings,monthGrid,calendarTotals} from '../blog/tools-core.mjs';
+import {civilDate,elapsedDays,savings,monthGrid,calendarTotals,standardDrinks} from '../blog/tools-core.mjs';
 import {mountTools} from '../blog/tools.mjs';
 import {planPublic} from '../scripts/build.mjs';
 
@@ -91,9 +91,9 @@ test('without JavaScript, forms stay disabled and cannot send personal fields th
     w.close();
   }
 });
-test('all seven articles are crawlable without JS, uniquely identified and internally linked',()=>{
+test('all fourteen articles are crawlable without JS, uniquely identified and internally linked',()=>{
   const {files}=planPublic(),pages=[...files.keys()].filter(name=>name.startsWith('blog/')&&name.endsWith('.html'));
-  assert.equal(pages.length,7);
+  assert.equal(pages.length,14);
   const titles=new Set(),descriptions=new Set(),sitemap=files.get('sitemap.xml').toString();
   for(const name of ['blog.html',...pages]){
     const source=files.get(name).toString(),d=new JSDOM(source).window.document;
@@ -116,8 +116,46 @@ test('all seven articles are crawlable without JS, uniquely identified and inter
     }
   }
   assert.ok(files.get('blog/blog.css').length<20000);
-  assert.ok(files.get('blog/tools.mjs').length+files.get('blog/tools-core.mjs').length<16000);
+  assert.ok(files.get('blog/tools.mjs').length+files.get('blog/tools-core.mjs').length<20000);
   assert.ok(files.get('blog/calendrier-sans-alcool-vierge.pdf').subarray(0,5).equals(Buffer.from('%PDF-')));
+});
+
+test('standard drinks use the French 10g convention and never round portions to integers',()=>{
+  assert.deepEqual(standardDrinks('50','5'),{grams:20,units:2});
+  assert.deepEqual(standardDrinks('12,5','12'),{grams:12,units:1.2});
+  assert.ok(Math.abs(standardDrinks('3','40').units-0.96)<1e-12);
+  assert.equal(standardDrinks('50','8','2').units,6.4);
+  assert.equal(standardDrinks('33','0').units,0);
+  for(const args of [['0','5'],['-2','5'],['50','101'],['50','5','1.5'],['50','5','0'],['Infinity','5'],['50','5','101'],['50','','1']])assert.throws(()=>standardDrinks(...args));
+});
+
+test('units calculator handles French decimals and hides stale results on invalid inputs',()=>{
+  const w=fixture('calcul-verres-standard-alcool'),d=w.document,form=d.querySelector('form');
+  assert.equal(form.querySelector('[data-controls]').disabled,true);
+  mountTools(d,'2026-11-18',()=>{});
+  assert.equal(d.querySelector('[data-units]').textContent,'2');
+  d.querySelector('[name=volume]').value='12,5';d.querySelector('[name=strength]').value='12';submit(w,form);
+  assert.equal(d.querySelector('[data-units]').textContent,'1,2');
+  d.querySelector('[name=strength]').value='101';submit(w,form);
+  assert.equal(d.querySelector('[data-result]').hidden,true);
+  assert.ok(d.querySelector('[data-error]').textContent.length);
+  w.close();
+});
+
+test('support plan produces a local text file without sending the entered content',()=>{
+  const w=fixture('envie-de-boire-alcool-plan-soutien'),d=w.document,downloads=[];
+  const original=w.HTMLAnchorElement.prototype.click;
+  w.HTMLAnchorElement.prototype.click=function(){downloads.push(this.download);};
+  let revoked=false,created;
+  w.URL.createObjectURL=blob=>{created=blob;return 'blob:local-support';};
+  w.URL.revokeObjectURL=()=>{revoked=true;};w.setTimeout=callback=>callback();
+  mountTools(d,'2026-11-18',()=>{});
+  for(const name of ['moment','alternative','support'])d.querySelector(`[name=${name}]`).value='<img src=x>';
+  submit(w,d.querySelector('form'));d.querySelector('[data-download-plan]').click();
+  assert.deepEqual(downloads,['ma-fiche-soutien-sobrizen.txt']);
+  assert.equal(created.type,'text/plain;charset=utf-8');assert.ok(created.size>100);assert.equal(revoked,true);
+  assert.equal(d.querySelector('[data-plan-text] img'),null);
+  w.HTMLAnchorElement.prototype.click=original;w.close();
 });
 test('blog assets never enter application precache, script imports or blocking styles',()=>{
   const {files}=planPublic();
