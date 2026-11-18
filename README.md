@@ -1,5 +1,7 @@
 # Sobrizen V4 — suivi par périodes
 
+> **Confirmations de compte :** les actions d’inscription, récupération et changement d’adresse affichent un écran explicatif persistant avec rappel des spams et renvoi du lien. Voir [les comportements et les contrôles Auth](docs/AUTH-CONFIRMATIONS-2026-11-18.md).
+
 > **Parcours client du 18 novembre 2026 :** changement d’email et de mot de passe, gestion des sessions, centre d’aide, tri « Mes publications », cloche et préférences de notification, alertes Web Push et export communautaire. Voir [l’audit et les vérifications](docs/AUDIT-PARCOURS-CLIENT-2026-11-18.md).
 
 > **Actualisation du 15 novembre 2026 :** voir [la note de livraison et l'ordre sûr de déploiement](docs/RELEASE_2026-11-15.md). La version préparée facture les nouvelles souscriptions immédiatement, sans essai ; les essais déjà accordés restent conservés. Les mentions d'essai et d'ouverture ci-dessous décrivent l'historique. Les textes juridiques restent à actualiser par le propriétaire.
