@@ -10,6 +10,9 @@ export const PUBLIC_ASSETS=Object.freeze(["auth-feedback.mjs","auth-feedback.css
 "blog/10-15-jours-sans-alcool-bienfaits.html","blog/bienfaits-arret-alcool-jour-apres-jour.html","blog/ne-plus-boire-alcool-le-soir.html","blog/dry-january-2027-calendrier.html",
 "blog/journal-consommation-alcool-pdf.html","blog/reprise-alcool-apres-arret.html","blog/envie-de-boire-alcool-plan-soutien.html",
 "blog/refuser-alcool-soiree-sans-se-justifier.html","blog/calcul-verres-standard-alcool.html","blog/application-suivi-consommation-alcool.html","blog/noel-sans-alcool.html",
-"blog/journal-consommation-alcool.pdf","blog/sobrizen-suivi-demo.jpg","blog/sobrizen-journal-demo.jpg"
+"blog/journal-consommation-alcool.pdf","blog/sobrizen-suivi-demo.jpg","blog/sobrizen-journal-demo.jpg",
+"blog/alcool-sommeil-reveils-nocturnes.html","blog/fatigue-apres-arret-alcool.html","blog/anxiete-lendemain-alcool-hangxiety.html",
+"blog/calories-alcool-biere-vin-cocktails.html","blog/biere-sans-alcool-zero-etiquette.html","blog/aperitif-sans-alcool-recettes-faciles.html",
+"blog/alcool-cuisson-vin-chaud-flambage.html","blog/gueule-de-bois-lendemain.html","blog/conduire-lendemain-soiree-alcool.html","blog/apres-dry-january-fevrier.html"
 ]);
 

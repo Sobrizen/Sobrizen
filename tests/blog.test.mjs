@@ -91,9 +91,9 @@ test('without JavaScript, forms stay disabled and cannot send personal fields th
     w.close();
   }
 });
-test('all fourteen articles are crawlable without JS, uniquely identified and internally linked',()=>{
+test('all twenty-four articles are crawlable without JS, uniquely identified and internally linked',()=>{
   const {files}=planPublic(),pages=[...files.keys()].filter(name=>name.startsWith('blog/')&&name.endsWith('.html'));
-  assert.equal(pages.length,14);
+  assert.equal(pages.length,24);
   const titles=new Set(),descriptions=new Set(),sitemap=files.get('sitemap.xml').toString();
   for(const name of ['blog.html',...pages]){
     const source=files.get(name).toString(),d=new JSDOM(source).window.document;
@@ -113,6 +113,12 @@ test('all fourteen articles are crawlable without JS, uniquely identified and in
       assert.equal(d.querySelector('[itemprop=author] [itemprop=name]').textContent,'Rédaction Sobrizen');
       assert.ok(d.querySelectorAll('.article-body h2').length>=6,name);
       assert.ok(d.querySelectorAll('.sources a').length>=3,name);
+      const published=d.querySelector('[itemprop=datePublished]').dateTime,modified=d.querySelector('[itemprop=dateModified]').content;
+      assert.match(published,/^\d{4}-\d{2}-\d{2}$/u,name);
+      assert.ok(modified>=published,name+' modification date');
+      assert.equal(d.querySelector('meta[property="article:published_time"]').content,published,name);
+      if(name==='blog/calendrier-sans-alcool-a-imprimer.html')assert.equal(published,'2026-11-18');
+      if(name==='blog/fatigue-apres-arret-alcool.html')assert.equal(published,'2026-11-24');
     }
   }
   assert.ok(files.get('blog/blog.css').length<20000);
