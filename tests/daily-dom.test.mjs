@@ -151,6 +151,21 @@ try{
     assert.match(txt('[data-daily-clock-detail]'),/depuis ton dernier verre déclaré/,'A sober declaration must preserve the precise stop clock');
   });
 
+  await check('editing','quick totals stay in sync with custom amounts and keep optional purchases unknown',async()=>{
+    await reset(); const target=await openToday();
+    await value(target,'sober_today','false');
+    const two=target.querySelector('[data-daily-units="2"]');
+    await click(two);
+    assert.equal(two.getAttribute('aria-pressed'),'true');
+    assert.equal(target.elements.alcohol_units.value,'2');
+    await value(target,'alcohol_units','1.5');
+    assert.equal(two.getAttribute('aria-pressed'),'false');
+    assert.equal(target.querySelector('.daily-extra-fields').open,false);
+    await submit(target);
+    assert.equal(row(mock).alcohol_units,1.5);
+    assert.equal(row(mock).alcohol_cost_eur,null);
+  });
+
   await check('home','changing the selected date preserves drafts; a future date is rejected without a write',async()=>{
     await reset();let target=await openToday();
     await value(target,'sober_today','false');await value(target,'alcohol_units','2.5');

@@ -90,6 +90,8 @@ test('partial quantity, known costs and actual today keep independent coverage w
     assert.match(h.$('.tl-simple-consumption .tl-simple-source').textContent, /Partiel/);
     assert.match(h.$('.tl-simple-spending .tl-simple-coverage').textContent, /6\/6 jours clos connus.*saisie d’aujourd’hui/);
     assert.match(h.$('.tl-simple-spending .tl-simple-source').textContent, /Noté \+ estimé/);
+    assert.match(h.$('.tl-quantity-coverage').textContent,/0 jour saisi.*5 jours estimés.*2 jours sans quantité/s);
+    assert.equal(h.$('.tl-rhythm-comparison'),null);
   } finally {h.close();}
 });
 
@@ -102,6 +104,7 @@ test('unknown first-day values stay unavailable while explicit zero today remain
     assert.match(h.$('.tl-simple-consumption .tl-simple-coverage').textContent, /0\/6/);
     h.data.checks = [{checkin_date: h.data.today, sober_today: true, alcohol_cost_eur: 0}]; h.api.render();
     assert.equal(h.$('.tl-simple-consumption strong').textContent, '0');
+    assert.match(h.$('.tl-quantity-coverage').textContent,/1 jour saisi.*6 jours sans quantité/s);
     assert.match(h.$('.tl-simple-spending strong').textContent, /^0/);
     assert.match(h.$('.tl-simple-savings strong').textContent, /^0/);
   } finally {h.close();}

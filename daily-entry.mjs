@@ -155,6 +155,8 @@ export function createDailyEntry(api) {
     box.dataset.field = field;
     box.hidden = false;
     if (input && !input.disabled) {
+      const details = input.closest('details');
+      if (details) details.open = true;
       const brief = text.startsWith('Cette date précède') ? `Choisis une date à partir du ${dateLabel(context.model.baseline)}.`
         : text === 'Date invalide.' ? 'Choisis une date valide.' : text;
       showFieldError(input, brief);
@@ -176,6 +178,15 @@ export function createDailyEntry(api) {
     alcohol_units: model.existing?.alcohol_units ?? '', alcohol_cost_eur: model.existing?.alcohol_cost_eur ?? '',
     craving: model.existing?.craving ?? '',
   });
+  const quickUnits = [1, 2, 3];
+  function syncQuickUnits(form) {
+    const input = form.elements.namedItem('alcohol_units');
+    if (!input) return;
+    for (const button of form.querySelectorAll('[data-daily-units]')) {
+      const selected = !input.disabled && input.value !== '' && input.valueAsNumber === Number(button.dataset.dailyUnits);
+      button.setAttribute('aria-pressed', String(selected));
+    }
+  }
   function open(date = progression.today(), drafts = new Map()) {
     ready();
     const model = modelFor(date), draft = drafts.get(date), values = draft?.values || initial(model);
@@ -184,23 +195,27 @@ export function createDailyEntry(api) {
     const status = model.locked ? 'false' : values.sober_today;
     const amount = value => esc(value ?? '');
     api.modal('Renseigner une journée', `<form id="dailyEntryForm" data-health-form novalidate>
-      <p class="muted">Une réponse simple pour voir où tu en es. ${model.provisional ? 'Aujourd’hui reste une journée en cours : tu renseignes ce qui s’est passé jusqu’à présent.' : 'Tu peux compléter ou corriger une journée passée.'}</p>
+      <p class="muted">${model.provisional ? 'Ta journée en cours. Tu peux revenir compléter ce point ce soir.' : 'Choisis ce que tu souhaites garder de cette journée.'}</p>
       <label>Date du point<input type="date" name="checkin_date" min="${esc(model.baseline)}" max="${esc(model.today)}" value="${esc(model.date)}" required></label>
       <fieldset class="daily-entry-status"${model.locked ? ' disabled' : ''}><legend>${model.provisional ? 'Jusqu’à présent, aujourd’hui' : 'Pour cette journée'}</legend>
         <label><input type="radio" name="sober_today" value="true"${status === 'true' ? ' checked' : ''} required> Sans alcool</label>
         <label><input type="radio" name="sober_today" value="false"${status === 'false' ? ' checked' : ''} required> Avec alcool</label>
       </fieldset>
       ${model.locked ? `<div class="safety"><p>Une consommation est déjà enregistrée le ${esc(dateLabel(model.date))} : ${Number.isFinite(model.occasion.units) ? `${esc(model.occasion.units)} verre${model.occasion.units === 1 ? '' : 's'} standard` : 'quantité non renseignée'}, ${Number.isFinite(model.occasion.cost) ? `${esc(model.occasion.cost)} €` : 'dépense non renseignée'}. Tu peux noter ton envie ici.</p><button type="button" class="secondary" data-daily-entry="edit-occasion">Modifier la consommation</button></div>` : `<div data-daily-amounts${status === 'false' ? '' : ' hidden'}>
-        <label>Verres standard (facultatif)<input type="number" name="alcohol_units" inputmode="decimal" min="0.01" max="1000" step="0.01" value="${amount(values.alcohol_units)}" aria-describedby="dailyQuantityHelp"${status === 'false' ? '' : ' disabled'}></label>
-        <p class="small" id="dailyQuantityHelp">Un verre standard correspond à 10 g d’alcool. Ce nombre peut différer du nombre de verres servis. <a href="https://www.alcool-info-service.fr/sites/default/files/2024-12/Alcool_Infographie_reperes.pdf" target="_blank" rel="noopener noreferrer">Comprendre le verre standard (Alcool info service, PDF)</a>.</p>
-      </div><label>Achats d’alcool (€, facultatif)<input type="number" name="alcohol_cost_eur" inputmode="decimal" min="0" max="1000000" step="0.01" value="${amount(values.alcohol_cost_eur)}" aria-describedby="dailyCostHelp"></label><p class="small" id="dailyCostHelp">Un achat reste possible même sans boire. Laisse vide si tu ne sais pas.</p>`}
-      <label>Mon envie d’alcool (facultatif)<select name="craving"><option value=""${values.craving === '' || values.craving == null ? ' selected' : ''}>Non renseignée</option>${Array.from({length: 11}, (_, value) => `<option value="${value}"${String(values.craving) === String(value) ? ' selected' : ''}>${value}${value === 0 ? ' — aucune envie' : value === 10 ? ' — envie très forte' : ''}</option>`).join('')}</select></label>
+        <div class="daily-quick-units" role="group" aria-label="Choisir le total de verres standard">${quickUnits.map(value => `<button type="button" data-daily-units="${value}" aria-pressed="false">${value} verre${value === 1 ? '' : 's'}</button>`).join('')}</div>
+        <label>Verres standard (facultatif)<input type="number" name="alcohol_units" inputmode="decimal" min="0.01" max="1000" step="0.01" placeholder="Quantité ou vide si inconnue" value="${amount(values.alcohol_units)}" aria-describedby="dailyQuantityHelp"${status === 'false' ? '' : ' disabled'}></label>
+        <p class="small" id="dailyQuantityHelp">25 cl de bière à 5 % ou 10 cl de vin à 12 % correspondent à environ un verre standard. <a href="https://www.alcool-info-service.fr/sites/default/files/2024-12/Alcool_Infographie_reperes.pdf" target="_blank" rel="noopener noreferrer">Voir les équivalences</a>.</p>
+      </div>`}
+      <details class="daily-extra-fields"${model.locked || String(values.alcohol_cost_eur ?? '') !== '' || String(values.craving ?? '') !== '' ? ' open' : ''}><summary>${model.locked ? 'Noter mon envie' : 'Ajouter une dépense ou une envie'} <small>Facultatif</small></summary>
+      ${model.locked ? '' : `<label>Achats d’alcool (€)<input type="number" name="alcohol_cost_eur" inputmode="decimal" min="0" max="1000000" step="0.01" value="${amount(values.alcohol_cost_eur)}" aria-describedby="dailyCostHelp"></label><p class="small" id="dailyCostHelp">Indique 0 si tu n’as rien dépensé. Laisse vide si tu ne sais pas.</p>`}
+      <label>Mon envie d’alcool<select name="craving"><option value=""${values.craving === '' || values.craving == null ? ' selected' : ''}>Non renseignée</option>${Array.from({length: 11}, (_, value) => `<option value="${value}"${String(values.craving) === String(value) ? ' selected' : ''}>${value}${value === 0 ? ' — aucune envie' : value === 10 ? ' — envie très forte' : ''}</option>`).join('')}</select></label></details>
       <p class="error-box" id="dailyEntryError" role="alert" hidden></p>
       <button type="submit" class="primary full" data-daily-entry="save">Enregistrer</button>
     </form>`);
     const form = document.querySelector('#dailyEntryForm');
     if (!form) throw Error('Le formulaire n’a pas pu être ouvert.');
     forms.set(form, context);
+    syncQuickUnits(form);
     if (staleDraft) showError(form, conflict());
   }
   function assertSource(context, change) {
@@ -279,7 +294,10 @@ export function createDailyEntry(api) {
     form.querySelector('#dailyEntryError').hidden = true;
     try {await save(form);} catch (error) {showError(form, error);}
   }, true);
-  document.addEventListener('input', clearCorrectedField, true);
+  document.addEventListener('input', event => {
+    clearCorrectedField(event);
+    if (event.target.name === 'alcohol_units' && event.target.form?.id === 'dailyEntryForm') syncQuickUnits(event.target.form);
+  }, true);
   document.addEventListener('change', clearCorrectedField, true);
   document.addEventListener('change', event => {
     const form = event.target.form;
@@ -303,6 +321,7 @@ export function createDailyEntry(api) {
           if (!drinking) clearFieldError(input);
           if (drinking && context.model.existing?.sober_today === true && input.value === '0') input.value = '';
         }
+        syncQuickUnits(form);
         if (!drinking && form.querySelector('#dailyEntryError').dataset.field === 'alcohol_units') {
           const box = form.querySelector('#dailyEntryError'); box.hidden = true; box.textContent = ''; delete box.dataset.field;
         }
@@ -310,13 +329,23 @@ export function createDailyEntry(api) {
     } catch (error) {showError(form, error);}
   }, true);
   document.addEventListener('click', event => {
-    const button = event.target.closest?.('[data-daily-entry="edit-occasion"]');
+    const button = event.target.closest?.('[data-daily-entry="edit-occasion"],[data-daily-units]');
     if (!button) return;
     event.preventDefault(); event.stopImmediatePropagation();
     const form = button.closest('form'), context = forms.get(form);
     if (!context || context.pending || button.disabled) return;
     try {
       ready(context);
+      if (button.hasAttribute('data-daily-units')) {
+        const input = form.elements.namedItem('alcohol_units');
+        const units = Number(button.dataset.dailyUnits);
+        if (input && !input.disabled && quickUnits.includes(units)) {
+          input.value = String(units);
+          input.dispatchEvent(new Event('input', {bubbles:true}));
+          input.dispatchEvent(new Event('change', {bubbles:true}));
+        }
+        return;
+      }
       const craving = form.elements.namedItem('craving').value;
       if (String(context.model.existing?.craving ?? '') !== craving && !confirm('Ton envie n’est pas encore enregistrée. Ouvrir la consommation sans l’enregistrer ?')) return;
       api.closeModal(); progression.openOccasion(context.model.date);

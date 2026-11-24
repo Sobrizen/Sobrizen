@@ -92,6 +92,9 @@ body[data-page="health"]{--axis-current:var(--axis-health);--green:var(--axis-he
 .hz-sources article{font-size:13px;line-height:1.7;overflow-wrap:anywhere}
 .hz-sources h3{font-size:19px;line-height:1.35}
 .hz-rating-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin:20px 0}
+.hz-extra-ratings{border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin:4px 0 14px}
+.hz-extra-ratings>summary{min-height:46px;padding:12px 0;font-size:.88rem;font-weight:650;line-height:1.5;cursor:pointer}
+.hz-extra-ratings>summary:focus-visible{outline:3px solid var(--axis-health);outline-offset:2px}
 .hz-rating{min-width:0;border:1px solid var(--line);border-radius:16px;padding:13px}
 .hz-rating legend{font-weight:750;padding:0 7px;font-size:14px}
 .hz-rating-options{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}

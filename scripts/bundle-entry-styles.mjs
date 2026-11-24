@@ -22,5 +22,16 @@ export function bundleEntryStyles(files){
   result+=html.slice(cursor);
   files.set('experience.css',Buffer.from(css));
   files.set('index.html',Buffer.from(result));
+  // The offline shell already contains these declarations in experience.css.
+  // Keep standalone sheets used by other documents or injected by a module.
+  const consumers=[...files].filter(([file])=>file!=='sw.js'&&/\.(?:html|m?js)$/.test(file))
+    .map(([,bytes])=>bytes.toString('utf8'));
+  const bundledOnly=sheets.filter(file=>file!==target&&!consumers.some(source=>source.includes('/'+file)||source.includes("'"+file+"'")||source.includes('"'+file+'"')));
+  const worker=files.get('sw.js')?.toString('utf8');
+  if(worker&&bundledOnly.length){
+    const marker='cache.addAll(ASSETS)';
+    if(!worker.includes(marker))throw Error('Style bundle: expected service worker install list.');
+    files.set('sw.js',Buffer.from(worker.replace(marker,'cache.addAll(ASSETS.filter(path=>!'+JSON.stringify(bundledOnly.map(file=>'/'+file))+'.includes(path)))')));
+  }
   return {requestsBefore:links.length,requestsAfter:1};
 }

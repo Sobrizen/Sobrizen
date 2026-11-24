@@ -13,14 +13,14 @@ const dateText=formatDay;
 
 export function createDailyUI(api){
  const {S,progression,health}=api;
- let month=null,owner=null,renderedDay=null;
- function reset(){month=null;owner=null;renderedDay=null;}
- function overview(){
+ let month=null,owner=null,renderedDay=null,suggestionDay=null,suggestionIndex=0,homeModel=null;
+ function reset(){month=null;owner=null;renderedDay=null;suggestionDay=null;suggestionIndex=0;homeModel=null;}
+ function overview(includeCalendar=false){
   if(owner!==S.user){reset();owner=S.user;}
   const today=progression.today();
   if(month&&month>today.slice(0,7))month=today.slice(0,7);
   const doc=progression.document();
-  return {...dailyOverview({document:doc,today,now:new Date().toISOString(),checks:S.checks,healthRows:health.exportRows(),journal:S.journal,program:S.program,month:month||today.slice(0,7)}),baseline:doc?.baseline?.started_on||'1900-01-01'};
+  return {...dailyOverview({document:doc,today,now:new Date().toISOString(),checks:S.checks,healthRows:health.exportRows(),journal:S.journal,program:S.program,month:month||today.slice(0,7),includeCalendar}),baseline:doc?.baseline?.started_on||'1900-01-01'};
  }
  function face(j){
   if(!j.active)return {value:'—',unit:'arrêt à renseigner',detail:'Ton historique reste conservé.'};
@@ -39,7 +39,7 @@ export function createDailyUI(api){
  }
  function progressCard(m){
   const j=m.journey,goal=m.ritual.intention;
-  if(j.mode!=='abstain')return `<section class="dy-focus dy-focus-observe"><span class="eyebrow">MON OBJECTIF · ${esc(j.modeLabel.toLocaleUpperCase('fr-FR'))}</span><h2>Tu reprends la main.</h2><p>${esc(goal.why||'Une journée après l’autre, tu construis des repères qui te ressemblent.')}</p><div class="dy-counter"><strong>${m.week.declaredDays}<span class="dy-counter-denominator">/7</span></strong><span>jours renseignés</span></div><p class="dy-clock-detail">Sur les 7 derniers jours. Chaque observation t’aide à mieux connaître ton rythme.</p><button type="button" class="text" data-tl-action="settings">Ajuster mon objectif ${icon('arrow')}</button></section>`;
+  if(j.mode!=='abstain')return `<section class="dy-focus dy-focus-observe"><span class="eyebrow">MON OBJECTIF · ${esc(j.modeLabel.toLocaleUpperCase('fr-FR'))}</span><h2>Tu reprends la main.</h2><p>${esc(goal.why||'Une journée après l’autre, tu construis des repères qui te ressemblent.')}</p><div class="dy-counter"><strong>${m.week.declaredDays}<span class="dy-counter-denominator">/7</span></strong><span>jours renseignés</span></div><p class="dy-clock-detail">${m.week.declaredDays?`Sur ces journées renseignées, ${m.week.declaredAbstinentDays} sans alcool et ${m.week.declaredDrinkingDays} avec consommation.`:'Tu peux commencer par une seule journée, même sans connaître la quantité.'}</p><button type="button" class="text" data-tl-action="settings">Ajuster mon objectif ${icon('arrow')}</button></section>`;
   if(!j.active)return `<section class="dy-focus"><span class="eyebrow">MON OBJECTIF · ARRÊTER</span><h2>Le prochain pas commence ici.</h2><p>Renseigne ton dernier verre pour retrouver ton compteur et les prochaines étapes de ton arrêt.</p><button type="button" class="primary" data-tl-action="stop-time">Renseigner mon arrêt ${icon('arrow')}</button><p class="dy-clock-detail">Les journées et les efforts déjà notés restent dans ton historique.</p></section>`;
   const f=face(j),cap=capText(m),start=j.startedAt?localDateTime(j.startedAt,m.timeZone):null;
   return `<section class="dy-focus"><div class="dy-focus-top"><span class="eyebrow">MON ARRÊT EN COURS</span><span class="dy-earned">${icon('check')}<span data-daily-earned>${m.currentCap?esc(m.currentCap.label)+' parcourus':'Premier pas posé'}</span></span></div><div class="dy-counter"><strong data-daily-clock-value>${esc(f.value)}</strong><span data-daily-clock-unit>${esc(f.unit)}</span></div><p class="dy-clock-detail" data-daily-clock-detail>${esc(f.detail)}</p><div class="dy-next-cap"><div class="dy-next-cap-top"><strong data-daily-cap-title>${esc(cap.title)}</strong><span data-daily-cap-date>${esc(cap.detail)}</span></div><div class="dy-cap-track" role="progressbar" aria-label="Durée parcourue vers le prochain repère" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${cap.percent}"><span class="dy-cap-fill" style="width:${cap.percent}%"></span></div><small>Des repères de parcours, à ton rythme.</small></div><button type="button" class="dy-start-edit" data-tl-action="stop-time">Depuis le ${dateLabel(j.startDate)}${start?` à ${esc(start.time)}`:' · préciser l’heure'} <span>Modifier</span></button></section>`;
@@ -73,14 +73,29 @@ export function createDailyUI(api){
    <button type="button" class="dy-today-action" data-action="urge">${icon('pause')}<span><strong>Prendre une pause</strong><small>Quelques minutes pour traverser une envie</small></span>${icon('arrow')}</button>
   </div></section>`;
  }
+ function suggestionView(m){
+  if(suggestionDay!==m.today){suggestionIndex=0;suggestionDay=m.today;}
+  const ideas=[
+   {title:'Revenir au présent',detail:'Prends le temps de remarquer ce qui t’entoure, un sens après l’autre.',label:'Essayer l’ancrage',attrs:'data-action="ground"',icon:'pause'},
+   {title:'Préparer un moment difficile',detail:'Choisis ce que tu pourrais faire à la place du prochain verre et garde cette idée dans ton journal.',label:m.ritual.plan.completed?'Relire mon plan':'Écrire mon plan',attrs:'data-daily-action="plan"',icon:'plan'},
+   {title:'Faire une pause ludique',detail:'Choisis un jeu calme et occupe tes mains pendant quelques minutes.',label:'Choisir un jeu',attrs:'data-page="games"',icon:'game'},
+   {title:'Observer comment je me sens',detail:'Note ton énergie ou ton sommeil pour pouvoir comparer tes propres ressentis.',label:m.ritual.feelings.completed?'Revoir mon ressenti':'Noter mon ressenti',attrs:'data-health-action="checkin"',icon:'heart'},
+  ];
+  if(m.program.nextStep)ideas.push({title:m.program.nextTitle,detail:'Retrouve la prochaine étape de ton parcours et son exercice de réflexion.',label:'Ouvrir mon étape',attrs:`data-action="step" data-step="${m.program.nextStep}"`,icon:'goal'});
+  const offset=Number(m.today.slice(8))%ideas.length;
+  const ordered=[...ideas.slice(offset),...ideas.slice(0,offset)];
+  if(!m.ritual.consumption.completed)ordered.unshift({title:'Faire le point sur ma journée',detail:'Indique simplement si tu as bu aujourd’hui. Tu pourras préciser la quantité quand tu le souhaites.',label:'Noter ma journée',attrs:`data-daily-action="day" data-date="${m.today}"`,icon:'calendar'});
+  const idea=ordered[suggestionIndex%ordered.length];
+  return `<section class="sz-suggestion" aria-label="Une idée pour aujourd’hui"><div class="sz-suggestion-body" aria-live="polite" aria-atomic="true"><span class="sz-suggestion-icon">${icon(idea.icon)}</span><span class="eyebrow">UNE IDÉE POUR AUJOURD’HUI</span><h2>${esc(idea.title)}</h2><p>${esc(idea.detail)}</p></div><div class="sz-suggestion-actions"><button type="button" class="primary" ${idea.attrs}>${esc(idea.label)} ${icon('arrow')}</button><button type="button" class="text" data-daily-action="new-idea">Autre idée</button></div></section>`;
+ }
  function home({plan=''}={}){
   if(!progression.ready()||!progression.document())return progression.home()+`<div data-home-plan-slot>${plan}</div>`;
-  const m=overview();renderedDay=m.today;
-  return `<div class="dy-page"><div class="dy-heading"><div><span class="eyebrow">${esc(dateText(m.today,{weekday:'long',day:'numeric',month:'long'}))}</span><h1>Chaque jour compte.</h1><p>Ce que tu construis aujourd’hui reste avec toi.</p></div><button type="button" class="dy-goal" data-tl-action="settings">${icon('goal')}<span>Mon objectif<strong>${esc(m.journey.modeLabel)}</strong></span>${icon('arrow')}</button></div><div class="dy-primary-grid">${progressCard(m)}${benefitView(m)}</div>${todayActions(m)}<div data-home-plan-slot>${plan}</div>${weekView(m)}<section class="sz-tools" aria-labelledby="sz-tools-title"><div class="sz-tools-heading"><div><h2 id="sz-tools-title">Du soutien, à ta façon.</h2><p>Des outils pour avancer et retrouver de l’élan.</p></div><span class="tag">À ton rythme</span></div><div class="sz-tools-grid"><button type="button" class="sz-tool" data-page="journey">${icon('spark')}<strong>Mon parcours</strong><span>30 étapes pour réfléchir et avancer.</span></button><button type="button" class="sz-tool" data-page="games">${icon('game')}<strong>Une pause ludique</strong><span>Occuper mon esprit, laisser passer l’envie.</span></button><button type="button" class="sz-tool" data-page="community">${icon('people')}<strong>La communauté</strong><span>Partager mes moments, trouver un appui.</span></button><button type="button" class="sz-tool" data-page="agenda">${icon('calendar')}<strong>Mes objectifs</strong><span>Préparer ma journée et mes prochains pas.</span></button></div></section><details class="dy-safety"><summary>Un arrêt accompagné quand c’est nécessaire</summary><p>Si tu bois beaucoup ou tous les jours, ou si tu ressens un manque, demande un avis médical avant un arrêt brutal ou une forte réduction. Confusion, hallucinations, convulsions ou malaise sévère : 15 / 112 en France.</p><button type="button" class="text" data-action="help">Retrouver les contacts et les conseils</button></details></div>`;
+  const m=overview();homeModel=m;renderedDay=m.today;
+  return `<div class="dy-page"><div class="dy-heading"><div><span class="eyebrow">${esc(dateText(m.today,{weekday:'long',day:'numeric',month:'long'}))}</span><h1>Mon espace du jour</h1><p>${m.ritual.consumption.completed?'Ta journée est renseignée. Tu peux la compléter à tout moment.':'Un moment pour te situer et choisir ton prochain pas.'}</p></div><button type="button" class="dy-goal" data-tl-action="settings">${icon('goal')}<span>Mon objectif<strong>${esc(m.journey.modeLabel)}</strong></span>${icon('arrow')}</button></div><div class="dy-primary-grid">${progressCard(m)}${suggestionView(m)}</div>${todayActions(m)}${weekView(m)}<div class="sz-resources-grid">${benefitView(m)}<section class="sz-tools" aria-labelledby="sz-tools-title"><div class="sz-tools-heading"><div><h2 id="sz-tools-title">Du soutien, à ta façon.</h2><p>Des outils pour avancer et retrouver de l’élan.</p></div></div><div class="sz-tools-grid"><button type="button" class="sz-tool" data-page="journey">${icon('spark')}<strong>Mon parcours</strong><span>30 étapes pour réfléchir et avancer.</span></button><button type="button" class="sz-tool" data-page="games">${icon('game')}<strong>Une pause ludique</strong><span>Occuper mon esprit, laisser passer l’envie.</span></button><button type="button" class="sz-tool" data-page="community">${icon('people')}<strong>La communauté</strong><span>Partager mes moments, trouver un appui.</span></button><button type="button" class="sz-tool" data-page="agenda">${icon('calendar')}<strong>Mes objectifs</strong><span>Préparer ma journée et mes prochains pas.</span></button></div></section></div><div data-home-plan-slot>${plan}</div><details class="dy-safety"><summary>Un arrêt accompagné quand c’est nécessaire</summary><p>Si tu bois beaucoup ou tous les jours, ou si tu ressens un manque, demande un avis médical avant un arrêt brutal ou une forte réduction. Confusion, hallucinations, convulsions ou malaise sévère : 15 / 112 en France.</p><button type="button" class="text" data-action="help">Retrouver les contacts et les conseils</button></details></div>`;
  }
  function calendarView(){
   if(!progression.ready()||!progression.document())return '';
-  const m=overview(),c=m.calendar;renderedDay=m.today;
+  const m=overview(true),c=m.calendar;renderedDay=m.today;
   const label=dateText(c.start,{month:'long',year:'numeric'});
   return `<section class="dy-calendar" id="dy-calendar" aria-labelledby="dy-calendar-title"><div class="dy-calendar-header"><div><span class="eyebrow">UNE JOURNÉE, UN REPÈRE</span><h2 id="dy-calendar-title" tabindex="-1">Mon calendrier</h2><p>Tes jours sans alcool, tes consommations et les dates à compléter.</p></div><button type="button" class="secondary" data-daily-action="day" data-date="${m.today}">Renseigner une journée ${icon('arrow')}</button></div><div class="dy-calendar-controls"><button type="button" data-daily-action="month-prev" aria-label="Mois précédent" ${c.canPrevious?'':'disabled'}>‹</button><h3 aria-live="polite" aria-atomic="true">${esc(label)}</h3><button type="button" data-daily-action="month-next" aria-label="Mois suivant" ${c.canNext?'':'disabled'}>›</button><button type="button" class="text" data-daily-action="month-today" ${c.month===m.today.slice(0,7)?'disabled':''}>Ce mois-ci</button></div><div class="dy-month-grid">${['Lun.','Mar.','Mer.','Jeu.','Ven.','Sam.','Dim.'].map(d=>`<span class="dy-weekday-label">${d}</span>`).join('')}${'<span class="dy-empty-day" aria-hidden="true"></span>'.repeat(c.leadingDays)}${c.days.map(d=>dayButton({...d,beforeStart:d.date<m.baseline})).join('')}</div>${legend()}<div class="dy-calendar-summary"><strong>${c.declaredDays} ${plural(c.declaredDays,'journée')} ${plural(c.declaredDays,'renseignée')}</strong><span>${c.estimatedDays} selon ${plural(c.estimatedDays,'une période','tes périodes')} · ${c.days.filter(d=>d.provenance==='unknown'&&d.date>=m.baseline).length} à renseigner</span></div><p class="dy-calendar-note">Aujourd’hui reste une journée en cours. Les cases en pointillés viennent de tes périodes déclarées ; elles ne remplacent pas un point quotidien. Une journée vide reste inconnue.</p>${c.start<m.baseline?`<p class="dy-calendar-note">Ton suivi commence le ${dateLabel(m.baseline)}. <button type="button" class="text" data-tl-action="settings">Ajuster mes repères de départ</button></p>`:''}<div class="dy-calendar-links"><button type="button" class="text" data-tl-action="change">Arrêt ou reprise</button><button type="button" class="text" data-tl-action="history">Mon historique complet ${icon('arrow')}</button></div></section>`;
  }
@@ -98,7 +113,18 @@ export function createDailyUI(api){
    const action=button.dataset.dailyAction;
    if(action==='day'){api.privateWrite();api.openDay(button.dataset.date);return;}
    if(action==='plan'){api.privateWrite();const m=overview();api.openPlan(m.ritual.plan.completed?m.ritual.plan.id:null,m.today);return;}
-   const m=overview();
+   if(action==='new-idea'){
+    const panel=button.closest('.sz-suggestion');
+    if(panel&&homeModel){
+     suggestionIndex++;
+     const template=document.createElement('template');template.innerHTML=suggestionView(homeModel);
+     const next=template.content;
+     panel.querySelector('.sz-suggestion-body').replaceChildren(...next.querySelector('.sz-suggestion-body').childNodes);
+     panel.querySelector('.primary').replaceWith(next.querySelector('.primary'));
+    }
+    return;
+   }
+   const m=overview(true);
    if(action==='month-today')month=m.today.slice(0,7);
    else if(action==='month-prev'||action==='month-next'){
     if(action==='month-prev'&&!m.calendar.canPrevious||action==='month-next'&&!m.calendar.canNext)return;

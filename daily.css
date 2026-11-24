@@ -210,6 +210,13 @@
 .dy-calendar-links{display:flex;flex-wrap:wrap;justify-content:space-between;gap:5px 18px;margin-top:14px;padding-top:10px;border-top:1px solid var(--dy-line)}
 /* Explicit daily declaration. Native radios remain visible and keyboard usable. */
 #dailyEntryForm{display:flex;flex-direction:column;gap:0}
+#dailyEntryForm .daily-quick-units{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}
+#dailyEntryForm .daily-quick-units button{min-height:44px;flex:1 1 auto;padding:7px 10px;border:1px solid var(--dy-day-border);border-radius:10px;background:var(--dy-paper);color:var(--dy-ink);font-size:.83rem;font-weight:650}
+#dailyEntryForm .daily-quick-units button[aria-pressed="true"]{background:var(--dy-sage);color:var(--dy-ink);border-color:var(--dy-accent);box-shadow:inset 0 0 0 1px var(--dy-accent);text-decoration:underline;text-underline-offset:3px}
+#dailyEntryForm .daily-extra-fields{padding:0 0 4px;margin:0 0 14px;border-top:1px solid var(--dy-line);border-bottom:1px solid var(--dy-line)}
+#dailyEntryForm .daily-extra-fields>summary{min-height:46px;padding:12px 0;color:var(--dy-ink);font-size:.88rem;font-weight:650;cursor:pointer}
+#dailyEntryForm .daily-extra-fields>summary small{margin-inline-start:4px;color:var(--dy-muted);font-size:.74rem;font-weight:400}
+#dailyEntryForm .daily-extra-fields>label{margin:0 0 16px}
 #dailyEntryForm>p:first-child{font-size:14px;line-height:1.65;margin:1px 0 19px;color:var(--dy-muted)}
 #dailyEntryForm>label,#dailyEntryForm [data-daily-amounts]>label{font-size:13px;line-height:1.5;color:var(--dy-ink);margin:0 0 17px}
 #dailyEntryForm :is(input:not([type="radio"]),select){width:100%;min-width:0;max-width:100%;min-height:48px;border:1px solid var(--dy-day-border);border-radius:10px;background:var(--dy-paper);color:var(--dy-ink);font-size:16px;padding:11px 12px;margin-top:7px}

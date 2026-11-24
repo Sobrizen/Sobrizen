@@ -73,6 +73,20 @@ export function createSimpleSummary(api) {
     return `<details class="tl-simple-metric ${quantity ? 'tl-simple-consumption' : 'tl-simple-spending'}"><summary class="tl-simple-metric-trigger"><span class="tl-simple-metric-title"><span class="tl-simple-icon">${quantity ? glassIcon : walletIcon}</span><span>${label}</span></span><strong>${value}</strong><span class="tl-simple-unit">${quantity ? `verre${summary.units === 1 ? '' : 's'} sur la période` : 'd’alcool sur la période'}</span><span class="tl-simple-source">${info.partial && info.known ? 'Partiel · ' : ''}${info.sources}</span><span class="tl-simple-coverage">${coverage}</span><span class="tl-simple-open">Comprendre ce chiffre <span aria-hidden="true">↗</span></span></summary><div class="tl-simple-explanation"><p>${explanation}</p></div></details>`;
   }
 
+  function consumptionInsight(summary, range, units, baseline) {
+    const groups = [
+      {key:'actual', label:'saisi', days:units.actualDays},
+      {key:'estimated', label:'estimé', days:units.estimatedDays},
+      {key:'missing', label:'sans quantité', days:range.days - units.knownDays},
+    ];
+    const change = summary.comparisonPercent;
+    const comparison = !Number.isFinite(change) ? '' : change === 0
+      ? 'Ta moyenne est au niveau de ton ancien rythme.'
+      : `En moyenne, ${count(Math.abs(change))} % de verres en ${change < 0 ? 'moins' : 'plus'} que ton ancien rythme.`;
+    const explanation = comparison ? `<p class="tl-rhythm-comparison"><strong>${comparison}</strong> Comparaison estimée sur ${summary.referenceDays} jour${summary.referenceDays > 1 ? 's' : ''} terminé${summary.referenceDays > 1 ? 's' : ''}, avec ton repère de ${count(baseline.units_week)} verres par semaine.</p>` : '';
+    return `<div class="tl-quantity-coverage"><p><strong>Quantités sur ${range.days} jours</strong></p><div class="tl-coverage-strip" aria-hidden="true">${groups.filter(group => group.days).map(group => `<i data-source="${group.key}" style="flex-grow:${group.days}"></i>`).join('')}</div><ul>${groups.map(({key,label,days}) => `<li><i data-source="${key}" aria-hidden="true"></i>${days} jour${days > 1 ? 's' : ''} ${label}${key !== 'missing' && days > 1 ? 's' : ''}</li>`).join('')}</ul>${explanation}</div>`;
+  }
+
   function view({title = 'Ma consommation et mes dépenses'} = {}) {
     const current = data();
     if (!current) return '';
@@ -93,6 +107,7 @@ export function createSimpleSummary(api) {
       </div>
       ${offset < 0 ? `<div class="tl-simple-current">${action('current', 'Revenir à la période actuelle')}</div>` : ''}
       <div class="tl-simple-grid" aria-live="polite">${metricCard(summary, 'units', units)}${metricCard(summary, 'cost', cost)}</div>
+      ${consumptionInsight(summary, range, units, doc.baseline)}
       <div class="tl-simple-savings ${extra ? 'is-extra' : ''}"><div><span>${extra ? 'Dépenses en plus' : 'Économies estimées'}</span><small>par rapport à mes anciennes habitudes</small></div><strong>${savings}</strong></div>
       <details class="tl-simple-details"><summary>Comment lire ces chiffres ?${partial ? '<span>Données partielles</span>' : ''}</summary><p>« Noté » correspond à tes journées saisies. « Estimé » vient des moyennes que tu as renseignées.</p><p>${coverageText}</p>${offset === 0 ? '<p>Aujourd’hui, seules les consommations et dépenses déjà ajoutées sont incluses. La journée reste en cours.</p>' : ''}<p>${comparisonText}</p></details>
     </section>`;

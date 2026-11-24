@@ -39,9 +39,9 @@ test('confirmed nonpremium access has a voluntary free versus Premium comparison
     assert.match(html,/L’essentiel est déjà accessible gratuitement/);
     assert.match(html,/>Gratuit<|>Gratuit<\/span>/);
     assert.match(html,/>Avec Premium</);
-    assert.match(html,/href="\/abonnement">Choisir mon plan/);
+    assert.match(html,/2,99\s*€ \/ mois/);
     assert.match(html,/href="\/abonnement">Comparer les options/);
-    assert.doesNotMatch(html,/dialog|<form|checkout|stripe|€|essai gratuit|sans paiement/i);
+    assert.doesNotMatch(html,/dialog|<form|checkout|stripe|essai gratuit|sans paiement/i);
   }
 });
 
@@ -60,7 +60,7 @@ test('untrusted billing data cannot inject content, links or entitlement claims'
   const billing=Object.freeze({ready:true,premium:false,plan:payload,status:payload,unit_amount:payload,access_until:payload,test:payload,trial:payload});
   assert.equal(renderHomePlan(billing),baseline);
   assert.doesNotMatch(baseline,/<script|onerror|<img/);
-  assert.deepEqual([...baseline.matchAll(/href="([^"]+)"/g)].map(match=>match[1]),['/abonnement','/abonnement']);
+  assert.deepEqual([...baseline.matchAll(/href="([^"]+)"/g)].map(match=>match[1]),['/abonnement']);
   assert.equal(renderHomePlan({ready:true,premium:payload}),baseline,'Only a verified boolean flag suppresses discovery');
   assert.equal(renderHomePlan({ready:payload,premium:false}),renderHomePlan({ready:false,premium:false}));
 });

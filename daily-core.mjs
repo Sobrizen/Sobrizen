@@ -162,7 +162,7 @@ function savingsModel(snapshot,document,today){
  * accepted for integration, but refreshed through the same engine so an old
  * snapshot cannot keep a clock/cap after a newly recorded consumption.
  */
-export function dailyOverview({document=null,today,now,snapshot=null,checks=[],healthRows=[],journal=[],program=[],month}={}){
+export function dailyOverview({document=null,today,now,snapshot=null,checks=[],healthRows=[],journal=[],program=[],month,includeCalendar=true}={}){
   if(!validDate(today))throw Error('La date du jour est invalide.');
   const instant=instantMilliseconds(now);
   const currentMonth=month??today.slice(0,7);
@@ -183,7 +183,7 @@ export function dailyOverview({document=null,today,now,snapshot=null,checks=[],h
   const [year,monthNumber]=currentMonth.split('-').map(Number);
   const monthLength=new Date(Date.UTC(year,monthNumber,0)).getUTCDate();
   const monthStart=currentMonth+'-01',monthEnd=currentMonth+'-'+String(monthLength).padStart(2,'0');
-  const calendarDays=daysFor(monthStart,monthEnd);
+  const calendarDays=includeCalendar?daysFor(monthStart,monthEnd):null;
   const journey=journeyModel(state,document,today,instant);
   const currentDay=weekDays.at(-1);
   const observation=mergeHealthObservations(healthRows,checks,today).find(row=>row.checkin_date===today)||null;
@@ -208,9 +208,9 @@ export function dailyOverview({document=null,today,now,snapshot=null,checks=[],h
   return {
     today,timeZone:document?.timezone||null,hasTimeline:Boolean(document),journey,...capModel(journey),
     week:{start:weekStart,end:today,days:weekDays,...summarizeDays(weekDays)},
-    calendar:{month:currentMonth,start:monthStart,end:monthEnd,days:calendarDays,
+    calendar:includeCalendar?{month:currentMonth,start:monthStart,end:monthEnd,days:calendarDays,
       leadingDays:(parseDay(monthStart).getDay()+6)%7,canPrevious:currentMonth>'1900-01',canNext:currentMonth<today.slice(0,7),
-      ...summarizeDays(calendarDays)},
+      ...summarizeDays(calendarDays)}:null,
     ritual:{
       intention:{kind:'ongoing-goal',mode:journey.mode,modeLabel:journey.modeLabel,
         why:text(document?.goal?.why),plannedAction:text(document?.goal?.planned_action),

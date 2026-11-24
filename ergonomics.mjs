@@ -93,7 +93,7 @@ export function initErgonomics(){
  }
  function enhanceGames(){
   const grid=$('.sz-library-grid',content);if(!grid)return;
-  const items=$$(':scope > button',grid).map(node=>({node,category:gameCategory(node.dataset.game||node.dataset.brainGame||node.dataset.gameUpgrade),text:node.textContent}));
+  const items=$$(':scope > button',grid).map(node=>({node,category:gameCategory(node.dataset.game||node.dataset.brainGame||node.dataset.arcade||node.dataset.gameUpgrade||(node.hasAttribute('data-semantic-game')?'semantizen':'')),text:node.textContent}));
   filters(grid,items,[['all','Tous'],['calm','Calmes'],['reflex','Réflexes']],{limit:50,label:'Jeux'});
   const p=$('.sz-library .greeting .muted',content);if(p)p.textContent='Choisis une pause. Les jeux commencent doucement, à ton rythme.';
  }
